@@ -1,0 +1,25 @@
+# https://taskfile.dev
+
+version: '3'
+
+includes:
+  julia: ./Taskfile.julia.yml
+
+tasks:
+  default:
+    desc: "Show available tasks for building and development"
+    cmds:
+      - |
+        echo "� Prototype Compositional Probabilistic Infectious Disease Modelling"
+        echo ""
+        echo "Building & Development Tasks:"
+        echo "  (Add your build tasks here)"
+        echo ""
+        echo "Julia Environment Setup:"
+        echo "  task julia:help                  - Show Julia setup options"
+        echo "  task julia:setup                 - Complete Julia setup (recommended)"
+        echo "  task julia:check-juliaup         - Check juliaup installation"
+        echo "  task julia:install-julia         - Install Julia 1.11.6"
+        echo ""
+        echo "For all available tasks, run: task --list"
+    silent: true
