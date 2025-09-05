@@ -1,6 +1,14 @@
 # PrototypeCompositionalProbablisticInfectiousDiseaseModelling
 An outline of a prototype approach for compositional infectious disease modelling
 
+## Executing the Analysis
+
+Run
+
+```bash
+quarto render
+```
+
 ## Prerequisites
 
 1. Quarto. Follow the instructions at [quarto.org](https://quarto.org/docs/get-started/) to install Quarto.
