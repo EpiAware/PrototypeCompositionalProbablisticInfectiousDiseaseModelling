@@ -11,7 +11,7 @@ author:
     orcid: "0000-0001-8057-8037"
 date: today
 abstract: |
-  This paper presents a compositional approach to epidemiological modelling that enables "swap-in/swap-out" modelling decisions. We demonstrate the flexibility and power of this paradigm through three case studies that recreate and extend existing infectious disease models, showing how compositional design facilitates model comparison, validation, and methodological innovation in epidemiological research.
+  This paper presents a compositional approach to epidemiological modelling that enables "swap-in/swap-out" modelling decisions. We demonstrate the flexibility and power of this paradigm through three case studies that recreate existing infectious disease models using compositional components, showing how this design facilitates model comparison, validation, and methodological transparency in epidemiological research.
 format:
   pdf:
     documentclass: article
@@ -54,16 +54,23 @@ execute:
         - Complex implementations over many different models creates high barrier to entry.
     - Particularly problematic during outbreak response when inevitably there are new data sources.
 
-## Our compositional approach
+# Compositional Epidemiological Modelling Approach {#sec-approach}
+
+## Core design principles
 
 - Outline/explain our compositional modelling paradigm e.g:
     - Core design principles
     - Complex epi models into a composition of modular reusable model components.
 - Describe the core Latent vs Observation model split.
+  - Describe a selection of submodels under this split.
 - How this has become possible:
     - Advances in probabilistic programming (e.g. Turing)
     - Leveraging multiple dispatch e.g. structs in structs from Julia.
 
+**Figure 1**: Schematic panel example. Based on talk to Turing.
+  - A: Generic pattern. Branching structure of top level struct with args and modifying models demonstrating recursive dispatch.
+  - B: Example: Building ARIMA as stack: `MA` -> `AR` -> `DiffLatentModel`
+  - C: Example: Building Day of the week as stack: `TransformLatent` -> `BroadcastLatentModel` -> `Ascertainment`
 
 ## Contributions of this work
 
@@ -75,9 +82,9 @@ execute:
 - Discuss passing the composed model to Pathfinder + Turing for inference.
 - Quick overview of concrete case studies (unless this gets repetitive)
 
-## Examples
+# Case Studies {#sec-case-studies}
 
-### Example 1: Recreating Mishra et al. with compositional demonstration {#sec-example1}
+## Example 1: Recreating Mishra et al. with compositional demonstration {#sec-example1}
 
 <!-- Reference: https://arxiv.org/abs/2006.16487 -->
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
@@ -86,16 +93,28 @@ execute:
   - Time-varying reproduction numbers according to an AR(2) process.
   - Convolution-based serial interval modelling i.e. Renewal model with Serial interval
   - Negative binomial observation models for case data
-- Describe swap in options:
-  - Swap Rt + renewal approach for direct growth rate modelling e.g. $r(t) \sim$ some latent model.
-  - Swap in observation delays and Generation interval rather than serial intervals
-- Figure 1:
-  - **Panel A**: Original Mishra et al. approach (Rt + renewal with serial interval) - cases and Rt estimates
-  - **Panel B**: Compositional swap 1 - Direct growth rate modeling (r(t) instead of Rt) - same data, different latent process
-  - **Panel C**: Compositional swap 2 - Generation interval + observation delays (instead of serial interval) - showing methodological refinement
-  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
+- Describe compositional model that recreates this model
+- Figure 2: 
+  - **Panel A**: Discretised serial interval pmf
+  - **Panel B**: Posterior predictive: Cases
+  - **Panel C**: Posterior predictive: Rt
 
-# Example 2: Recreating Chatzilena et al. {#sec-example2}
+## Example 2: Recreating EpiNow2 configuration {#sec-example2}
+
+<!-- Reference: https://epiforecasts.io/EpiNow2/ -->
+
+This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow.
+
+- Describe modelling ideas in @epinow2
+  - Renewal based modelling with generation intervals  
+  - Delayed observations of count time series (e.g. cases)
+  - Negative binomial link with modifiers (e.g. day of week effects)
+  - Focus on core functionality already implemented
+- Describe compositional model that recreates this model
+- Figure 3: Based on existing EpiNow2 replication work
+  - **Panel ABC**: Recreate getting started first three panel plot https://epiforecasts.io/EpiNow2/articles/EpiNow2.html
+
+## Example 3: Recreating Chatzilena et al. {#sec-example3}
 
 <!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/chatzilena-2019/ -->
@@ -104,45 +123,31 @@ execute:
   - SIR model for classic influenza data set.
   - Poisson observations with fixed latent observation rate.
   - Conditionally Poisson observations with a latent observation rate (e.g. stochastic SIR model)
-- Describe swap in options:
-  - Swap in SEIR model for SIR model
-  - Swap in Rt latent process for observation latent process
-- Figure 2:
-  - **Panel A**: Original Chatzilena et al. approach - cases and parameter estimates
-  - **Panel B**: Compositional swap 1 - SEIR model - cases and parameter estimates
-  - **Panel C**: Compositional swap 2 - Direct Rt modeling - same data, different Rt process vs fixed estimate
-  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
+- Describe compositional model that recreates this model
+- Figure 4: 
+  - **Panel A**: Posterior predictive: cases using deterministic SIR model
+  - **Panel B**: Posterior predictive: cases using stochastic SIR model
 
+# Discussion {#sec-discussion}
 
-# Example 3: Recreating EpiNow2 configuration {#sec-example3}
+## Demonstrated benefits of compositional modelling
 
-<!-- Reference: https://epiforecasts.io/EpiNow2/ -->
-
-Our final case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow.
-
-- Describe modelling ideas in @epinow2
-  - Renewal based modelling with generation intervals
-  - Delayed observations of count time series (e.g. cases)
-  - Forecasting capabilities including for downstream signals (e.g. deaths from case inference)
-  - Negative binomial link with modifiers (e.g. day of week effects)
-  - Nowcasting capabilities (_might be out of scope for this paper_)
-- Describe swap in options:
-  - Swap in Rt for ARIMA processes
-    - Diff AR(1)
-    - Some other choice?
-- Choose a representative dataset
-- Figure 2:
-  - **Panel A**: EpiNow2 approach with default/close to default options - for representative dataset
-  - **Panel B**: Compositional swap 1 - first ARIMA choice
-  - **Panel C**: Compositional swap 2 - second ARIMA choice
-  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
-
-# Conclusions {#sec-conclusions}
-
-- Talk about how this has demonstated the potential of compositional approaches to epidemiological modelling 
+- Talk about how this has demonstrated the potential of compositional approaches to epidemiological modelling 
   - Facilitated model comparison by isolating individual components.
   - Enabled rapid development with new model components.
   - Improve transparency: The compositional structure makes modelling assumptions explicit
+
+## Implications for epidemiological practice
+
+- How this approach addresses the limitations identified in the introduction
+- Benefits for outbreak response and real-time surveillance
+- Potential for improving reproducibility and transparency in epidemiological modelling
+
+## Limitations and challenges
+
+- Current limitations of the compositional approach
+- Computational considerations
+- Learning curve and adoption challenges
 
 ## Future directions
 
@@ -152,6 +157,8 @@ Several avenues for future development emerge from this work:
 - **Automated model selection**: Tools for systematically exploring component combinations
 - **Performance optimization**: Techniques for efficient inference in complex composed models
 - **Integration with existing tools**: Bridges to popular epidemiological modelling packages
+
+# Conclusions {#sec-conclusions}
 
 ## Software availability
 
