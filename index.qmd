@@ -18,8 +18,8 @@ format:
     geometry: margin=1in
     fontsize: 11pt
     linestretch: 1.5
-    keep-tex: true
-    number-sections: true
+    keep-tex: false
+    number-sections: false
     colorlinks: true
   html:
     toc: true
@@ -30,9 +30,11 @@ csl: https://www.zotero.org/styles/plos-computational-biology
 execute:
   echo: false
   warning: false
-  message: false
   cache: true
+julia: 
+  exeflags: ["--threads=4", "-O3"]
 ---
+
 
 # Introduction {#sec-introduction}
 
