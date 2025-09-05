@@ -1,0 +1,2 @@
+# PrototypeCompositionalProbablisticInfectiousDiseaseModelling
+An outline of a prototype approach for compositional infectious disease modelling
