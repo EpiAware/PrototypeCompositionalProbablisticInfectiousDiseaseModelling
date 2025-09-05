@@ -854,6 +854,7 @@ version = "0.0.195+0"
 [[deps.EpiAware]]
 deps = ["ADTypes", "AbstractMCMC", "AdvancedHMC", "DataFramesMeta", "Distributions", "DocStringExtensions", "DynamicPPL", "FillArrays", "LinearAlgebra", "LogExpFunctions", "MCMCChains", "OrdinaryDiffEq", "Pathfinder", "QuadGK", "Random", "Reexport", "SparseArrays", "Statistics", "Tables", "Turing"]
 git-tree-sha1 = "43a4780ddf1f07bfd352d11a57447ab05b511397"
+path = "EpiAware/EpiAware"
 repo-subdir = "EpiAware"
 repo-url = "https://github.com/seabbs/Rt-without-renewal"
 uuid = "b2eeebe4-5992-4301-9193-7ebc9f62c855"
