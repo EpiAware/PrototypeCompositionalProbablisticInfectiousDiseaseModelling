@@ -1,0 +1,20 @@
+project:
+  type: manuscript
+
+manuscript:
+  article: index.qmd
+  
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    
+  pdf:
+    documentclass: article
+    geometry: margin=1in
+    fontsize: 11pt
+    linestretch: 1.5
+    
+execute:
+  freeze: true
