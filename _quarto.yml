@@ -1,5 +1,7 @@
 project:
-  type: manuscript
+  type: default
+
+engines: ['julia']
 
 manuscript:
   article: index.qmd
