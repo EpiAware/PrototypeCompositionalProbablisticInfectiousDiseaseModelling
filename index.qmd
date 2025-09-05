@@ -93,7 +93,7 @@ execute:
   - **Panel A**: Original Mishra et al. approach (Rt + renewal with serial interval) - cases and Rt estimates
   - **Panel B**: Compositional swap 1 - Direct growth rate modeling (r(t) instead of Rt) - same data, different latent process
   - **Panel C**: Compositional swap 2 - Generation interval + observation delays (instead of serial interval) - showing methodological refinement
-  - **Panel D**: Model comparison and convergence metrics (choose from WAIC/LOO scores, Rhat, posterior P values, Q-Q PIT plots) across the three approaches
+  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
 
 # Example 2: Recreating Chatzilena et al. {#sec-example2}
 
@@ -111,7 +111,7 @@ execute:
   - **Panel A**: Original Chatzilena et al. approach - cases and parameter estimates
   - **Panel B**: Compositional swap 1 - SEIR model - cases and parameter estimates
   - **Panel C**: Compositional swap 2 - Direct Rt modeling - same data, different Rt process vs fixed estimate
-  - **Panel D**: Model comparison and convergence metrics (choose from WAIC/LOO scores, Rhat, posterior P values, Q-Q PIT plots) across the three approaches
+  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
 
 
 # Example 3: Recreating EpiNow2 configuration {#sec-example3}
@@ -135,7 +135,7 @@ Our final case study recreates a representative EpiNow2 configuration, demonstra
   - **Panel A**: EpiNow2 approach with default/close to default options - for representative dataset
   - **Panel B**: Compositional swap 1 - first ARIMA choice
   - **Panel C**: Compositional swap 2 - second ARIMA choice
-  - **Panel D**: Model comparison and convergence metrics (choose from WAIC/LOO scores, Rhat, posterior P values, Q-Q PIT plots) across the three approaches
+  - **Panel D**: Model comparison and convergence metrics across the three approaches: WAIC for each model variation (bar plot) and overlaid QQ PIT plots on case residuals for each model variation.
 
 # Conclusions {#sec-conclusions}
 
