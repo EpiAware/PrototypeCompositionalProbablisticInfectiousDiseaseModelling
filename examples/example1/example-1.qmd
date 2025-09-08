@@ -284,7 +284,8 @@ function figure2(inference_results; epi_prob = epi_prob, data_to_fit = south_kor
 
     ts = D .|> d -> d - minimum(D) .|> d -> d.value + 1
     t_ticks = string.(D)
-    fig = Figure()
+
+    fig = Figure(size = (400, 800))
     ax1 = Axis(fig[1, 1];
         ylabel = "Daily cases",
         xticks = (ts[1:14:end], t_ticks[1:14:end]),
@@ -329,6 +330,20 @@ function figure2(inference_results; epi_prob = epi_prob, data_to_fit = south_kor
         label = "95%"
     )
     axislegend(ax2)
+
+    ax3 = Axis(fig[3, 1];
+        xticks = 0:14,
+        xlabel = "Days",
+        title = "Continuous and discrete generation intervals"
+    )
+    barplot!(ax3, model_data.gen_int;
+        label = "Discretized next gen pmf"
+    )
+    lines!(truth_GI;
+        label = "Continuous serial interval",
+        color = :green
+    )
+    axislegend(ax3)
 
     fig
 end
@@ -386,6 +401,16 @@ save("prior_pred_obs.png", fig_pp_obs)
 fig_pp_obs
 ```
 
+Discretised serial interval plot
+
+```{julia}
+#| output: true
+#| label: fig-disc-si
+#| fig-cap: Serial interval discretized using double censored marginalisation.
+
+plt = plot_discretized_gt()
+save("discretised_gi.png", plt)
+```
 
 ## Run Inference for example 1
 
