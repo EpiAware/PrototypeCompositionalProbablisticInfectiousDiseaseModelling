@@ -96,11 +96,12 @@ julia:
   - Negative binomial observation models for case data
 - Describe compositional model that recreates this model
 - Figure 2: 
-  - **Panel A**: Discretised serial interval pmf
-  - **Panel B**: Posterior predictive: Cases
-  - **Panel C**: Posterior predictive: Rt
+  - **Panel A**: Posterior predictive: Cases
+  - **Panel B**: Posterior predictive: Rt
+  - **Panel C**: Discretised serial interval pmf
 
-![Posterior predictive results for South Korea COVID-19 case data. Top panel shows observed daily cases (black dots) with posterior predictive median (purple line) and credible intervals. Bottom panel shows the estimated time-varying reproduction number Rt with uncertainty quantification.](examples/example1/fig2.png){#fig-example1-results}
+
+![Posterior predictive results for South Korea COVID-19 case data. Top panel shows observed daily cases (black dots) with posterior predictive median (purple line) and credible intervals. Middle panel shows the estimated time-varying reproduction number Rt with uncertainty quantification. Bottom panel shows the discretised serial interval used in the Renewal model for Example 1.](examples/example1/fig2.png){#fig-example1-results}
 
 
 
