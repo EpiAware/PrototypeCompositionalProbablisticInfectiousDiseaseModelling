@@ -1,0 +1,415 @@
+---
+title: "Example 1"
+execute:
+  echo: true
+  warning: false
+  output: false
+  cache: true
+engine: julia
+bibliography: references.bib
+julia: 
+  exeflags: ["+1.11.6", "--threads=8", "-O3"]
+---
+# Example 1: Early COVID-19 case data in South Korea
+
+This example recreates the main results of @mishra2020covid.
+
+**Note**: To override the default thread count (8), use one of these methods:
+
+1. **Environment variable**: `JULIA_NUM_THREADS=16 quarto render example-1.qmd`  
+2. **Direct edit**: Modify the `--threads=8` value in the YAML header
+3. **Create a profile**: Add profile-specific configurations (see Quarto profiles documentation)
+
+## Load dependencies
+
+```{julia}
+using EpiAware
+using Turing, DynamicPPL #Underlying Turing ecosystem packages to interact with models
+using Distributions, Statistics #Statistics packages
+using CSV, DataFramesMeta #Data wrangling
+using CairoMakie, PairPlots, TimeSeries #Plotting backend
+using ReverseDiff #Automatic differentiation backend
+using Dates
+using Random
+Random.seed!(1)
+
+# Display current Julia thread configuration
+println("Julia started with $(Threads.nthreads()) threads")
+```
+
+## Load data
+The data is early SARS-2 case data for South Korea.
+NB: The case data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package.
+
+```{julia}
+data_path = joinpath(@__DIR__, "south_korea_data.csv")
+data = CSV.File(data_path) |> DataFrame
+```
+
+## Define the epidemiological model
+We implement Misha _etal_2020 model using `EpiAware`. The model has three components:
+1. A latent process for the time-varying reproduction number $R_t$.
+2. A renewal model for generating latent infections given $R_t$.
+3. A negative binomial observation model for generating observed cases given latent infections.
+
+### Latent AR(p) process as an `AbstractLatentModel` type
+
+```{julia}
+ar = AR(
+    damp_priors = [truncated(Normal(0.1, 0.05), 0, 1),
+        truncated(Normal(0.8, 0.05), 0, 1)],
+    init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
+)
+
+"""
+    function prior_predictive_ar(ar; n_days = 50, n_samples = 100)
+
+Generate a prior predictive plot for the AR process defined by `ar` over `n_days` days with `n_samples` samples.
+"""
+function prior_predictive_ar(; ar = ar, n_days = 50, n_samples = 100)
+    ar_mdl = generate_latent(ar, n_days)
+    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        ar_mdl() .|> exp #Sample Z_t trajectories for the model
+    end
+
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        yscale = log10,
+        ylabel = "Time varying Rₜ",
+        title = "$(n_samples) draws from the prior Rₜ model"
+    )
+    for col in eachcol(ar_mdl_samples)
+        lines!(ax, col, color = (:grey, 0.1))
+    end
+    return fig
+end
+```
+
+### Discretized serial interval distribution
+The Renewal model requires a discretized distribution $g_t$ for generative modelling.
+
+```{julia}
+truth_GI = Gamma(6.5, 0.62)
+model_data = EpiData(gen_distribution = truth_GI)
+
+function plot_discretized_gt(; model_data = model_data, truth_GI = truth_GI)
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xticks = 0:14,
+        xlabel = "Days",
+        title = "Continuous and discrete generation intervals"
+    )
+    barplot!(ax, model_data.gen_int;
+        label = "Discretized next gen pmf"
+    )
+    lines!(truth_GI;
+        label = "Continuous serial interval",
+        color = :green
+    )
+    axislegend(ax)
+    return fig
+end
+```
+
+### Define Renewal infection model
+Define the prior for the initial number of infections, $I_0$.
+
+```{julia}
+log_I0_prior = Normal(log(1.0), 1.0)
+```
+
+Define the Renewal infection model with the data and prior.
+
+```{julia}
+epi = Renewal(model_data; initialisation_prior = log_I0_prior)
+```
+
+Do some prior predictive checking on the renewal model with a fixed $R_t$ trajectory.
+
+```{julia}
+n_days = 50
+R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:n_days]
+
+function prior_predictive_renewal(;
+        epi = epi, n_days = n_days, n_samples = 100, R_t_fixed = R_t_fixed)
+    latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed)) #Generate latent infections model
+    epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        latent_inf_mdl()
+    end #sample the latent infections model
+    fig = Figure()
+    ax1 = Axis(fig[1, 1];
+        title = "$(n_samples) draws from renewal model with chosen Rt",
+        ylabel = "Latent infections"
+    )
+    ax2 = Axis(fig[2, 1];
+        ylabel = "Rt"
+    )
+    for col in eachcol(epi_mdl_samples)
+        lines!(ax1, col;
+            color = (:grey, 0.1)
+        )
+    end
+    lines!(ax2, R_t_fixed;
+        linewidth = 2
+    )
+    return fig
+end
+```
+
+### Negative Binomial link to count data
+Define the observation model with a prior on the cluster factor.
+
+```{julia}
+obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
+```
+
+Do some prior predictive checking on the observation model with a fixed expected cases trajectory.
+
+```{julia}
+expected_cases = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
+
+function prior_predictive_obs(;
+        obs = obs, n_days = 30, n_samples = 100, expected_cases = expected_cases)
+    obs_mdl = generate_observations(obs, missing, expected_cases)
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+    end
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        title = "$(n_samples) draws from neg. bin. obs model",
+        ylabel = "Observed cases"
+    )
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col;
+            color = (:grey, 0.2)
+        )
+    end
+    lines!(ax, expected_cases;
+        color = :red,
+        linewidth = 3,
+        label = "Expected cases"
+    )
+    axislegend(ax)
+    return fig
+end
+```
+
+## Composing models into an `EpiProblem`
+We can now compose the three components into an `EpiProblem` object. We choose a time span for the inference problem, here we use days 45 to 80 of the data.
+
+```{julia}
+epi_prob = EpiProblem(epi_model = epi,
+    latent_model = ar,
+    observation_model = obs,
+    tspan = (45, 80))
+```
+
+Use a fixed cluster factor to help with identifiability.
+
+```{julia}
+fixed_cluster_factor = 0.25
+```
+
+Determine the number of threads to use for parallel MCMC chains.
+
+```{julia}
+#| output: true
+# Use all available Julia threads for MCMC chains, but cap at 10 for memory considerations
+num_threads = min(10, Threads.nthreads())
+num_threads
+```
+
+Bundle the data to fit into a NamedTuple for passing to the model.
+
+```{julia}
+south_korea_data = (y_t = data.cases_new[epi_prob.tspan[1]:epi_prob.tspan[2]],
+    dates = data.date[epi_prob.tspan[1]:epi_prob.tspan[2]])
+
+function run_example1_inference(;
+        num_threads = num_threads, data_to_fit = south_korea_data, epi_prob = epi_prob,
+        fixed_cluster_factor = fixed_cluster_factor)
+    inference_method = EpiMethod(
+        pre_sampler_steps = [ManyPathfinder(nruns = 4, maxiters = 100)],
+        sampler = NUTSampler(
+            adtype = AutoReverseDiff(compile = true),
+            ndraws = 2000,
+            nchains = num_threads,
+            mcmc_parallel = MCMCThreads(),
+            nadapts = 500)
+    )
+    mdl = generate_epiaware(epi_prob, data_to_fit) |
+          (var"obs.cluster_factor" = fixed_cluster_factor,) # Generate the Turing model and condition on fixed cluster factor
+    inference_results = apply_method(mdl,
+        inference_method,
+        data_to_fit
+    ) # Run inference
+    return inference_results
+end
+```
+
+## Results and predictive checking
+Functions for summarising and plotting results.
+
+```{julia}
+function generated_quantiles(gens, quantity, qs; transformation = x -> x)
+    mapreduce(hcat, gens) do gen #loop over sampled generated quantities
+        getfield(gen, quantity) |> transformation
+    end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
+        map(eachrow(mat)) do row
+            if any(ismissing, row)
+                return missing
+            else
+                quantile(row, q)
+            end
+        end
+    end
+end
+
+function figure2(inference_results; epi_prob = epi_prob, data_to_fit = south_korea_data,
+        fixed_cluster_factor = fixed_cluster_factor, qs = [0.025, 0.25, 0.5, 0.75, 0.975])
+    C = data_to_fit.y_t
+    D = data_to_fit.dates
+
+    #Case unconditional model for posterior predictive sampling
+    mdl_unconditional = generate_epiaware(epi_prob,
+        (y_t = fill(missing, length(C)),)
+    ) | (var"obs.cluster_factor" = fixed_cluster_factor,)
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
+
+    #Prediction quantiles
+    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
+    predicted_R_t = generated_quantiles(
+        posterior_gens, :Z_t, qs; transformation = x -> exp.(x))
+
+    ts = D .|> d -> d - minimum(D) .|> d -> d.value + 1
+    t_ticks = string.(D)
+    fig = Figure()
+    ax1 = Axis(fig[1, 1];
+        ylabel = "Daily cases",
+        xticks = (ts[1:14:end], t_ticks[1:14:end]),
+        title = "Posterior predictive: Cases"
+    )
+    ax2 = Axis(fig[2, 1];
+        yscale = log10,
+        title = "Prediction: Reproduction number",
+        xticks = (ts[1:14:end], t_ticks[1:14:end])
+    )
+    linkxaxes!(ax1, ax2)
+
+    lines!(ax1, ts, predicted_y_t[:, 3];
+        color = :purple,
+        linewidth = 2,
+        label = "Post. median"
+    )
+    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 2], predicted_y_t[:, 4];
+        color = (:purple, 0.4),
+        label = "50%"
+    )
+    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 1], predicted_y_t[:, 5];
+        color = (:purple, 0.2),
+        label = "95%"
+    )
+    scatter!(ax1, C;
+        color = :black,
+        label = "Actual cases")
+    axislegend(ax1)
+
+    lines!(ax2, ts, predicted_R_t[:, 3];
+        color = :green,
+        linewidth = 2,
+        label = "Post. median"
+    )
+    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 2], predicted_R_t[:, 4];
+        color = (:green, 0.4),
+        label = "50%"
+    )
+    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 1], predicted_R_t[:, 5];
+        color = (:green, 0.2),
+        label = "95%"
+    )
+    axislegend(ax2)
+
+    fig
+end
+```
+
+## Parameter inference
+
+```{julia}
+function pairplot_parameters(inference_results; ar = ar, epi = epi)
+    sub_chn = inference_results.samples[inference_results.samples.name_map.parameters[[1:5;
+                                                                                       end]]]
+    fig = pairplot(sub_chn)
+    lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
+    lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
+    lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
+    lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
+    lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
+    lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
+
+    return fig
+end
+```
+
+# Run inference and generate plots
+
+## Prior predictive plots
+
+Prior predictive checks for AR(2) process
+```{julia}
+#| output: true
+#| label: fig-pp-ar
+#| fig-cap: "Prior predictive draws from the AR(2) process for the time-varying reproduction number Rt. Shows 100 sample trajectories drawn from the prior distribution."
+fig_pp_ar = prior_predictive_ar()
+save("prior_pred_ar.png", fig_pp_ar)
+fig_pp_ar
+```
+
+Prior predictive checks for Renewal process with fixed $R_t$
+```{julia}
+#| output: true
+#| label: fig-pp-renewal
+#| fig-cap: "Prior predictive draws from the renewal model showing latent infections (top panel) given a fixed reproduction number trajectory (bottom panel). Shows 100 sample trajectories from the renewal process."
+fig_pp_renewal = prior_predictive_renewal()
+save("prior_pred_renewal.png", fig_pp_renewal)
+fig_pp_renewal
+```
+
+Prior predictive checks for observation process with fixed expected cases
+```{julia}
+#| output: true
+#| label: fig-pp-obs
+#| fig-cap: "Prior predictive draws from the renewal model showing latent infections (top panel) given a fixed reproduction number trajectory (bottom panel). Shows 100 sample trajectories from the renewal process."
+fig_pp_obs = prior_predictive_obs()
+save("prior_pred_obs.png", fig_pp_obs)
+fig_pp_obs
+```
+
+
+## Run Inference for example 1
+
+```{julia}
+inference_results = run_example1_inference()
+```
+
+
+```{julia}
+#| output: true
+#| label: fig-main-results
+#| fig-cap: "Posterior predictive results for South Korea COVID-19 case data. Top panel shows observed daily cases (black dots) with posterior predictive median (purple line) and credible intervals. Bottom panel shows the estimated time-varying reproduction number Rt with uncertainty quantification."
+# ### Main plot
+fig2_example1 = figure2(inference_results)
+save("fig2.png", fig2_example1)
+fig2_example1
+```
+
+```{julia}
+#| output: true
+#| label: fig-parameter-posteriors
+#| fig-cap: "Pairwise posterior distributions of key model parameters including AR process initialization parameters, damping coefficients, noise standard deviation, and initial infection prior. Prior distributions are overlaid in blue for comparison."
+# ### Pair plot of key parameters
+fig_pairplot = pairplot_parameters(inference_results)
+save("pairplot.png", fig_pairplot)
+fig_pairplot
+```
