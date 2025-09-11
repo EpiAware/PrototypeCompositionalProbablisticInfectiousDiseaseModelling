@@ -175,6 +175,7 @@ inference_results = run_example1_inference()
 Below are the plotting functions required to generate the combined figure. These are adapted from the full example for standalone use.
 
 ```{julia}
+#| echo: false
 # Helper to compute quantiles for generated quantities
 function generated_quantiles(gens, quantity, qs; transformation = x -> x)
   mapreduce(hcat, gens) do gen
