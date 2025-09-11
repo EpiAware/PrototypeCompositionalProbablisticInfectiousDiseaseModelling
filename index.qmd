@@ -28,9 +28,10 @@ format:
 bibliography: references.bib
 csl: https://www.zotero.org/styles/plos-computational-biology
 execute:
-  echo: false
+  echo: true
   warning: false
   cache: true
+  output: false
 julia: 
   exeflags: ["+1.11.6", "--threads=8", "-O3"]
 ---
@@ -102,6 +103,7 @@ Below, we show only the essential code for constructing and fitting the model. P
 
 ```{julia}
 using EpiAware, Turing, Distributions, CSV, DataFramesMeta, CairoMakie, Dates, Random, ReverseDiff
+CairoMakie.activate!(type = "png") # Compatible format
 Random.seed!(1)
 data_path = joinpath(@__DIR__, "examples/example1/south_korea_data.csv")
 data = CSV.File(data_path) |> DataFrame
@@ -275,11 +277,13 @@ end
 The code below produces a single figure with three panels: (A) Posterior predictive: Cases, (B) Posterior predictive: $R_t$, (C) Discretised serial interval pmf.
 
 ```{julia}
+#| label: fig-example1
+#| fig-cap: Posterior predictive results for South Korea COVID-19 case data. Top panel shows observed daily cases (black dots) with posterior predictive median (purple line) and 95% credible intervals. Middle panel shows the estimated time-varying reproduction number Rt with 95% credible intervals. Bottom panel shows the discretised serial interval used in the Renewal model for Example 1.
+#| output: true
 fig2_example1 = figure2(inference_results)
 fig2_example1
 ```
 
-![Posterior predictive results for South Korea COVID-19 case data. Top panel shows observed daily cases (black dots) with posterior predictive median (purple line) and credible intervals. Middle panel shows the estimated time-varying reproduction number Rt with uncertainty quantification. Bottom panel shows the discretised serial interval used in the Renewal model for Example 1.](examples/example1/fig2.png){#fig-example1-results}
 
 *Full code and additional diagnostics (e.g. prior predictive checks, parameter posteriors) are available in the supplement and in `examples/example1/example-1.qmd`.*
 
