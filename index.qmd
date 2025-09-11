@@ -101,7 +101,7 @@ Below, we show only the essential code for constructing and fitting the model. P
 ### Load dependencies and data
 
 ```{julia}
-using EpiAware, Turing, Distributions, CSV, DataFramesMeta, CairoMakie, Dates, Random
+using EpiAware, Turing, Distributions, CSV, DataFramesMeta, CairoMakie, Dates, Random, ReverseDiff
 Random.seed!(1)
 data_path = joinpath(@__DIR__, "examples/example1/south_korea_data.csv")
 data = CSV.File(data_path) |> DataFrame
