@@ -21,4 +21,4 @@ format:
     linestretch: 1.5
     
 execute:
-  freeze: true
+  freeze: auto
