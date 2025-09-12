@@ -33,7 +33,7 @@ execute:
   cache: true
   output: false
 julia: 
-  exeflags: ["+1.11.6", "--threads=4", "-O3"]
+  exeflags: ["+1.11.6", "--threads=8", "-O3"]
 ---
 
 # Introduction {#sec-introduction}
@@ -95,21 +95,30 @@ In this example we use `EpiAware` functionality to largely recreate an epidemiol
 
 - The time varying reproductive number modelled as an [AR(2) process](https://en.wikipedia.org/wiki/Autoregressive_model) on the log-scale $\log R_t \sim \text{AR(2)}$.
 - The latent infection ($I_t$) generating process is a renewal model (note that we leave out external infections in this note):
-```math
+$$
 I_t = R_t \sum_{s\geq 1} I_{t-s} g_s.
-```
+$$
 - The discrete generation interval $g_t$ is a daily discretisation of the probability mass function of an estimated serial interval distribution for SARS-CoV-2:
-```math
+$$
 G \sim \text{Gamma}(6.5,0.62).
-```
+$$
 - Observed cases $C_t$ are distributed around latent infections with negative binomial errors:
-```math
+$$
 C_t \sim \text{NegBin}(\text{mean} = I_t,~ \text{overdispersion} = \phi).
-```
+$$
 
 In the examples below we are going to largely recreate the _Mishra et al_ model, whilst emphasing that each component of the overall epidemiological model is, itself, a stand alone model that can be sampled from.
 
 ### Dependencies and setup
+
+```{julia}
+#| echo: false
+using Pkg
+Pkg.instantiate()
+Pkg.precompile()
+
+```
+
 
 ```{julia}
 using EpiAware
@@ -123,7 +132,7 @@ CairoMakie.activate!(type = "png") # Compatible format
 #Date utility and set Random seed
 using Dates
 using Random
-Random.seed!(1)
+Random.seed!(1234)
 ```
 
 ### Load early SARS-2 case data for South Korea
@@ -143,13 +152,12 @@ data = CSV.read(download(url), DataFrame)
 
 In the _Mishra et al_ model the log-time varying reproductive number $Z_t$ is assumed to evolve as an auto-regressive process, AR(2):
 
-```math
 \begin{align}
 R_t &= \exp Z_t, \\
 Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \\
 \epsilon_t &\sim \text{Normal}(0, \sigma^*).
 \end{align}
-```
+
 Where $\rho_1,\rho_2$, which are the parameters of AR process, and $\epsilon_t$ is a white noise process with standard deviation $\sigma^*$.
 
 In `EpiAware` we determine the behaviour of a latent process by choosing a concrete subtype (i.e. a struct) of `AbstractLatentModel` which has fields that set the priors of the various parameters required for the latent process.
@@ -266,13 +274,13 @@ end
 ```
 
 The user also needs to specify a prior for the log incidence at time zero, $\log I_0$. The initial _history_ of latent infections $I_{-1}, I_{-2},\dots$ is constructed as
-```math
+$$
 I_t = e^{rt} I_0,\qquad t = 0, -1, -2,...
-```
+$$
 Where the exponential growth rate $r$ is determined by the initial reproductive number $R_1$ via the solution to the implicit equation,
-```math
+$$
 R_1 = 1 \Big{/} \sum_{t\geq 1} e^{-rt} g_t
-```
+$$
 
 ```{julia}
 
@@ -326,9 +334,9 @@ end
 In _Mishra et al_ latent infections were assumed to occur on their observation day with negative binomial errors, this motivates using the serial interval (the time between onset of symptoms of a primary and secondary case) rather than generation interval distribution (the time between infection time of a primary and secondary case).
 
 Observation models are set in `EpiAware` as concrete subtypes of an `ObservationModel`. The Negative binomial error model without observation delays is set with a `NegativeBinomialError` struct. In _Mishra et al_ the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors,
-```math
+$$
 \text{var} = \text{mean} + {\text{mean}^2 \over \phi}.
-```
+$$
 In `EpiAware`, we default to a prior on $\sqrt{1/\phi}$ because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on _a priori_ beliefs. We call this quantity the cluster factor.
 
 A prior for $\phi$ was not specified in _Mishra et al_, we select one below but we will condition a value in analysis below.
@@ -420,7 +428,8 @@ inference_method = EpiMethod(
         adtype = AutoReverseDiff(compile = true),
         ndraws = 2000,
         nchains = num_threads,
-        mcmc_parallel = MCMCThreads())
+        mcmc_parallel = MCMCThreads(),
+        nadapts= 500)
 )
 ```
 
@@ -631,12 +640,9 @@ Alongside the `EpiAware` package we will use the `OrdinaryDiffEq` and `SciMLSens
 Bayesian inference will be done with `NUTS` from the `Turing` ecosystem. We will also use the `CairoMakie` package for plotting and `DataFramesMeta` for data manipulation.
 
 ```{julia}
-using OrdinaryDiffEq, SciMLSensitivity #ODE solvers and adjoint methods
+using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity #ODE solvers and adjoint methods
 using LogExpFunctions #Additional statistics functions
-CairoMakie.activate!(type = "png") # Compatible format
 
-# Set Random seed for reproducibility
-Random.seed!(1234)
 ```
 
 ### Single population SIR model
@@ -645,13 +651,12 @@ As mentioned in _Chatzilena et al_ disease spread is frequently modelled in term
 The study population is divided into compartments representing a specific stage of the epidemic status.
 In this case, susceptible, infected, and recovered individuals.
 
-```math
-\begin{aligned}
+\begin{align}
 {dS \over dt} &= - \beta \frac{I(t)}{N} S(t) \\
 {dI \over dt} &= \beta \frac{I(t)}{N} S(t) - \gamma I(t) \\
-{dR \over dt} &= \gamma I(t). \\
-\end{aligned}
-```
+{dR \over dt} &= \gamma I(t).
+\end{align}
+
 where S(t) represents the number of susceptible, I(t) the number of
 infected and R(t) the number of recovered individuals at time t.
 The total population size is denoted by N (with N = S(t) + I(t) + R(t)), β denotes the transmission rate and γ denotes the recovery rate.
@@ -717,15 +722,13 @@ We follow _Chatzilena et al_ and treat the number \"in bed\" as a proxy for the 
 
 The full observation model is:
 
-```math
-\begin{aligned}
+\begin{align}
 Y_t &\sim \text{Poisson}(\lambda_t)\\
 \lambda_t &= I(t)\\
 \beta &\sim \text{LogNormal}(\text{logmean}=0,\text{logstd}=1) \\
 \gamma & \sim \text{Gamma}(\text{shape} = 0.004, \text{scale} = 50)\\
 S(0) /N &\sim \text{Beta}(0.5, 0.5).
-\end{aligned}
-```
+\end{align}
 
 **NB: Chatzilena et al give $\lambda_t = \int_0^t  \beta \frac{I(s)}{N} S(s) - \gamma I(s)ds = I(t) - I(0).$
 However, this doesn't match their underlying stan code.**
@@ -820,17 +823,19 @@ end
 **Prior predictive sampling**
 
 ```{julia}
+prior_chn = sample(deterministic_uncond_mdl, Prior(), 2000)
+gens = generated_quantities(deterministic_uncond_mdl, prior_chn)
+```
+```{julia}
 #| output: true
 #| echo: false
 #| label: fig-prior-pred-det
-let
-    prior_chn = sample(deterministic_uncond_mdl, Prior(), 2000)
-    gens = generated_quantities(deterministic_uncond_mdl, prior_chn)
-    plot_predYt(data, gens;
-        title = "Prior predictive: deterministic model",
-        ylabel = "Number of Infected students"
-    )
-end
+    
+plot_predYt(data, gens;
+    title = "Prior predictive: deterministic model",
+    ylabel = "Number of Infected students"
+)
+
 ```
 
 The prior predictive checking suggests that _a priori_ our parameter beliefs are very far from the data.
@@ -880,16 +885,18 @@ pairplot(chn)
 **Posterior predictive plotting**
 
 ```{julia}
+gens = generated_quantities(deterministic_uncond_mdl, chn)
+```
+
+```{julia}
 #| output: true
 #| echo: false
 #| label: fig-posterior-pred-det
-let
-    gens = generated_quantities(deterministic_uncond_mdl, chn)
-    plot_predYt(data, gens;
-        title = "Fitted deterministic model",
-        ylabel = "Number of Infected students"
-    )
-end
+plot_predYt(data, gens;
+    title = "Fitted deterministic model",
+    ylabel = "Number of Infected students"
+)
+
 ```
 
 ### Inference for the Stochastic SIR model
@@ -899,13 +906,13 @@ The argument is that the stochastic component of the model can absorb the noise 
 
 In their approach they consider $\kappa_t = \log \lambda_t$ where $\kappa_t$ evolves according to an Ornstein-Uhlenbeck process:
 
-```math
+$$
 d\kappa_t = \phi(\mu_t - \kappa_t) dt + \sigma dB_t.
-```
+$$
 Which has transition density:
-```math
+$$
 \kappa_{t+1} | \kappa_t \sim N\Big(\mu_t + \left(\kappa_t - \mu_t\right)e^{-\phi}, {\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)\Big).
-```
+$$
 Where $\mu_t = \log(I(t))$.
 
 We modify this approach since it implies that the $\mu_t$ is treated as constant between observation times.
@@ -916,16 +923,15 @@ $\kappa_t = \log(\lambda_t / I(t)).$
 
 With the transition density:
 
-```math
+$$
 \kappa_{t+1} | \kappa_t \sim N\Big(\kappa_te^{-\phi}, {\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)\Big).
-```
+$$
 
 This is an AR(1) process.
 
 The stochastic model is completed:
 
-```math
-\begin{aligned}
+\begin{align}
 Y_t &\sim \text{Poisson}(\lambda_t)\\
 \lambda_t &= I(t)\exp(\kappa_t)\\
 \beta &\sim \text{LogNormal}(\text{logmean}=0,\text{logstd}=1) \\
@@ -933,8 +939,7 @@ Y_t &\sim \text{Poisson}(\lambda_t)\\
 S(0) /N &\sim \text{Beta}(0.5, 0.5)\\
 \phi & \sim \text{HalfNormal}(0, 100) \\
 1 / \sigma^2 & \sim \text{InvGamma}(0.1,0.1).
-\end{aligned}
-```
+\end{align}
 
 We will using the `AR` struct from `EpiAware` to define the auto-regressive process in this model which has a direct parameterisation of the `AR` model.
 
@@ -1062,17 +1067,19 @@ stochastic_uncond_mdl = stochastic_ode_mdl(
 **Prior predictive checking**
 
 ```{julia}
+prior_chn = sample(stochastic_uncond_mdl, Prior(), 2000)
+gens = generated_quantities(stochastic_uncond_mdl, prior_chn)
+```
+```{julia}
 #| output: true
 #| echo: false
 #| label: fig-prior-pred-stoch
-let
-    prior_chn = sample(stochastic_uncond_mdl, Prior(), 2000)
-    gens = generated_quantities(stochastic_uncond_mdl, prior_chn)
-    plot_predYt(data, gens;
-        title = "Prior predictive: stochastic model",
-        ylabel = "Number of Infected students"
-    )
-end
+
+plot_predYt(data, gens;
+    title = "Prior predictive: stochastic model",
+    ylabel = "Number of Infected students"
+)
+
 ```
 
 The prior predictive checking again shows misaligned prior beliefs; for example _a priori_ without data we would not expect the median prediction of number of ill children as about 600 out of $N after 1 day.
@@ -1138,16 +1145,19 @@ end
 ```
 
 ```{julia}
+gens = generated_quantities(stochastic_uncond_mdl, chn2)
+```
+
+```{julia}
 #| output: true
 #| echo: false
 #| label: fig-posterior-pred-stoch
-let
-    gens = generated_quantities(stochastic_uncond_mdl, chn2)
-    plot_predYt(data, gens;
-        title = "Fitted stochastic model",
-        ylabel = "Number of Infected students"
-    )
-end
+
+plot_predYt(data, gens;
+    title = "Fitted stochastic model",
+    ylabel = "Number of Infected students"
+)
+
 ```
 
 # Discussion {#sec-discussion}
