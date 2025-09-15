@@ -27,5 +27,10 @@ docs/site/
 LocalPreferences.toml
 JuliaLocalPreferences.toml
 
+# Some Quarto files
 /.quarto/
+.cache/
+
+# Vs code settings
 .vscode/settings.json
+.cache/index.qmd.3Z6dbYBNa9l.json
