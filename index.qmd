@@ -423,13 +423,14 @@ The composition of doing variational inference as a pre-sampler step which gets 
 num_threads = min(10, Threads.nthreads())
 
 inference_method = EpiMethod(
-    pre_sampler_steps = [ManyPathfinder(nruns = 4, maxiters = 100)],
+    pre_sampler_steps = [ManyPathfinder(nruns = 10, maxiters = 100)],
     sampler = NUTSampler(
+        target_acceptance = 0.9,
         adtype = AutoReverseDiff(compile = true),
         ndraws = 2000,
         nchains = num_threads,
         mcmc_parallel = MCMCThreads(),
-        nadapts= 500)
+        nadapts = 1000)
 )
 ```
 
@@ -495,9 +496,7 @@ Note that, in reality, the peak $R_t$ found here and in _Mishra et al_ is unreal
 In a future note, we'll demonstrate having a time-varying ascertainment rate.
 
 ```{julia}
-#| output: true
 #| echo: false
-#| label: fig-posterior-preds
 function generated_quantiles(gens, quantity, qs; transformation = x -> x)
     mapreduce(hcat, gens) do gen #loop over sampled generated quantities
         getfield(gen, quantity) |> transformation
@@ -512,26 +511,45 @@ function generated_quantiles(gens, quantity, qs; transformation = x -> x)
     end
 end
 
-let
-    C = south_korea_data.y_t
-    D = south_korea_data.dates
+function identify_good_chains(chn; threshold = 3.0)
+    lps = chn[:lp] |> X -> mean(X, dims =1) |> vec
+    idxs = findall(maximum(lps) .- lps .< threshold)
+    return idxs
+end
+
+function plot_post_pred(inference_data, inference_results; epi_prob, 
+    fixed_cluster_factor = nothing,
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975])
+    # Get data
+    y_t = inference_data.y_t
+    dates = inference_data.dates
+    # Convert into numbers for xaxis flexibility
+    ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
+    # Ticks
+    t_ticks = string.(dates) 
 
     #Case unconditional model for posterior predictive sampling
-    mdl_unconditional = generate_epiaware(epi_prob,
-        (y_t = fill(missing, length(C)),)
-    ) | (var"obs.cluster_factor" = fixed_cluster_factor,)
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
+    #Supports conditional cluster factor
+    mdl_unconditional = isnothing(fixed_cluster_factor) ?
+        generate_epiaware(epi_prob,(y_t = fill(missing, length(y_t)),)) :
+        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
+    
+    # Posterior predictive sampling
+    good_chns = identify_good_chains(inference_results.samples)
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
-    #plotting quantiles
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
 
     #Prediction quantiles
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    predicted_R_t = generated_quantiles(
-        posterior_gens, :Z_t, qs; transformation = x -> exp.(x))
+    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
+        transformation = x -> exp.(x))
 
-    ts = D .|> d -> d - minimum(D) .|> d -> d.value + 1
-    t_ticks = string.(D)
+    #There may be missings generated due to delays
+    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
+    predicted_y_t = predicted_y_t[(n+1):end, :] 
+
+    # ts = D[(n+1):end] .|> d -> d - minimum(D) .|> d -> d.value + 1
+    # t_ticks = string.(D[(n+1):end])
     fig = Figure()
     ax1 = Axis(fig[1, 1];
         ylabel = "Daily cases",
@@ -545,20 +563,20 @@ let
     )
     linkxaxes!(ax1, ax2)
 
-    lines!(ax1, ts, predicted_y_t[:, 3];
+    lines!(ax1, ts[(n+1):end], predicted_y_t[:, 3];
         color = :purple,
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 2], predicted_y_t[:, 4];
+    band!(ax1, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
         color = (:purple, 0.4),
         label = "50%"
     )
-    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 1], predicted_y_t[:, 5];
+    band!(ax1, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
         color = (:purple, 0.2),
         label = "95%"
     )
-    scatter!(ax1, C;
+    scatter!(ax1, ts, y_t;
         color = :black,
         label = "Actual cases")
     axislegend(ax1)
@@ -568,18 +586,26 @@ let
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 2], predicted_R_t[:, 4];
+    band!(ax2, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
         color = (:green, 0.4),
         label = "50%"
     )
-    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 1], predicted_R_t[:, 5];
+    band!(ax2, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
         color = (:green, 0.2),
         label = "95%"
     )
     axislegend(ax2)
 
-    fig
+    return fig
 end
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-preds-example1
+plot_post_pred(south_korea_data; epi_prob = epi_prob, fixed_cluster_factor = fixed_cluster_factor)
+
 ```
 
 #### Parameter inference
@@ -609,7 +635,7 @@ end
 
 <!-- Reference: https://epiforecasts.io/EpiNow2/ -->
 
-This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow.
+<!-- This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow.
 
 - Describe modelling ideas in @epinow2
   - Renewal based modelling with generation intervals  
@@ -618,7 +644,118 @@ This case study recreates a representative EpiNow2 configuration, demonstrating 
   - Focus on core functionality already implemented
 - Describe compositional model that recreates this model
 - Figure 3: Based on existing EpiNow2 replication work
-  - **Panel ABC**: Recreate getting started first three panel plot https://epiforecasts.io/EpiNow2/articles/EpiNow2.html
+  - **Panel ABC**: Recreate getting started first three panel plot https://epiforecasts.io/EpiNow2/articles/EpiNow2.html -->
+
+
+### Reporting delays, incubation period and generation time
+
+Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak. When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates. Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making. Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
+
+Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
+
+\begin{aligned}
+D_t &= \sum_s I_{t-s} \xi_s, \\
+\overline{C}(t) &= D_t \omega_{t~\text{mod}~7},
+C_t &\sim \text{NegBin}(\overline{C}(t), \phi).
+\end{aligned}
+
+Where $D_t$ is "naive" direct convolution on the latent infection time series that maps infections from _before_ day $t$ into observations _on_ day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres.
+
+In `EpiAware` we create this observation as a composition of modifiers stacking with the underlying negative binomial link to data $C_t$ we used in [example 1](#example-1-recreating-mishra-et-al.-with-compositional-demonstration).
+
+```{julia}
+delay_distribution = LogNormal(log(5), 0.2)
+dayofweek_logit_ascert = ascertainment_dayofweek(obs;
+    latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))) # Reuse observation model from example 1 with day of week modifer
+delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution) # Modify again by the delay distribution
+```
+
+This automatically also applies the conversion from the continuous `delay_distribution` to a discrete (daily) pmf [as above](#the-renewal-model-as-an-abstractepimodel-type).
+
+Given a sequence of latent infections, we can get very different generated data compared to Figure @fig-discretised-gen-cases . Notably, compared to an oscillating latent infection signal we can generate data that is both delayed, e.g. the peak observations occur after the true latent signal, and can have relatively higher observations on a particular day of the week, e.g. the first day of the week.
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-delay-with-dow-effect
+
+log_scale_dow_effect = [1.0; zeros(6)]
+plt_delayed_obs = let
+    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
+    obs_mdl = generate_observations(delayed_obs, missing, latent_infections) | 
+        (var"DayofWeek.ϵ_t" = log_scale_dow_effect,)
+    n_samples = 100
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+    end
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        title = "$(n_samples) draws from delay model with day-of-week effect",
+        ylabel = "Observed cases"
+    )
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col;
+            color = (:grey, 0.2)
+        )
+    end
+    lines!(ax, latent_infections;
+        color = :red,
+        linewidth = 3,
+        label = "Latent infections"
+    )
+    axislegend(ax)
+    fig
+end
+```
+
+### Inference
+
+We can redo the previous analysis in example 1 using this new observation model
+
+```{julia}
+cutout = length(delayed_obs.rev_pmf)
+
+epi_prob_with_delay = EpiProblem(epi_model = epi,
+    latent_model = ar,
+    observation_model = delayed_obs,
+    tspan = (45-cutout, 80))
+
+longer_south_korea_data = (
+    y_t = data.cases_new[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    dates = data.date[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    )
+```
+
+
+```{julia}
+
+mdl_with_delay = generate_epiaware(epi_prob_with_delay, longer_south_korea_data)
+
+#
+ #    | (var"obs.cluster_factor" = fixed_cluster_factor,)
+```
+
+```{julia}
+
+inference_results_with_delay = apply_method(mdl_with_delay,
+    inference_method,
+    south_korea_data
+)
+
+```
+
+
+
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-preds-example2
+#| 
+plot_post_pred(longer_south_korea_data, inference_results_with_delay; 
+        epi_prob = epi_prob_with_delay
+        )
+```
 
 ## Example 3: Recreating Chatzilena et al. {#sec-example3}
 
