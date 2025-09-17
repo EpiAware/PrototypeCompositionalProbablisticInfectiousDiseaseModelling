@@ -519,7 +519,8 @@ end
 
 function plot_post_pred(inference_data, inference_results; epi_prob, 
     fixed_cluster_factor = nothing,
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975])
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975],
+    threshold = 3.0)
     # Get data
     y_t = inference_data.y_t
     dates = inference_data.dates
@@ -535,7 +536,7 @@ function plot_post_pred(inference_data, inference_results; epi_prob,
         generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
     
     # Posterior predictive sampling
-    good_chns = identify_good_chains(inference_results.samples)
+    good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
 
@@ -615,19 +616,40 @@ We can interrogate the sampled chains directly from the `samples` field of the `
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-pairwise
-let
-    sub_chn = inference_results.samples[inference_results.samples.name_map.parameters[[1:5;
-                                                                                       end]]]
-    fig = pairplot(sub_chn)
-    lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
-    lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
-    lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
-    lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
-    lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
-    lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
+#| label: fig-pairwise-example-1
 
-    fig
+function plot_parameter_corners(inference_results, parameters_to_plot, priors_to_plot; threshold = 3.0)
+    idxs = identify_good_chains(inference_results.samples; threshold)
+    sub_chn = inference_results.samples[:, :, idxs]
+    sub_chn = sub_chn[parameters_to_plot]
+    fig = pairplot(sub_chn)
+    for (i, prior) in enumerate(priors_to_plot)
+        if !isnothing(prior)
+            lines!(fig[i, i], prior, label = "Prior")
+        end
+    end
+
+    return fig
+end
+
+let 
+parameters_to_plot = [ Symbol("latent.ar_init[1]"),
+                        Symbol("latent.ar_init[2]"),
+                        Symbol("latent.damp_AR[1]"),
+                        Symbol("latent.damp_AR[2]"),
+                        Symbol("latent.std"),
+                        :init_incidence]
+
+priors_to_plot = [
+    ar.init_prior.v[1],
+    ar.init_prior.v[2],
+    ar.damp_prior.v[1],
+    ar.damp_prior.v[2],
+    ar.ϵ_t.std_prior,
+    epi.initialisation_prior,
+]
+
+plot_parameter_corners(inference_results, parameters_to_plot, priors_to_plot)
 end
 ```
 
@@ -653,11 +675,13 @@ Delayed reporting of cases is a critical consideration in epidemiological modell
 
 Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
 
+$$
 \begin{aligned}
 D_t &= \sum_s I_{t-s} \xi_s, \\
-\overline{C}(t) &= D_t \omega_{t~\text{mod}~7},
+\overline{C}(t) &= D_t \omega_{t~\text{mod}~7}, \\
 C_t &\sim \text{NegBin}(\overline{C}(t), \phi).
 \end{aligned}
+$$
 
 Where $D_t$ is "naive" direct convolution on the latent infection time series that maps infections from _before_ day $t$ into observations _on_ day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres.
 
@@ -756,6 +780,88 @@ plot_post_pred(longer_south_korea_data, inference_results_with_delay;
         epi_prob = epi_prob_with_delay
         )
 ```
+
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairwise-example-2-latent-parameters
+# let
+#     idxs = identify_good_chains(inference_results_with_delay.samples; threshold = 3.0)
+#     sub_chn = inference_results_with_delay.samples[:, :, idxs]
+#     parameters_to_plot = ["latent.ar_init[1]", 
+#                             "latent.ar_init[2]", 
+#                             "latent.damp_AR[1]",
+#                             "latent.damp_AR[2]",
+#                             "latent.std",
+#                             "init_incidence"]
+#     sub_chn = sub_chn[parameters_to_plot]
+#     fig = pairplot(sub_chn)
+#     lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
+#     lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
+#     lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
+#     lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
+#     lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
+#     lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
+
+#     fig
+# end
+
+parameters_to_plot = ["latent.ar_init[1]", 
+                            "latent.ar_init[2]", 
+                            "latent.damp_AR[1]",
+                            "latent.damp_AR[2]",
+                            "latent.std",
+                            "init_incidence"]
+
+priors_to_plot = [
+    ar.init_prior.v[1],
+    ar.init_prior.v[2],
+    ar.damp_prior.v[1],
+    ar.damp_prior.v[2],
+    ar.ϵ_t.std_prior,
+    epi.initialisation_prior,
+]
+
+fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+
+fig
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairwise-example-2-obs-parameters
+let
+    idxs = identify_good_chains(inference_results_with_delay.samples; threshold = 3.0)
+    sub_chn = inference_results_with_delay.samples[:, :, idxs]
+    parameters_to_plot = ["obs.DayofWeek.std",
+                            "obs.DayofWeek.ϵ_t[7]",
+                            "obs.cluster_factor"]
+    sub_chn = sub_chn[parameters_to_plot]
+    fig = pairplot(sub_chn)
+    lines!(fig[1, 1], delayed_obs.model.latent_model.model.model.model.std_prior, label = "Prior")
+    # lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
+    lines!(fig[3, 3], delayed_obs.model.model.cluster_factor_prior, label = "Prior")
+
+    fig
+end
+
+parameters_to_plot = ["obs.DayofWeek.std",
+                            "obs.DayofWeek.ϵ_t[7]",
+                            "obs.cluster_factor"]
+
+priors_to_plot = [
+    delayed_obs.model.latent_model.model.model.model.std_prior,
+    nothing,
+    delayed_obs.model.model.cluster_factor_prior,
+]
+
+fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+
+fig
+```
+
 
 ## Example 3: Recreating Chatzilena et al. {#sec-example3}
 
