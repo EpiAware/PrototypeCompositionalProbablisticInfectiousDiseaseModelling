@@ -210,7 +210,6 @@ Since, *Mishra et al* give sharply informative priors for $\rho_1,~\rho_2$ (see 
 This results in a $\sigma^* \sim \mathcal{N}^+(0, 0.5)$ prior.
 
 ```{julia}
-
 ar = AR(
     damp_priors = [truncated(Normal(0.1, 0.05), 0, 1),
         truncated(Normal(0.8, 0.05), 0, 1)],
@@ -245,23 +244,21 @@ We can spaghetti plot generative samples from the AR(2) process with the priors 
 #| output: true
 #| label: fig-ar-sample
 #| echo: false
-plt_ar_sample = let
-    n_samples = 100
-    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        ar_mdl() .|> exp #Sample Z_t trajectories for the model
-    end
-
-    fig = Figure()
-    ax = Axis(fig[1, 1];
-        yscale = log10,
-        ylabel = "Time varying Rₜ",
-        title = "$(n_samples) draws from the prior Rₜ model"
-    )
-    for col in eachcol(ar_mdl_samples)
-        lines!(ax, col, color = (:grey, 0.1))
-    end
-    fig
+n_samples = 100
+ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+    ar_mdl() .|> exp #Sample Z_t trajectories for the model
 end
+
+fig = Figure()
+ax = Axis(fig[1, 1];
+    yscale = log10,
+    ylabel = "Time varying Rₜ",
+    title = "$(n_samples) draws from the prior Rₜ model"
+)
+for col in eachcol(ar_mdl_samples)
+    lines!(ax, col, color = (:grey, 0.1))
+end
+fig
 ```
 
 This suggests that *a priori* we believe that there is a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
@@ -280,7 +277,6 @@ The `Renewal <: AbstractEpiModel` type of struct needs two fields:
 In *Mishra et al* they use an estimate of the serial interval of SARS-CoV-2 as an estimate of the generation interval.
 
 ```{julia}
-
 truth_GI = Gamma(6.5, 0.62)
 ```
 
@@ -290,7 +286,6 @@ By default, `EpiAware` performs [double interval censoring](https://www.medrxiv.
 The constructor for converting a continuous estimate of the generation interval distribution into a usable discrete time estimate is `EpiData`.
 
 ```{julia}
-
 model_data = EpiData(gen_distribution = truth_GI)
 ```
 
@@ -300,23 +295,21 @@ We can compare the discretized generation interval with the continuous estimate,
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-pmf
-let
-    fig = Figure()
-    ax = Axis(fig[1, 1];
-        xticks = 0:14,
-        xlabel = "Days",
-        title = "Continuous and discrete generation intervals"
-    )
-    barplot!(ax, model_data.gen_int;
-        label = "Discretized next gen pmf"
-    )
-    lines!(truth_GI;
-        label = "Continuous serial interval",
-        color = :green
-    )
-    axislegend(ax)
-    fig
-end
+fig = Figure()
+ax = Axis(fig[1, 1];
+    xticks = 0:14,
+    xlabel = "Days",
+    title = "Continuous and discrete generation intervals"
+)
+barplot!(ax, model_data.gen_int;
+    label = "Discretized next gen pmf"
+)
+lines!(truth_GI;
+    label = "Continuous serial interval",
+    color = :green
+)
+axislegend(ax)
+fig
 ```
 
 The user also needs to specify a prior for the log incidence at time zero, $\log I_0$.
@@ -327,7 +320,6 @@ R_1 = 1 \Big{/} \sum_{t\geq 1} e^{-rt} g_t
 $$
 
 ```{julia}
-
 log_I0_prior = Normal(log(1.0), 1.0)
 epi = Renewal(model_data; initialisation_prior = log_I0_prior)
 ```
@@ -347,30 +339,28 @@ Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ ov
 R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
 latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed))
 
-plt_epi = let
-    n_samples = 100
-    #Sample unconditionally the underlying parameters of the model
-    epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        latent_inf_mdl()
-    end
-    fig = Figure()
-    ax1 = Axis(fig[1, 1];
-        title = "$(n_samples) draws from renewal model with chosen Rt",
-        ylabel = "Latent infections"
-    )
-    ax2 = Axis(fig[2, 1];
-        ylabel = "Rt"
-    )
-    for col in eachcol(epi_mdl_samples)
-        lines!(ax1, col;
-            color = (:grey, 0.1)
-        )
-    end
-    lines!(ax2, R_t_fixed;
-        linewidth = 2
-    )
-    fig
+n_samples = 100
+#Sample unconditionally the underlying parameters of the model
+epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+    latent_inf_mdl()
 end
+fig = Figure()
+ax1 = Axis(fig[1, 1];
+    title = "$(n_samples) draws from renewal model with chosen Rt",
+    ylabel = "Latent infections"
+)
+ax2 = Axis(fig[2, 1];
+    ylabel = "Rt"
+)
+for col in eachcol(epi_mdl_samples)
+    lines!(ax1, col;
+        color = (:grey, 0.1)
+    )
+end
+lines!(ax2, R_t_fixed;
+    linewidth = 2
+)
+fig
 ```
 
 ### Negative Binomial Observations as an `ObservationModel` type
@@ -387,7 +377,6 @@ We call this quantity the cluster factor.
 A prior for $\phi$ was not specified in *Mishra et al*, we select one below but we will condition a value in analysis below.
 
 ```{julia}
-
 obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
 ```
 
@@ -407,29 +396,27 @@ First, we set an artificial expected cases curve.
 expected_cases = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
 obs_mdl = generate_observations(obs, missing, expected_cases)
 
-plt_obs = let
-    n_samples = 100
-    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
-    end
-    fig = Figure()
-    ax = Axis(fig[1, 1];
-        title = "$(n_samples) draws from neg. bin. obs model",
-        ylabel = "Observed cases"
-    )
-    for col in eachcol(obs_mdl_samples)
-        scatter!(ax, col;
-            color = (:grey, 0.2)
-        )
-    end
-    lines!(ax, expected_cases;
-        color = :red,
-        linewidth = 3,
-        label = "Expected cases"
-    )
-    axislegend(ax)
-    fig
+n_samples = 100
+obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+    θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
 end
+fig = Figure()
+ax = Axis(fig[1, 1];
+    title = "$(n_samples) draws from neg. bin. obs model",
+    ylabel = "Observed cases"
+)
+for col in eachcol(obs_mdl_samples)
+    scatter!(ax, col;
+        color = (:grey, 0.2)
+    )
+end
+lines!(ax, expected_cases;
+    color = :red,
+    linewidth = 3,
+    label = "Expected cases"
+)
+axislegend(ax)
+fig
 ```
 
 ### Composing models into an `EpiProblem`
@@ -446,7 +433,6 @@ The constructor for an `EpiProblem` requires: - An `epi_model`.
 The `tspan` set the range of the time index for the models.
 
 ```{julia}
-
 epi_prob = EpiProblem(epi_model = epi,
     latent_model = ar,
     observation_model = obs,
@@ -466,7 +452,6 @@ The composition of doing variational inference as a pre-sampler step which gets 
 `EpiMethod` also allows the specification of NUTS parameters, such as type of automatic differentiation, type of parallelism and number of parallel chains to sample.
 
 ```{julia}
-
 num_threads = min(10, Threads.nthreads())
 
 inference_method = EpiMethod(
@@ -485,7 +470,6 @@ inference_method = EpiMethod(
 We supply the data as a `NamedTuple` with the `y_t` field containing the observed data, shortened to fit the chosen `tspan` of `epi_prob`.
 
 ```{julia}
-
 south_korea_data = (y_t = data.cases_new[epi_prob.tspan[1]:epi_prob.tspan[2]],
     dates = data.date[epi_prob.tspan[1]:epi_prob.tspan[2]])
 ```
@@ -499,7 +483,6 @@ In models with latent delays, changes in $R_t$ impact the observed cases over se
 To counter act this problem we condition the model on a fixed cluster factor value.
 
 ```{julia}
-
 fixed_cluster_factor = 0.25
 ```
 
@@ -508,7 +491,6 @@ This `Turing` model composes the three unit `Turing` models defined above: the R
 Therefore, [we can condition on variables as with any other `Turing` model](https://turinglang.org/DynamicPPL.jl/stable/api/#Condition-and-decondition).
 
 ```{julia}
-
 mdl = generate_epiaware(epi_prob, south_korea_data) |
       (var"obs.cluster_factor" = fixed_cluster_factor,)
 ```
@@ -524,7 +506,6 @@ And returns a collection of results: - The epidemiological model as a `Turing` `
 - Generated quantities of the model.
 
 ```{julia}
-
 inference_results = apply_method(mdl,
     inference_method,
     south_korea_data
@@ -641,19 +622,16 @@ We can interrogate the sampled chains directly from the `samples` field of the `
 #| output: true
 #| echo: false
 #| label: fig-pairwise
-let
-    sub_chn = inference_results.samples[inference_results.samples.name_map.parameters[[1:5;
-                                                                                       end]]]
-    fig = pairplot(sub_chn)
-    lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
-    lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
-    lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
-    lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
-    lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
-    lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
-
-    fig
-end
+sub_chn = inference_results.samples[inference_results.samples.name_map.parameters[[1:5;
+                                                                                   end]]]
+fig = pairplot(sub_chn)
+lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
+lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
+lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
+lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
+lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
+lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
+fig
 ```
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
@@ -1017,20 +995,18 @@ We can sample directly from the behaviour specified by the `ar` struct to do pri
 #| output: true
 #| echo: false
 #| label: fig-ar-prior-pred
-let
-    nobs = size(data, 1)
-    ar_mdl = generate_latent(ar, nobs)
-    fig = Figure()
-    ax = Axis(fig[1, 1],
-        xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
-        ylabel = "exp(kt)",
-        title = "Prior predictive sampling for relative residual in mean pred."
-    )
-    for i in 1:500
-        lines!(ax, ar_mdl() .|> exp, color = (:grey, 0.15))
-    end
-    fig
+nobs = size(data, 1)
+ar_mdl = generate_latent(ar, nobs)
+fig = Figure()
+ax = Axis(fig[1, 1],
+    xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
+    ylabel = "exp(kt)",
+    title = "Prior predictive sampling for relative residual in mean pred."
+)
+for i in 1:500
+    lines!(ax, ar_mdl() .|> exp, color = (:grey, 0.15))
 end
+fig
 ```
 
 We see that the choice of priors implies an *a priori* belief that the extra observation noise on the mean prediction of the ODE model is fairly small, approximately 10% relative to the mean prediction.
@@ -1183,12 +1159,10 @@ pairplot(chn2[[:β, :γ, :S₀, Symbol(mdl_prefix * ".std"),
 #| output: true
 #| echo: false
 #| label: fig-pairplot-stoch-eps
-let
-    vars = mapreduce(vcat, 1:13) do i
-        Symbol(mdl_prefix * ".ϵ_t[$i]")
-    end
-    pairplot(chn2[vars])
+vars = mapreduce(vcat, 1:13) do i
+    Symbol(mdl_prefix * ".ϵ_t[$i]")
 end
+pairplot(chn2[vars])
 ```
 
 ```{julia}
