@@ -86,7 +86,7 @@ Branching structure of top level struct with args and modifying models demonstra
 
 # Case Studies {#sec-case-studies}
 
-## Example 1: Recreating Mishra et al. with compositional demonstration {#sec-example1}
+## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
 <!-- Reference: https://arxiv.org/abs/2006.16487 -->
 
@@ -612,7 +612,7 @@ let
 end
 ```
 
-## Example 2: Recreating EpiNow2 configuration {#sec-example2}
+## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
 <!-- Reference: https://epiforecasts.io/EpiNow2/ -->
 
@@ -627,7 +627,7 @@ This case study recreates a representative EpiNow2 configuration, demonstrating 
 -   Figure 3: Based on existing EpiNow2 replication work
     -   **Panel ABC**: Recreate getting started first three panel plot https://epiforecasts.io/EpiNow2/articles/EpiNow2.html
 
-## Example 3: Recreating Chatzilena et al. {#sec-example3}
+## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
 <!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
 
