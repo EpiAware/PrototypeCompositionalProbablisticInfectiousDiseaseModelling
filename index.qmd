@@ -38,48 +38,46 @@ julia:
 
 # Introduction {#sec-introduction}
 
-<!-- Problem statement paragraph - inspired by grant applications -->
--   Recent outbreaks (Ebola, COVID-19, mpox) demonstrate need for rapid model development
--   Models must synthesise complex data for evidence-based decisions
--   Domain experts cannot contribute without understanding entire frameworks
--   Individual-level data (viral loads, biomarkers) ignored when informing population models
--   Barriers prevent integration of clinical, laboratory, and epidemiological expertise
--   Creates inefficient rebuilding rather than component reuse
+Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making [@whitty2015what].
+Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
+Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture these multifaceted transmission processes, yet current modelling frameworks create barriers to this essential integration.
+Individual-level data such as viral loads, biomarkers, genomic sequences, and clinical observations are routinely ignored or aggregated when informing population-level models, losing information that could improve decisions.
+These barriers have prevented advances in settings where models could have provided actionable insights such as early outbreak analysis, wastewater surveillance, phylodynamics, clinical biomarkers, pooled testing, and large-scale clinical datasets.
+The next infectious disease threat is unpredictable and may be exacerbated by climate change [@Tsui2024-gy], requiring adaptable response capabilities that can rapidly incorporate diverse data sources and domain expertise.
 
-<!-- Current approaches in epidemiology paragraph -->
--   Pipeline approaches: separate models lose uncertainty propagation
--   Joint models: monolithic, scenario-specific, hard to extend
--   Each outbreak requires rebuilding rather than reusing components
--   Model inflexibility identified by WHO, UKHSA, CDC as key barrier
--   Transfer of methodology between outbreaks proven difficult
--   Force choice between statistical rigour and flexibility
+Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach, e.g., [@huisman2022]), or representing a single model tuned to the specific scenario (the joint model approach, e.g., [@birrell2024;@Watson2024-vj]).
+Both approaches have significant downsides.
+Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour [@lison2024].
+Joint approaches use single monolithic models that, whilst powerful in their ability to systematically integrate multiple processes and data streams, are too complex to enable transfer to other settings or extension with additional model components.
+To adapt or extend such models, analysts need to fully comprehend all parts of the corresponding model and code, creating barriers to sharing methodology and leading to inefficient re-implementation when parts of a model could, in principle, be re-used.
+Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
+This prevents effective integration of expertise across disciplines.
+Transfer of methodology between outbreak events has proven difficult, with each posing unanticipated challenges that existing tools cannot accommodate.
 
-<!-- Solutions from other fields paragraph -->
--   Category theory: operadic composition for hierarchical model construction
--   SpeedyWeather.jl: "LEGO-like" atmospheric modelling with interactive DSL
--   ModelingToolkit.jl: abstract backends beyond ODEs (DAEs, PDEs, SDEs)
--   Turing.jl advances: submodel interfaces, composable probabilistic programming
--   Key insight: separation of syntax (composition) from semantics (computation)
+Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches that could address these limitations.
+Advances in Turing.jl have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua;@fjelde2025turin].
+Category theory provides the underlying mathematical frameworks for this composability through operadic composition in hierarchical model construction [@libkind2022algebraic].
+The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with HydroModels.jl and ModelingToolkit.jl demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
+SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
+The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
 
-<!-- This prototype work paragraph -->
--   Present prototype framework combining pipeline modularity with joint model rigour
--   Enable "swap-in/swap-out" model decisions through standardised interfaces
--   Support composability beyond ODEs: mixed equation types, abstract backends
--   Create DSL operating as package extension with dual interfaces:
-    -   High-level DSL for epidemiologists (EpiProblem interface)
-    -   Low-level Turing interface for methodologists
--   Demonstrate through three epidemiological case studies using EpiAware package
--   Show how domain experts can contribute components without full system knowledge
--   Bridge individual-level clinical data with population-level transmission models
+This paper presents a prototype framework that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
+Our approach enables "LEGO-like" model decisions through standardised interfaces.
+The framework supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
+We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
+This provides dual interfaces: a high-level epidemiological interface for domain experts and a low-level Turing interface.
+Through three epidemiological case studies using the EpiAware package, we demonstrate how domain experts can contribute model components without requiring comprehensive understanding of the entire system.
+We discuss alternative design approaches, evaluate the strengths and limitations of our compositional framework, and identify key areas for future development.
 
 # Prototype Implementation {#sec-approach}
 
-## Requirements for Compositional Systems {#sec-requirements}
+## Requirements for Composable Infectious Disease Modelling {#sec-requirements}
 
 - Abstract types for generic model objects representing different epidemiological processes
 - Clear interfaces between components maintaining statistical rigour
 - Data-agnostic model definitions for enhanced generalisability
 - Proper uncertainty propagation through standardised interfaces
+- Ability to capture probabilities and uncertainty requires interfacing with probabilistic programming languages
 - Stratification handling for arbitrary groupings (age, location, risk groups)
 - Easy-to-use interfaces for mappings between process and observation models
 - Support beyond ODEs: mixed equation types, abstract computational backends
