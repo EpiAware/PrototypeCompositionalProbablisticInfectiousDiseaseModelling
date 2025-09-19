@@ -38,34 +38,39 @@ julia:
 
 # Introduction {#sec-introduction}
 
-<!-- Problem statement paragraph -->
-Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making.
-Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
-However, it can be difficult for infectious disease modellers to work effectively with experts from other fields.
-Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
-Individual-level data sources such as viral loads, biomarkers, and clinical measurements are often ignored or crudely aggregated when informing population-level models, losing information that could help improve decisions.
-This creates barriers to sharing methods and leads to inefficient rebuilding of models when components from existing models could be reused.
+<!-- Problem statement paragraph - inspired by grant applications -->
+-   Recent outbreaks (Ebola, COVID-19, mpox) demonstrate need for rapid model development
+-   Models must synthesise complex data for evidence-based decisions
+-   Domain experts cannot contribute without understanding entire frameworks
+-   Individual-level data (viral loads, biomarkers) ignored when informing population models
+-   Barriers prevent integration of clinical, laboratory, and epidemiological expertise
+-   Creates inefficient rebuilding rather than component reuse
 
 <!-- Current approaches in epidemiology paragraph -->
-Existing approaches for real-time modelling of infectious disease dynamics usually fall into one of two categories, each with significant drawbacks.
-Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour.
-Joint approaches use single monolithic models designed for specific scenarios.
-Whilst powerful in their ability to systematically integrate multiple processes and data streams, such models and their implementations are too complex to enable transfer to other settings or extension with additional model components or data sets, preventing effective integration of expertise across disciplines.
-Model inflexibility has been identified by major public health agencies including WHO, UKHSA, and CDC as a key barrier to effective outbreak response.
+-   Pipeline approaches: separate models lose uncertainty propagation
+-   Joint models: monolithic, scenario-specific, hard to extend
+-   Each outbreak requires rebuilding rather than reusing components
+-   Model inflexibility identified by WHO, UKHSA, CDC as key barrier
+-   Transfer of methodology between outbreaks proven difficult
+-   Force choice between statistical rigour and flexibility
 
 <!-- Solutions from other fields paragraph -->
-Recent advances in other scientific computing domains demonstrate the potential of compositional approaches to overcome these limitations.
-Category theory provides mathematical foundations through operadic composition that enables hierarchical model construction where complex models are built by composing simpler submodels using mathematically rigorous operations.
-SpeedyWeather.jl exemplifies this "LEGO-like" approach in atmospheric modelling, providing an interactive domain-specific language that emphasises rapid prototyping and modular component assembly.
-ModelingToolkit.jl extends composability beyond ordinary differential equations to support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through abstract computational backends.
-Recent developments in probabilistic programming, particularly in Turing.jl, enable composable approaches through submodel interfaces that properly propagate uncertainty whilst maintaining modular design.
+-   Category theory: operadic composition for hierarchical model construction
+-   SpeedyWeather.jl: "LEGO-like" atmospheric modelling with interactive DSL
+-   ModelingToolkit.jl: abstract backends beyond ODEs (DAEs, PDEs, SDEs)
+-   Turing.jl advances: submodel interfaces, composable probabilistic programming
+-   Key insight: separation of syntax (composition) from semantics (computation)
 
 <!-- This prototype work paragraph -->
-This work presents a prototype compositional probabilistic infectious disease modelling framework that combines the modularity of pipeline approaches with the statistical rigour of joint models.
-Our prototype enables "swap-in/swap-out" modelling decisions through standardised interfaces that properly propagate uncertainty whilst supporting composability beyond ordinary differential equations through mixed component models and abstract backends.
-We create a domain-specific language operating as a package extension that provides dual interfaces: a high-level interface for epidemiologists through the EpiProblem constructor, and a low-level Turing interface for methodologists requiring fine-grained control.
-The framework enables domain experts to develop models tailored to their specific expertise and combine them with components developed by specialists in other fields, bridging individual-level clinical data with population-level transmission models.
-We demonstrate the prototype's capabilities through three epidemiological case studies using our EpiAware package, showing how this design facilitates model comparison, validation, and methodological transparency in epidemiological research.
+-   Present prototype framework combining pipeline modularity with joint model rigour
+-   Enable "swap-in/swap-out" model decisions through standardised interfaces
+-   Support composability beyond ODEs: mixed equation types, abstract backends
+-   Create DSL operating as package extension with dual interfaces:
+    -   High-level DSL for epidemiologists (EpiProblem interface)
+    -   Low-level Turing interface for methodologists
+-   Demonstrate through three epidemiological case studies using EpiAware package
+-   Show how domain experts can contribute components without full system knowledge
+-   Bridge individual-level clinical data with population-level transmission models
 
 # Prototype Implementation {#sec-approach}
 
