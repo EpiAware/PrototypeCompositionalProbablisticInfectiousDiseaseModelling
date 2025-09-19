@@ -33,7 +33,7 @@ execute:
   cache: true
   output: false
 julia: 
-  exeflags: ["+1.11.6", "--threads=8", "-O3"]
+  exeflags: ["+1.11.6", "--threads=4", "-O3"]
 ---
 
 # Introduction {#sec-introduction}
@@ -384,7 +384,7 @@ ar_sample_plot
 
 This suggests that *a priori* we believe that there is a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
 
-### The Renewal model as an `AbstractEpiModel` type
+### The Renewal model as an `AbstractEpiModel` type {#the-renewal-model-as-an-abstractepimodel-type}
 
 The abstract type for models that generate infections exposed by `EpiAware` is called `AbstractEpiModel`.
 As with latent models different concrete subtypes of `AbstractEpiModel` define different classes of infection generating process.
@@ -555,7 +555,8 @@ neg_bin_obs_plot
 
 In `EpiAware` we provide an `EpiProblem` constructor for this common epidemiological model pattern.
 
-The constructor for an `EpiProblem` requires: - An `epi_model`.
+The constructor for an `EpiProblem` requires: 
+- An `epi_model`.
 - A `latent_model`.
 - An `observation_model`.
 - A `tspan`.
@@ -585,13 +586,14 @@ The composition of doing variational inference as a pre-sampler step which gets 
 num_threads = min(10, Threads.nthreads())
 
 inference_method = EpiMethod(
-    pre_sampler_steps = [ManyPathfinder(nruns = 4, maxiters = 100)],
+    pre_sampler_steps = [ManyPathfinder(nruns = 10, maxiters = 100)],
     sampler = NUTSampler(
+        target_acceptance = 0.9,
         adtype = AutoReverseDiff(compile = true),
         ndraws = 2000,
         nchains = num_threads,
         mcmc_parallel = MCMCThreads(),
-        nadapts= 500)
+        nadapts = 1000)
 )
 ```
 
@@ -657,9 +659,7 @@ Note that, in reality, the peak $R_t$ found here and in *Mishra et al* is unreal
 In a future note, we'll demonstrate having a time-varying ascertainment rate.
 
 ```{julia}
-#| output: true
 #| echo: false
-#| label: fig-posterior-preds
 function generated_quantiles(gens, quantity, qs; transformation = x -> x)
     mapreduce(hcat, gens) do gen #loop over sampled generated quantities
         getfield(gen, quantity) |> transformation
@@ -674,26 +674,46 @@ function generated_quantiles(gens, quantity, qs; transformation = x -> x)
     end
 end
 
-let
-    C = south_korea_data.y_t
-    D = south_korea_data.dates
+function identify_good_chains(chn; threshold = 3.0)
+    lps = chn[:lp] |> X -> mean(X, dims =1) |> vec
+    idxs = findall(maximum(lps) .- lps .< threshold)
+    return idxs
+end
+
+function plot_post_pred(inference_data, inference_results; epi_prob, 
+    fixed_cluster_factor = nothing,
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975],
+    threshold = 3.0)
+    # Get data
+    y_t = inference_data.y_t
+    dates = inference_data.dates
+    # Convert into numbers for xaxis flexibility
+    ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
+    # Ticks
+    t_ticks = string.(dates) 
 
     #Case unconditional model for posterior predictive sampling
-    mdl_unconditional = generate_epiaware(epi_prob,
-        (y_t = fill(missing, length(C)),)
-    ) | (var"obs.cluster_factor" = fixed_cluster_factor,)
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
+    #Supports conditional cluster factor
+    mdl_unconditional = isnothing(fixed_cluster_factor) ?
+        generate_epiaware(epi_prob,(y_t = fill(missing, length(y_t)),)) :
+        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
+    
+    # Posterior predictive sampling
+    good_chns = identify_good_chains(inference_results.samples; threshold)
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
-    #plotting quantiles
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
 
     #Prediction quantiles
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    predicted_R_t = generated_quantiles(
-        posterior_gens, :Z_t, qs; transformation = x -> exp.(x))
+    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
+        transformation = x -> exp.(x))
 
-    ts = D .|> d -> d - minimum(D) .|> d -> d.value + 1
-    t_ticks = string.(D)
+    #There may be missings generated due to delays
+    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
+    predicted_y_t = predicted_y_t[(n+1):end, :] 
+
+    # ts = D[(n+1):end] .|> d -> d - minimum(D) .|> d -> d.value + 1
+    # t_ticks = string.(D[(n+1):end])
     fig = Figure()
     ax1 = Axis(fig[1, 1];
         ylabel = "Daily cases",
@@ -707,20 +727,20 @@ let
     )
     linkxaxes!(ax1, ax2)
 
-    lines!(ax1, ts, predicted_y_t[:, 3];
+    lines!(ax1, ts[(n+1):end], predicted_y_t[:, 3];
         color = :purple,
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 2], predicted_y_t[:, 4];
+    band!(ax1, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
         color = (:purple, 0.4),
         label = "50%"
     )
-    band!(ax1, 1:size(predicted_y_t, 1), predicted_y_t[:, 1], predicted_y_t[:, 5];
+    band!(ax1, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
         color = (:purple, 0.2),
         label = "95%"
     )
-    scatter!(ax1, C;
+    scatter!(ax1, ts, y_t;
         color = :black,
         label = "Actual cases")
     axislegend(ax1)
@@ -730,18 +750,26 @@ let
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 2], predicted_R_t[:, 4];
+    band!(ax2, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
         color = (:green, 0.4),
         label = "50%"
     )
-    band!(ax2, 1:size(predicted_R_t, 1), predicted_R_t[:, 1], predicted_R_t[:, 5];
+    band!(ax2, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
         color = (:green, 0.2),
         label = "95%"
     )
     axislegend(ax2)
 
-    fig
+    return fig
 end
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-preds-example1
+plot_post_pred(south_korea_data, inference_results; epi_prob = epi_prob, fixed_cluster_factor = fixed_cluster_factor)
+
 ```
 
 #### Parameter inference
@@ -766,18 +794,255 @@ fig
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
-<!-- Reference: https://epiforecasts.io/EpiNow2/ -->
+This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow used in real-time epidemiological surveillance.
 
-This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow.
+EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time. It represents a further development in Renewal-based transmission modelling compared to *Mishra et al* @mishra introduced in example 1. EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations:
 
--   Describe modelling ideas in @epinow2
-    -   Renewal based modelling with generation intervals\
-    -   Delayed observations of count time series (e.g. cases)
-    -   Negative binomial link with modifiers (e.g. day of week effects)
-    -   Focus on core functionality already implemented
--   Describe compositional model that recreates this model
--   Figure 3: Based on existing EpiNow2 replication work
-    -   **Panel ABC**: Recreate getting started first three panel plot https://epiforecasts.io/EpiNow2/articles/EpiNow2.html
+1.  **Renewal-based transmission modeling with generation intervals**: EpiNow2 uses the discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain). This follows *Mishra et al* as demonstrated in example 1.
+
+2.  **Delayed observation processes**: The framework explicitly accounts for the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags.
+
+3.  **Temporal modifiers to observation**: Case counts are modeled using a (default) negative binomial distribution to capture overdispersion, with additional modifiers such as day-of-week effects to account for systematic biases in reporting patterns.
+
+In this example, we use out compositional approach in `EpiAware` to demonstrate layering modelling components 2 and 3 onto the Renewal-based transmission model we already defined in example 1. We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**. This showcases the flexibility and modularity of our framework - rather than implementing everything from scratch, we build upon previously defined components in a principled way. We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
+
+### Reporting delays, incubation period and generation time
+
+Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak. When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates. Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making. Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
+
+Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
+
+$$
+\begin{aligned}
+D_t &= \sum_{s\geq1} I_{t-s} \xi_s,~~ \text{Delayed latent infections}\\
+\tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
+\omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
+C_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
+\end{aligned}
+$$ {#eq-epinow2-model}
+
+Where $D_t$ is a "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres. Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ . The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays). The final equation defines a negative binomial link to data, which we can reuse from example 1.
+
+In `EpiAware`, we recreate this complex observation process through **composition** of modular components. We **reuse the underlying negative binomial link observation model (`obs`) from Example 1**, demonstrating the modularity of our approach. We then layer additional modeling components on top.
+
+Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `obs` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
+
+```{julia}
+dayofweek_logit_ascert = ascertainment_dayofweek(obs;  # Reuse obs from Example 1
+    latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
+    ) 
+```
+
+Unpacking this helper function we have a nested stack of modelling constructions. First on the transformation and broadcasting,
+
+```{julia}
+#| eval: false
+function broadcast_dayofweek(latent_model::AbstractTuringLatentModel; link = x -> 7 * softmax(x))
+    transformed_model = TransformLatentModel(latent_model, link)
+    return BroadcastLatentModel(transformed_model, 7, RepeatEach())
+end
+```
+Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
+
+And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
+
+```{julia}
+#| eval: false
+function ascertainment_dayofweek(model::AbstractTuringObservationModel;
+        latent_model::AbstractTuringLatentModel = HierarchicalNormal(),
+        transform = (x, y) -> x .* y, latent_prefix = "DayofWeek")
+    return Ascertainment(model, broadcast_dayofweek(latent_model), transform, latent_prefix)
+end
+```
+
+For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
+
+```{julia}
+delay_distribution = LogNormal(log(5), 0.2)
+```
+
+The `LatentDelay` struct uses double interval censoring to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
+
+```{julia}
+delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution) 
+```
+
+This code demonstrates three key aspects of our compositional approach:
+
+1.  **Component reuse**: The base observation model `obs` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
+
+2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers. At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
+
+3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation. The delay is specified with a continuous delay distribution which is converted by double-censoring on a daily scale into the discrete pmf $\xi_t$. For this example, we choose a median of 5 days between latent infection and observation.
+
+### Demonstrating the delay and day-of-week effects
+
+The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process. The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
+
+To illustrate how these effects work together, let's examine how they transform a simple oscillating latent infection signal:
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-delay-with-dow-effect
+
+log_scale_dow_effect = [1.0; zeros(6)]
+plt_delayed_obs = let
+    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
+    obs_mdl = generate_observations(delayed_obs, missing, latent_infections) | 
+        (var"DayofWeek.ϵ_t" = log_scale_dow_effect,)
+    n_samples = 100
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+    end
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        title = "$(n_samples) draws from delay model with day-of-week effect",
+        ylabel = "Observed cases"
+    )
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col;
+            color = (:grey, 0.2)
+        )
+    end
+    lines!(ax, latent_infections;
+        color = :red,
+        linewidth = 3,
+        label = "Latent infections"
+    )
+    axislegend(ax)
+    fig
+end
+```
+
+Compared to an oscillating latent infection signal, we can see that the generated data exhibits two key features: the observations are **delayed** (the peak observations occur after the true latent signal peaks) and can have **systematically higher observations on specific days of the week** (here, the first day of the week shows enhanced reporting).
+
+### Building the complete EpiNow2-style model
+
+Now we compose this new observation model with the epidemiological and latent components from Example 1. This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
+
+In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a _differenced_ stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments. In analogy, we compose the latent AR(2) process used in example 1 with the modifer `DiffLatentModel`. This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
+
+```{julia}
+diff_ar = DiffLatentModel(ar, Normal(); d = 1) # Normal prior for initial value of process
+```
+
+As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
+
+```{julia}
+cutout = length(delayed_obs.rev_pmf)
+
+epi_prob_with_delay = EpiProblem(epi_model = epi,          # Reused from Example 1
+    latent_model = diff_ar,                                # modified from Example 1  
+    observation_model = delayed_obs,                       # New compositional model
+    tspan = (45-cutout, 80))                               # Longer time span because of delay
+```
+
+This `EpiProblem` reuses all three core components from Example 1:
+- **`epi`**: The renewal-based epidemiological model with generation time distribution
+- **`ar`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar`
+- **`obs`**: The negative binomial link model to data from expected observations.
+
+While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
+
+### Preparing data and model for inference  
+
+We need to account for the extended time window required to handle reporting delays:
+
+```{julia}
+longer_south_korea_data = (
+    y_t = data.cases_new[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    dates = data.date[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    )
+```
+
+As mentioned in [example 1](#inference-and-analysis), adding delay effects helps disentangle reporting variance from changes in the reproductive number. This makes the cluster factor parameter $\phi$ of the negative binomial distribution identifiable. Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
+
+```{julia}
+mdl_with_delay = generate_epiaware(epi_prob_with_delay, longer_south_korea_data)
+```
+
+We can reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions:
+
+```{julia}
+inference_results_with_delay = apply_method(mdl_with_delay,
+    inference_method,
+    longer_south_korea_data
+)
+```
+
+### Analysis of results
+
+The EpiNow2-style model with delays and day-of-week effects provides several advantages over the simpler model in Example 1. Most importantly, the explicit modeling of reporting delays helps disentangle true changes in transmission dynamics from observation artifacts, leading to more reliable $R_t$ estimates.
+
+#### Posterior predictive checking
+
+Let's examine how well our model captures the observed data patterns:
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-preds-example2
+plot_post_pred(longer_south_korea_data, inference_results_with_delay; 
+        epi_prob = epi_prob_with_delay
+        )
+```
+
+The posterior predictive plots show that the model successfully captures both the overall epidemic trajectory and the day-to-day variation in case counts. The inclusion of delay and day-of-week effects allows the model to account for reporting irregularities that would otherwise be attributed to changes in transmission.
+
+#### Latent process parameters
+
+The AR(2) latent process parameters remain well-identified even with the more complex observation model:
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairwise-example-2-latent-parameters
+
+parameters_to_plot = ["latent.ar_init[1]", 
+                            "latent.ar_init[2]", 
+                            "latent.damp_AR[1]",
+                            "latent.damp_AR[2]",
+                            "latent.std",
+                            "init_incidence"]
+
+priors_to_plot = [
+    ar.init_prior.v[1],
+    ar.init_prior.v[2],
+    ar.damp_prior.v[1],
+    ar.damp_prior.v[2],
+    ar.ϵ_t.std_prior,
+    epi.initialisation_prior,
+]
+
+fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+
+fig
+```
+
+#### Observation model parameters
+
+The newly introduced observation model components are also well-identified:
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairwise-example-2-obs-parameters
+
+parameters_to_plot = ["obs.DayofWeek.std",
+                            "obs.DayofWeek.ϵ_t[7]",
+                            "obs.cluster_factor"]
+
+priors_to_plot = [
+    delayed_obs.model.latent_model.model.model.model.std_prior,
+    nothing,
+    delayed_obs.model.model.cluster_factor_prior,
+]
+
+fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+
+fig
+```
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
@@ -845,18 +1110,13 @@ function sir!(du, u, p, t)
 end
 ```
 
-We combine vector field function `sir!` with a initial condition `u0` and the integration period `tspan` to make an `ODEProblem`.
-We do not define the parameters, these will be defined within an inference approach.
+We combine vector field function `sir!` with a initial condition `u0` and the integration period `tspan` to make an `ODEProblem`. We do not define the parameters, these will be defined within an inference approach.
 
-Note that this is analogous to the `EpiProblem` approach we expose from `EpiAware`, as used in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/).
-The difference is that here we are going to use ODE solvers from the `SciML` ecosystem to generate the dynamics of the underlying infections.
-In the linked example, we use latent process generation exposed by `EpiAware` as the underlying generative process for underlying dynamics.
+Note that this is analogous to the `EpiProblem` approach we expose from `EpiAware`, as used in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/). The difference is that here we are going to use ODE solvers from the `SciML` ecosystem to generate the dynamics of the underlying infections. In the linked example, we use latent process generation exposed by `EpiAware` as the underlying generative process for underlying dynamics.
 
 ### Data for inference
 
-There was a brief, but intense, outbreak of Influenza within the (semi-) closed community of a boarding school reported to the British medical journal in 1978.
-The outbreak lasted from 22nd January to 4th February and it is reported that one infected child started the epidemic and then it spread rapidly.
-Of the 763 children at the boarding scholl, 512 became ill.
+There was a brief, but intense, outbreak of Influenza within the (semi-) closed community of a boarding school reported to the British medical journal in 1978. The outbreak lasted from 22nd January to 4th February and it is reported that one infected child started the epidemic and then it spread rapidly. Of the 763 children at the boarding scholl, 512 became ill.
 
 We downloaded the data of this outbreak using the R package `outbreaks` which is maintained as part of the [R Epidemics Consortium(RECON)](http://www.%20repidemicsconsortium.org).
 
@@ -935,8 +1195,7 @@ We instantiate the model in two ways:
 1.  `deterministic_mdl`: This conditions the generative model on the data observation. We can sample from this model to find the posterior distribution of the parameters.
 2.  `deterministic_uncond_mdl`: This *doesn't* condition on the data. This is useful for prior and posterior predictive modelling.
 
-Here we construct the `Turing` model directly, in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/) we using the `EpiProblem` functionality to build a `Turing` model under the hood.
-Because in this note we are using a mix of functionality from `SciML` and `EpiAware`, we construct the model to sample from directly.
+Here we construct the `Turing` model directly, in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/) we using the `EpiProblem` functionality to build a `Turing` model under the hood. Because in this note we are using a mix of functionality from `SciML` and `EpiAware`, we construct the model to sample from directly.
 
 ```{julia}
 deterministic_mdl = deterministic_ode_mdl(data.in_bed, data.ts, obs, sir_prob, N)
@@ -1097,8 +1356,7 @@ S(0) /N &\sim \text{Beta}(0.5, 0.5)\\
 
 We will using the `AR` struct from `EpiAware` to define the auto-regressive process in this model which has a direct parameterisation of the `AR` model.
 
-To convert from the formulation above we sample from the priors, and define `HalfNormal` priors based on the sampled prior means of $e^{-\phi}$ and ${\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)$.
-We also add a strong prior that $\kappa_1 \approx 0$.
+To convert from the formulation above we sample from the priors, and define `HalfNormal` priors based on the sampled prior means of $e^{-\phi}$ and ${\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)$. We also add a strong prior that $\kappa_1 \approx 0$.
 
 ```{julia}
 ϕs = rand(truncated(Normal(0, 100), lower = 0.0), 1000)
@@ -1144,9 +1402,7 @@ ar_prior_pred_plot
 
 We see that the choice of priors implies an *a priori* belief that the extra observation noise on the mean prediction of the ODE model is fairly small, approximately 10% relative to the mean prediction.
 
-We can now define the probabilistic model.
-The stochastic model assumes a (random) time-varying ascertainment, which we implement using the `Ascertainment` struct from `EpiAware`.
-Note that instead of implementing an ascertainment factor `exp.(κₜ)` directly, which can be unstable for large primal values, by default `Ascertainment` uses the `LogExpFunctions.xexpy` function which implements $x\exp(y)$ stabily for a wide range of values.
+We can now define the probabilistic model. The stochastic model assumes a (random) time-varying ascertainment, which we implement using the `Ascertainment` struct from `EpiAware`. Note that instead of implementing an ascertainment factor `exp.(κₜ)` directly, which can be unstable for large primal values, by default `Ascertainment` uses the `LogExpFunctions.xexpy` function which implements $x\exp(y)$ stabily for a wide range of values.
 
 To distinguish random variables sampled by various sub-processes `EpiAware` process types create prefixes.
 The default for `Ascertainment` is just the string `\"Ascertainment\"`, but in this case we use the less verbose `\"va\"` for "varying ascertainment".
@@ -1155,12 +1411,7 @@ The default for `Ascertainment` is just the string `\"Ascertainment\"`, but in t
 mdl_prefix = "va"
 ```
 
-Now we can construct our time varying ascertianment model.
-The main keyword arguments here are `model` and `latent_model`.
-`model` sets the connection between the expected observation and the actual observation.
-In this case, we reuse our `PoissonError` model from above.
-`latent_model` sets the modification model on the expected values.
-In this case, we use the `AR` process we defined above.
+Now we can construct our time varying ascertianment model. The main keyword arguments here are `model` and `latent_model`. `model` sets the connection between the expected observation and the actual observation. In this case, we reuse our `PoissonError` model from above. `latent_model` sets the modification model on the expected values. In this case, we use the `AR` process we defined above.
 
 ```{julia}
 varying_ascertainment = Ascertainment(
@@ -1240,8 +1491,7 @@ plot_predYt(data, gens;
 
 The prior predictive checking again shows misaligned prior beliefs; for example *a priori* without data we would not expect the median prediction of number of ill children as about 600 out of \$N after 1 day.
 
-The latent process for the log-residuals $\kappa_t$ doesn't make much sense without priors, so we look for a reasonable MAP point to start NUTS from.
-We do this by first making an initial guess which is a mixture of:
+The latent process for the log-residuals $\kappa_t$ doesn't make much sense without priors, so we look for a reasonable MAP point to start NUTS from. We do this by first making an initial guess which is a mixture of:
 
 1.  The posterior averages from the deterministic model.
 2.  The prior averages of the structure parameters of the AR(1) process.
