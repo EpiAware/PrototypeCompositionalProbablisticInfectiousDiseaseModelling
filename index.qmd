@@ -78,6 +78,7 @@ Branching structure of top level struct with args and modifying models demonstra
 
 -   Theoretical framework: Introduce the idea of combining epi models as input-output layers/submodels which are standalone models themselves (or descibed in a different way).
 -   Practical implementation: Talk about `EpiAware` struct in struct with method dispatch.
+-   Prototype library: We implement this approach in the open-source Julia package [`EpiAware`](https://github.com/seabbs/Rt-without-renewal), included as a submodule of this work.
 -   Discuss layer/submodel modifiers in two contexts:
     1.  Extra details e.g. population structure
     2.  Modelling refinements e.g. Day of week effects within a observation model
@@ -85,6 +86,8 @@ Branching structure of top level struct with args and modifying models demonstra
 -   Quick overview of concrete case studies (unless this gets repetitive)
 
 # Case Studies {#sec-case-studies}
+
+All code and data for reproducing the analyses in this paper are available at: https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling.
 
 ## Standard Case Study Format
 
@@ -1178,11 +1181,6 @@ plot_predYt(data, gens;
     ylabel = "Number of Infected students"
 )
 ```
-
-# Software Availability {#sec-software}
-
-All code and data for reproducing the analyses in this paper are available at: https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling.
-The compositional modelling framework is implemented as an open-source Julia package [`EpiAware`](https://github.com/seabbs/Rt-without-renewal).
 
 # Discussion {#sec-discussion}
 
