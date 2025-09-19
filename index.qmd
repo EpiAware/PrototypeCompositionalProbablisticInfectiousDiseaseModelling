@@ -86,6 +86,50 @@ Branching structure of top level struct with args and modifying models demonstra
 
 # Case Studies {#sec-case-studies}
 
+## Standard Case Study Format
+
+Each case study follows this standardised structure to ensure consistency and clarity:
+
+### **Overview**
+A concise paragraph explaining:
+- The original paper and its contribution
+- Why we selected this study for replication
+- Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors)
+
+### **Data**
+Brief description of the dataset with a single code block loading the data.
+
+### **Model**
+Compositional model specification with subsections:
+
+#### **Infection Generating Process**
+- Mathematical formulation
+- Code implementation using `AbstractEpiModel` types
+- Prior predictive checking
+
+#### **Observation Model**
+- Mathematical formulation
+- Code implementation using `ObservationModel` types
+- Prior predictive checking
+
+### **Fitting to Data**
+- Model composition into `EpiProblem`
+- Inference configuration
+- Posterior sampling
+- Posterior predictive checking
+
+### **Summary Figure**
+Panel figure combining all visualisations:
+- Prior predictive plots for each model component
+- Posterior predictive plots showing model fit
+- Parameter inference summaries
+
+### **Code Organisation Principles**
+- Dependencies imported when first needed, not in large blocks
+- Each code statement in separate block with explanatory text before and after
+- Minimal, clear code focused on demonstrating compositional concepts
+- Mathematical formulation precedes code implementation for each component
+
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
 <!-- Reference: https://arxiv.org/abs/2006.16487 -->
