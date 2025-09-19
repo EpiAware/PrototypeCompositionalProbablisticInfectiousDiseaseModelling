@@ -62,12 +62,13 @@ SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmosph
 The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
 
 This paper presents a prototype framework that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
-Our approach enables "LEGO-like" model decisions through standardised interfaces.
+Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
 The framework supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
 We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
 This provides dual interfaces: a high-level epidemiological interface for domain experts and a low-level Turing interface.
-Through three epidemiological case studies using the EpiAware package, we demonstrate how domain experts can contribute model components without requiring comprehensive understanding of the entire system.
-We discuss alternative design approaches, evaluate the strengths and limitations of our compositional framework, and identify key areas for future development.
+We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
+Through three case studies using the prototype, we show how components can be reused across different models: the first replicates @mishra2020covid; the second reuses components from the first, along with new elements, to replicate @epinow2; the third implements @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
+Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional framework, and identify key areas for future development.
 
 # Prototype Implementation {#sec-approach}
 
@@ -208,35 +209,34 @@ All code and data for reproducing the analyses in this paper are available at: h
 
 Each case study follows this standardised structure to ensure consistency and clarity:
 
-### **Overview**
 A concise paragraph explaining:
 - The original paper and its contribution
 - Why we selected this study for replication
 - Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors)
 
-### **Data**
+### Data
 Brief description of the dataset with a single code block loading the data.
 
-### **Model**
-Compositional model specification with subsections:
+### Model
 
-#### **Infection Generating Process**
+Compositional model specification with subsections. Give a very high levle overview of the model in text.
+
+#### Infection Generating Process
 - Mathematical formulation
 - Code implementation using `AbstractEpiModel` types
 - Prior predictive checking
 
-#### **Observation Model**
+#### Observation Model
 - Mathematical formulation
 - Code implementation using `ObservationModel` types
 - Prior predictive checking
 
-### **Fitting to Data**
+### Fitting to Data
 - Model composition into `EpiProblem`
 - Inference configuration
 - Posterior sampling
 - Posterior predictive checking
 
-### **Summary Figure**
 Panel figure combining all visualisations:
 - Prior predictive plots for each model component
 - Posterior predictive plots showing model fit
@@ -1314,10 +1314,10 @@ plot_predYt(data, gens;
 
 # Discussion {#sec-discussion}
 
-<!-- Summary paragraph -->
-- Compositional approach to epidemiological modelling enables "swap-in/swap-out" model construction
-- Three case studies demonstrate model comparison, validation, and methodological transparency
-- Maintains rigour of established approaches while adding flexibility
+This paper has demonstrated that compositional approaches can address key barriers in epidemiological modelling.
+We presented a prototype framework that enables "LEGO-like" model construction through standardised interfaces, maintaining the statistical rigour of joint models whilst providing the flexibility of pipeline approaches.
+The autoregressive model example illustrated how complex models emerge from simple component combinations using the struct-in-struct pattern.
+Our three case studies replicated previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrating model composability for a range of problems and using different underlying methods.
 
 <!-- Strengths and weaknesses interwoven -->
 - Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
@@ -1336,15 +1336,19 @@ plot_predYt(data, gens;
 - Relationship to probabilistic programming languages and compositional features
 
 <!-- Future work -->
-- Expanded component library for specialised epidemiological scenarios
-- Automated model selection tools
-- Performance optimisation for complex composed models
-- Integration bridges to existing epidemiological packages
+Areas for future work include expanding the component library to address epidemiological applications across multiple scales and data types.
+Priority areas include retrospective analysis of historical outbreaks to develop robust templates for real-time response.
+Integration of diverse domain expertise through models linking within-host dynamics, environmental surveillance, economic trade-offs, and behavioural feedback mechanisms is essential because disease transmission often emerges from complex interactions between biological, environmental, and social processes that single-domain models struggle to capture.
+Methodological advances are also needed including for the joint estimation of interdependent epidemiological parameters, seamless integration of individual and population-level observations, and systematic evaluation of complementary surveillance approaches.
+Alternative design patterns should also be investigated, particularly more formal category theory approaches that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in AlgebraicPetri.jl and AlgebraicDynamics.jl [@libkind2022algebraic].
+Symbolic-numeric frameworks like ModelingToolkit.jl [@modelingtoolkit2021] offer potential performance improvements through automatic optimisation and code generation.
+However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both essential for infectious disease modelling applications.
+Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
 
 <!-- Conclusions -->
-- Addresses key limitations while maintaining scientific rigour
-- Potential to accelerate methodological development
-- Improves accessibility of advanced epidemiological methods
+The composable framework presented here provides a foundation for transforming real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
+This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing key limitations of both pipeline and joint modelling approaches.
+Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
 
 ## Acknowledgements
 
@@ -1352,13 +1356,3 @@ plot_predYt(data, gens;
 
 ::: {#refs}
 :::
-
-# Appendix: Technical details {.unnumbered}
-
-## Component interface specifications
-
-<!-- TODO: Detailed API documentation -->
-
-## Performance benchmarks
-
-<!-- TODO: Computational performance comparisons -->
