@@ -38,77 +38,77 @@ julia:
 
 # Introduction {#sec-introduction}
 
-<!-- Problem statement paragraph -->
-Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making.
-Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
-However, it can be difficult for infectious disease modellers to work effectively with experts from other fields.
-Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
-Individual-level data sources such as viral loads, biomarkers, and clinical measurements are often ignored or crudely aggregated when informing population-level models, losing information that could help improve decisions.
-This creates barriers to sharing methods and leads to inefficient rebuilding of models when components from existing models could be reused.
+<!-- Problem statement -->
+- Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making.
+- Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
+- However, it can be difficult for infectious disease modellers to work effectively with experts from other fields.
+- Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
+- Individual-level data sources such as viral loads, biomarkers, and clinical measurements are often ignored or crudely aggregated when informing population-level models, losing information that could help improve decisions.
+- This creates barriers to sharing methods and leads to inefficient rebuilding of models when components from existing models could be reused.
 
-<!-- Current approaches in epidemiology paragraph -->
-Existing approaches for real-time modelling of infectious disease dynamics usually fall into one of two categories, each with significant drawbacks.
-Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour.
-Joint approaches use single monolithic models designed for specific scenarios.
-Whilst powerful in their ability to systematically integrate multiple processes and data streams, such models and their implementations are too complex to enable transfer to other settings or extension with additional model components or data sets, preventing effective integration of expertise across disciplines.
-Model inflexibility has been identified by major public health agencies including WHO, UKHSA, and CDC as a key barrier to effective outbreak response.
+<!-- Current approaches in epidemiology -->
+- Existing approaches for real-time modelling of infectious disease dynamics usually fall into one of two categories, each with significant drawbacks.
+- Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour.
+- Joint approaches use single monolithic models designed for specific scenarios.
+- Whilst powerful in their ability to systematically integrate multiple processes and data streams, such models and their implementations are too complex to enable transfer to other settings or extension with additional model components or data sets, preventing effective integration of expertise across disciplines.
+- Model inflexibility has been identified by major public health agencies including WHO, UKHSA, and CDC as a key barrier to effective outbreak response.
 
-<!-- Solutions from other fields paragraph -->
-Recent advances in other scientific computing domains demonstrate the potential of compositional approaches to overcome these limitations.
-Category theory provides mathematical foundations through operadic composition that enables hierarchical model construction where complex models are built by composing simpler submodels using mathematically rigorous operations.
-SpeedyWeather.jl exemplifies this "LEGO-like" approach in atmospheric modelling, providing an interactive domain-specific language that emphasises rapid prototyping and modular component assembly.
-ModelingToolkit.jl extends composability beyond ordinary differential equations to support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through abstract computational backends.
-Recent developments in probabilistic programming, particularly in Turing.jl, enable composable approaches through submodel interfaces that properly propagate uncertainty whilst maintaining modular design.
+<!-- Solutions from other fields -->
+- Recent advances in other scientific computing domains demonstrate the potential of compositional approaches to overcome these limitations.
+- Category theory provides mathematical foundations through operadic composition that enables hierarchical model construction where complex models are built by composing simpler submodels using mathematically rigorous operations.
+- SpeedyWeather.jl exemplifies this "LEGO-like" approach in atmospheric modelling, providing an interactive domain-specific language that emphasises rapid prototyping and modular component assembly.
+- ModelingToolkit.jl extends composability beyond ordinary differential equations to support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through abstract computational backends.
+- Recent developments in probabilistic programming, particularly in Turing.jl, enable composable approaches through submodel interfaces that properly propagate uncertainty whilst maintaining modular design.
 
-<!-- This work paragraph -->
-This work presents a prototype compositional probabilistic infectious disease modelling framework that combines the modularity of pipeline approaches with the statistical rigour of joint models.
-Our prototype enables "swap-in/swap-out" modelling decisions through standardised interfaces that properly propagate uncertainty whilst supporting composability beyond ordinary differential equations through mixed component models and abstract backends.
-We create a domain-specific language operating as a package extension that provides dual interfaces: a high-level interface for epidemiologists through the EpiProblem constructor, and a low-level Turing interface for methodologists requiring fine-grained control.
-The framework enables domain experts to develop models tailored to their specific expertise and combine them with components developed by specialists in other fields, bridging individual-level clinical data with population-level transmission models.
-We demonstrate the prototype's capabilities through three epidemiological case studies using our EpiAware package, showing how this design facilitates model comparison, validation, and methodological transparency in epidemiological research.
+<!-- This prototype work -->
+- This work presents a prototype compositional probabilistic infectious disease modelling framework that combines the modularity of pipeline approaches with the statistical rigour of joint models.
+- Our prototype enables "swap-in/swap-out" modelling decisions through standardised interfaces that properly propagate uncertainty whilst supporting composability beyond ordinary differential equations through mixed component models and abstract backends.
+- We create a domain-specific language operating as a package extension that provides dual interfaces: a high-level interface for epidemiologists through the EpiProblem constructor, and a low-level Turing interface for methodologists requiring fine-grained control.
+- The framework enables domain experts to develop models tailored to their specific expertise and combine them with components developed by specialists in other fields, bridging individual-level clinical data with population-level transmission models.
+- We demonstrate the prototype's capabilities through three epidemiological case studies using our EpiAware package, showing how this design facilitates model comparison, validation, and methodological transparency in epidemiological research.
 
 # Prototype Implementation {#sec-approach}
 
 ## Requirements for Compositional Systems {#sec-requirements}
 
-Our compositional approach must satisfy several key requirements to enable effective epidemiological modelling across diverse scenarios and expertise domains.
-The framework requires abstract types for generic model objects that can represent different classes of epidemiological processes whilst maintaining clear interfaces between components.
-Model definitions must be data-agnostic to enhance generalisability whilst ensuring proper uncertainty propagation through standardised interfaces that maintain statistical rigour when components are combined.
-The system must support stratification handling for arbitrary groupings such as age groups, locations, or risk groups with easy-to-use interfaces for common mappings between process and observation models.
-Crucially, the framework must extend beyond ordinary differential equations to support mixed equation types, abstract computational backends, and integration with diverse modelling approaches including agent-based models and symbolic-numeric computation.
-Interface enforcement through Julia's type system and tools like Interfaces.jl ensures consistent APIs across components whilst maintaining the type stability necessary for computational performance.
+- Our compositional approach must satisfy several key requirements to enable effective epidemiological modelling across diverse scenarios and expertise domains.
+- The framework requires abstract types for generic model objects that can represent different classes of epidemiological processes whilst maintaining clear interfaces between components.
+- Model definitions must be data-agnostic to enhance generalisability whilst ensuring proper uncertainty propagation through standardised interfaces that maintain statistical rigour when components are combined.
+- The system must support stratification handling for arbitrary groupings such as age groups, locations, or risk groups with easy-to-use interfaces for common mappings between process and observation models.
+- Crucially, the framework must extend beyond ordinary differential equations to support mixed equation types, abstract computational backends, and integration with diverse modelling approaches including agent-based models and symbolic-numeric computation.
+- Interface enforcement through Julia's type system and tools like Interfaces.jl ensures consistent APIs across components whilst maintaining the type stability necessary for computational performance.
 
 ## Design Philosophy {#sec-design}
 
-Our prototype treats epidemiological models as collections of interchangeable components that maintain full uncertainty propagation when combined through standardised interfaces.
-The framework leverages Julia's advanced type system and multiple dispatch to create a domain-specific language for epidemiological modelling where complex models emerge from composing simpler, reusable components.
-Dispatch occurs at the Turing probabilistic programming language level, but the architecture is designed to support arbitrary computational backends including ODE solvers, agent-based models, and symbolic-numeric systems.
-We chose Turing.jl as our initial backend because it provides a flexible probabilistic programming framework with robust submodel support, extensive inference algorithms applicable to epidemiological models, and the ability to handle complex hierarchical model structures with minimal boilerplate code.
-This design eliminates the "two-language problem" by allowing high-level model specifications that compile to efficient code whilst Julia's metaprogramming capabilities enable domain-specific abstractions that hide implementation complexity from users.
+- Our prototype treats epidemiological models as collections of interchangeable components that maintain full uncertainty propagation when combined through standardised interfaces.
+- The framework leverages Julia's advanced type system and multiple dispatch to create a domain-specific language for epidemiological modelling where complex models emerge from composing simpler, reusable components.
+- Dispatch occurs at the Turing probabilistic programming language level, but the architecture is designed to support arbitrary computational backends including ODE solvers, agent-based models, and symbolic-numeric systems.
+- We chose Turing.jl as our initial backend because it provides a flexible probabilistic programming framework with robust submodel support, extensive inference algorithms applicable to epidemiological models, and the ability to handle complex hierarchical model structures with minimal boilerplate code.
+- This design eliminates the "two-language problem" by allowing high-level model specifications that compile to efficient code whilst Julia's metaprogramming capabilities enable domain-specific abstractions that hide implementation complexity from users.
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
 <!-- Reference to Panel A of Figure 1 -->
-The core of our prototype is a domain-specific language built on Julia's type system using abstract types to define a hierarchy of epidemiological model components.
-We employ a struct-in-struct composition pattern that enables recursive model building where complex models are constructed by nesting simpler component models within container structures.
-The abstract type hierarchy includes `AbstractEpiModel` for infection generating processes, `AbstractLatentModel` for time-varying parameter evolution, and `ObservationModel` for linking latent processes to observed data.
-Multiple dispatch enables flexible component combination at the Turing level whilst maintaining the potential to abstract this dispatch to target different computational backends such as ODE solvers or agent-based modelling frameworks.
-Our domain-specific language operates as a package extension pattern where the high-level epidemiological interface is built as a layer over a standard Julia package, ensuring that all tools maintain dual interfaces for different user needs.
+- The core of our prototype is a domain-specific language built on Julia's type system using abstract types to define a hierarchy of epidemiological model components.
+- We employ a struct-in-struct composition pattern that enables recursive model building where complex models are constructed by nesting simpler component models within container structures.
+- The abstract type hierarchy includes `AbstractEpiModel` for infection generating processes, `AbstractLatentModel` for time-varying parameter evolution, and `ObservationModel` for linking latent processes to observed data.
+- Multiple dispatch enables flexible component combination at the Turing level whilst maintaining the potential to abstract this dispatch to target different computational backends such as ODE solvers or agent-based modelling frameworks.
+- Our domain-specific language operates as a package extension pattern where the high-level epidemiological interface is built as a layer over a standard Julia package, ensuring that all tools maintain dual interfaces for different user needs.
 
 ## Dual Interface Design {#sec-interfaces}
 
 <!-- Reference to Panel C of Figure 1 -->
-The prototype provides two complementary interfaces to accommodate users with different expertise levels and requirements.
-The high-level interface centres around the `EpiProblem` constructor that combines an `epi_model`, `latent_model`, and `observation_model` with a time span, providing an accessible entry point for epidemiologists who want to focus on model structure rather than implementation details.
-The low-level interface exposes direct Turing model construction for methodologists requiring fine-grained control over probabilistic model specification, inference configuration, and computational optimization.
-Both interfaces maintain full composability and uncertainty propagation, ensuring that domain experts can use the simplified high-level approach whilst methods developers can extend and customize using the flexible low-level interface.
-This design pattern enables the framework to serve as both a user-friendly tool for applied epidemiologists and a research platform for methodological development.
+- The prototype provides two complementary interfaces to accommodate users with different expertise levels and requirements.
+- The high-level interface centres around the `EpiProblem` constructor that combines an `epi_model`, `latent_model`, and `observation_model` with a time span, providing an accessible entry point for epidemiologists who want to focus on model structure rather than implementation details.
+- The low-level interface exposes direct Turing model construction for methodologists requiring fine-grained control over probabilistic model specification, inference configuration, and computational optimization.
+- Both interfaces maintain full composability and uncertainty propagation, ensuring that domain experts can use the simplified high-level approach whilst methods developers can extend and customize using the flexible low-level interface.
+- This design pattern enables the framework to serve as both a user-friendly tool for applied epidemiologists and a research platform for methodological development.
 
 ## Example: Composing ARIMA Models {#sec-arima-example}
 
 <!-- Reference to Panel B of Figure 1 -->
-To illustrate the compositional approach, we demonstrate building an ARIMA model as a stack of reusable components.
-In our framework, an ARIMA(p,d,q) process can be constructed by composing a moving average (`MA`) component, an autoregressive (`AR`) component, and a differencing (`DiffLatentModel`) component.
+- To illustrate the compositional approach, we demonstrate building an ARIMA model as a stack of reusable components.
+- In our framework, an ARIMA(p,d,q) process can be constructed by composing a moving average (`MA`) component, an autoregressive (`AR`) component, and a differencing (`DiffLatentModel`) component.
 
 ```julia
 # Example struct definitions showing composition
@@ -141,7 +141,7 @@ arima_model = DiffLatentModel(
 )
 ```
 
-The dispatch system automatically handles the recursive composition, with each component contributing its probabilistic behaviour to the overall model whilst maintaining mathematical consistency and enabling component swapping for model comparison.
+- The dispatch system automatically handles the recursive composition, with each component contributing its probabilistic behaviour to the overall model whilst maintaining mathematical consistency and enabling component swapping for model comparison.
 
 **Figure 1**: Compositional Modelling Architecture
 *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
