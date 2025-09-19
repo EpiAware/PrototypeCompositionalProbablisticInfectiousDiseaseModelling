@@ -100,75 +100,50 @@ The abstract type hierarchy includes `AbstractEpiModel` for infection generating
 Our domain-specific language operates as a package extension pattern where the high-level epidemiological interface is built as a layer over a standard Julia package, ensuring that all tools maintain dual interfaces for different user needs.
 
 <!-- Reference to Panel B of Figure 1 -->
-To illustrate the compositional design patterns, we demonstrate how an ARIMA model can be built as a stack of reusable components.
-In our framework, an ARIMA(p,d,q) process is constructed by composing a moving average (`MA`) component, an autoregressive (`AR`) component, and a differencing (`DiffLatentModel`) component through struct-in-struct nesting:
+To illustrate the compositional approach, we demonstrate building an ARIMA model as a stack of reusable components.
+In our framework, an ARIMA(p,d,q) process can be constructed by composing a moving average (`MA`) component, an autoregressive (`AR`) component, and a differencing (`DiffLatentModel`) component.
+
+First, we examine the autoregressive component structure, which models persistence through dependence on previous values.
+The `AR` struct contains prior distributions for the autoregressive coefficients (`damp_priors`), initial conditions (`init_priors`), and the innovation process specification (`ϵ_t`).
 
 ```julia
-# Load EpiAware to access existing struct definitions
-using EpiAware
-
-# Display the actual struct definitions from the package
 @show AR
-@show DiffLatentModel
+```
 
-# Composition through nesting using existing EpiAware components
-# ARIMA(1,1,1): MA(1) -> AR(1) -> Differencing(1)
+Next, the moving average component captures short-term dependencies through a weighted sum of recent innovations.
+The `MA` struct requires the order specification, prior distributions for the moving average coefficients, initial values, and a hierarchical specification for the innovation variance.
+
+```julia
+@show MA
+```
+
+The differencing component transforms a non-stationary process into a stationary one by applying differences of order `d`.
+The `DiffLatentModel` struct wraps any underlying latent model, enabling the composition of differenced processes.
+
+```julia
+@show DiffLatentModel
+```
+
+With these component definitions, we can now compose an ARIMA(2,1,1) model by nesting components within each other.
+This demonstrates the "struct-in-struct" pattern where complex models emerge from simple component combinations, with the MA model serving as the error term for the AR model, which becomes the underlying process for differencing.
+
+```julia
 arima_model = DiffLatentModel(
-    d = 1,  # I(1) - first differencing component
+    d = 1,
     model = AR(
-        damp_priors = [Normal(0.5, 0.2)],  # AR(1) parameters
-        init_priors = [Normal(0.0, 1.0)],
-        ϵ_t = MA(  # MA(1) component as innovation process
-            ma_priors = [Normal(0.3, 0.1)],
-            init_priors = [Normal(0.0, 0.5)],
+        damp_priors = [truncated(Normal(0.8, 0.1), 0, 1),
+                       truncated(Normal(0.1, 0.05), 0, 1)],
+        init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
+        ϵ_t = MA(
+            ma_priors = [truncated(Normal(0.0, 0.05), -1, 1)],
+            init_priors = [Normal(0.0, 0.1)],
             ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
         )
     )
 )
-
-# Show the composed structure
-@show arima_model
 ```
 
-This compositional structure enables component swapping for model comparison whilst maintaining mathematical consistency through the type system.
-
-## Backend Implementation {#sec-backend}
-
-<!-- Reference to Panel D of Figure 1 -->
-Our DSL translates to concrete probabilistic models through multiple dispatch at the Turing.jl level, though the architecture supports abstraction to other computational backends.
-Multiple dispatch enables flexible component combination where each struct type has corresponding methods that generate the appropriate Turing model behaviour.
-The dispatch system automatically handles recursive composition, with each component contributing its probabilistic behaviour to the overall model whilst maintaining proper uncertainty propagation.
-
-For the ARIMA example above, the framework generates corresponding Turing models through dispatch methods:
-
-```julia
-# Dispatch methods translate DSL to Turing models
-function generate_latent(model::AR, n_timepoints)
-    @model function ar_model()
-        # Prior sampling for AR parameters
-        damp_AR ~ product_distribution(model.damp_priors)
-        ar_init ~ product_distribution(model.init_priors)
-        ϵ_t ~ model.ϵ_t
-
-        # AR process generation
-        Z_t = Vector{Float64}(undef, n_timepoints)
-        # ... implementation details
-        return Z_t
-    end
-end
-
-function generate_latent(model::DiffLatentModel, n_timepoints)
-    # Recursively call inner model then apply differencing
-    inner_model = generate_latent(model.model, n_timepoints + model.d)
-    @model function diff_model()
-        @submodel Z_inner = inner_model()
-        Z_t = diff(Z_inner, model.d)
-        return Z_t
-    end
-end
-```
-
-This backend abstraction design maintains the potential to target different computational frameworks such as ODE solvers, agent-based models, or symbolic-numeric systems whilst preserving the compositional interface structure.
+The struct-in-struct design enables component swapping for model comparison whilst maintaining mathematical consistency through the type system.
 
 **Figure 1**: Compositional Modelling Architecture
 *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
@@ -176,14 +151,46 @@ This backend abstraction design maintains the potential to target different comp
 *Panel C*: Dual interface schematic showing high-level EpiProblem and low-level Turing interfaces operating as package extension.
 *Panel D*: Backend abstraction architecture with Turing as current implementation and potential for ODE, agent-based, and other computational backends.
 
-## Dual Interface Design {#sec-interfaces}
+## Backend Implementation: Turing Interface {#sec-backend}
 
-<!-- Reference to Panel C of Figure 1 -->
-The prototype provides two complementary interfaces to accommodate users with different expertise levels and requirements.
-The high-level interface centres around the `EpiProblem` constructor that combines an `epi_model`, `latent_model`, and `observation_model` with a time span, providing an accessible entry point for epidemiologists who want to focus on model structure rather than implementation details.
-The low-level interface exposes direct Turing model construction for methodologists requiring fine-grained control over probabilistic model specification, inference configuration, and computational optimization.
-Both interfaces maintain full composability and uncertainty propagation, ensuring that domain experts can use the simplified high-level approach whilst methods developers can extend and customize using the flexible low-level interface.
-This design pattern enables the framework to serve as both a user-friendly tool for applied epidemiologists and a research platform for methodological development.
+<!-- Reference to Panel D of Figure 1 -->
+The compositional design translates to concrete Turing models through the `generate_latent` function that converts our abstract model specifications into executable probabilistic programs.
+For the AR component, the implementation demonstrates how multiple dispatch enables seamless backend integration:
+
+```julia
+# Actual EpiAware implementation of generate_latent for AR models
+@model function EpiAwareBase.generate_latent(latent_model::AR, n)
+    p = latent_model.p
+    @assert n > p "n must be longer than order of the autoregressive process"
+
+    ar_init ~ latent_model.init_prior
+    damp_AR ~ latent_model.damp_prior
+    @submodel ϵ_t = generate_latent(latent_model.ϵ_t, n - p)
+
+    ar = accumulate_scan(ARStep(damp_AR), ar_init, ϵ_t)
+
+    return ar
+end
+
+# The ARStep function that implements the AR dynamics
+struct ARStep{D <: AbstractVector{<:Real}} <: AbstractAccumulationStep
+    damp_AR::D
+end
+
+function (ar::ARStep)(state, ϵ)
+    new_val = dot(ar.damp_AR, state) + ϵ
+    new_state = vcat(state[2:end], new_val)
+    return new_state
+end
+
+# Example: Create executable ARIMA model using our composed structure
+arima_turing_model = generate_latent(arima_model, 50)
+
+# Sample from the model
+arima_samples = [arima_turing_model() for _ in 1:100]
+```
+
+This backend implementation showcases how the abstract compositional design maintains full compatibility with Turing's probabilistic programming capabilities whilst enabling the modular "swap-in/swap-out" functionality that distinguishes our approach from monolithic alternatives.
 
 
 
@@ -349,21 +356,24 @@ We can spaghetti plot generative samples from the AR(2) process with the priors 
 #| output: true
 #| label: fig-ar-sample
 #| echo: false
-n_samples = 100
-ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-    ar_mdl() .|> exp #Sample Z_t trajectories for the model
-end
+ar_sample_plot = let
+    n_samples = 100
+    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        ar_mdl() .|> exp #Sample Z_t trajectories for the model
+    end
 
-fig = Figure()
-ax = Axis(fig[1, 1];
-    yscale = log10,
-    ylabel = "Time varying Rₜ",
-    title = "$(n_samples) draws from the prior Rₜ model"
-)
-for col in eachcol(ar_mdl_samples)
-    lines!(ax, col, color = (:grey, 0.1))
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        yscale = log10,
+        ylabel = "Time varying Rₜ",
+        title = "$(n_samples) draws from the prior Rₜ model"
+    )
+    for col in eachcol(ar_mdl_samples)
+        lines!(ax, col, color = (:grey, 0.1))
+    end
+    fig
 end
-fig
+ar_sample_plot
 ```
 
 This suggests that *a priori* we believe that there is a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
@@ -400,21 +410,24 @@ We can compare the discretized generation interval with the continuous estimate,
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-pmf
-fig = Figure()
-ax = Axis(fig[1, 1];
-    xticks = 0:14,
-    xlabel = "Days",
-    title = "Continuous and discrete generation intervals"
-)
-barplot!(ax, model_data.gen_int;
-    label = "Discretized next gen pmf"
-)
-lines!(truth_GI;
-    label = "Continuous serial interval",
-    color = :green
-)
-axislegend(ax)
-fig
+discretised_gen_plot = let
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xticks = 0:14,
+        xlabel = "Days",
+        title = "Continuous and discrete generation intervals"
+    )
+    barplot!(ax, model_data.gen_int;
+        label = "Discretized next gen pmf"
+    )
+    lines!(truth_GI;
+        label = "Continuous serial interval",
+        color = :green
+    )
+    axislegend(ax)
+    fig
+end
+discretised_gen_plot
 ```
 
 The user also needs to specify a prior for the log incidence at time zero, $\log I_0$.
@@ -444,28 +457,31 @@ Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ ov
 R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
 latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed))
 
-n_samples = 100
-#Sample unconditionally the underlying parameters of the model
-epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-    latent_inf_mdl()
-end
-fig = Figure()
-ax1 = Axis(fig[1, 1];
-    title = "$(n_samples) draws from renewal model with chosen Rt",
-    ylabel = "Latent infections"
-)
-ax2 = Axis(fig[2, 1];
-    ylabel = "Rt"
-)
-for col in eachcol(epi_mdl_samples)
-    lines!(ax1, col;
-        color = (:grey, 0.1)
+renewal_model_plot = let
+    n_samples = 100
+    #Sample unconditionally the underlying parameters of the model
+    epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        latent_inf_mdl()
+    end
+    fig = Figure()
+    ax1 = Axis(fig[1, 1];
+        title = "$(n_samples) draws from renewal model with chosen Rt",
+        ylabel = "Latent infections"
     )
+    ax2 = Axis(fig[2, 1];
+        ylabel = "Rt"
+    )
+    for col in eachcol(epi_mdl_samples)
+        lines!(ax1, col;
+            color = (:grey, 0.1)
+        )
+    end
+    lines!(ax2, R_t_fixed;
+        linewidth = 2
+    )
+    fig
 end
-lines!(ax2, R_t_fixed;
-    linewidth = 2
-)
-fig
+renewal_model_plot
 ```
 
 ### Negative Binomial Observations as an `ObservationModel` type
@@ -498,30 +514,33 @@ First, we set an artificial expected cases curve.
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-cases
-expected_cases = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
-obs_mdl = generate_observations(obs, missing, expected_cases)
+neg_bin_obs_plot = let
+    expected_cases = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
+    obs_mdl = generate_observations(obs, missing, expected_cases)
 
-n_samples = 100
-obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-    θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
-end
-fig = Figure()
-ax = Axis(fig[1, 1];
-    title = "$(n_samples) draws from neg. bin. obs model",
-    ylabel = "Observed cases"
-)
-for col in eachcol(obs_mdl_samples)
-    scatter!(ax, col;
-        color = (:grey, 0.2)
+    n_samples = 100
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+    end
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        title = "$(n_samples) draws from neg. bin. obs model",
+        ylabel = "Observed cases"
     )
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col;
+            color = (:grey, 0.2)
+        )
+    end
+    lines!(ax, expected_cases;
+        color = :red,
+        linewidth = 3,
+        label = "Expected cases"
+    )
+    axislegend(ax)
+    fig
 end
-lines!(ax, expected_cases;
-    color = :red,
-    linewidth = 3,
-    label = "Expected cases"
-)
-axislegend(ax)
-fig
+neg_bin_obs_plot
 ```
 
 ### Composing models into an `EpiProblem`
@@ -1100,18 +1119,21 @@ We can sample directly from the behaviour specified by the `ar` struct to do pri
 #| output: true
 #| echo: false
 #| label: fig-ar-prior-pred
-nobs = size(data, 1)
-ar_mdl = generate_latent(ar, nobs)
-fig = Figure()
-ax = Axis(fig[1, 1],
-    xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
-    ylabel = "exp(kt)",
-    title = "Prior predictive sampling for relative residual in mean pred."
-)
-for i in 1:500
-    lines!(ax, ar_mdl() .|> exp, color = (:grey, 0.15))
+ar_prior_pred_plot = let
+    nobs = size(data, 1)
+    ar_mdl = generate_latent(ar, nobs)
+    fig = Figure()
+    ax = Axis(fig[1, 1],
+        xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
+        ylabel = "exp(kt)",
+        title = "Prior predictive sampling for relative residual in mean pred."
+    )
+    for i in 1:500
+        lines!(ax, ar_mdl() .|> exp, color = (:grey, 0.15))
+    end
+    fig
 end
-fig
+ar_prior_pred_plot
 ```
 
 We see that the choice of priors implies an *a priori* belief that the extra observation noise on the mean prediction of the ODE model is fairly small, approximately 10% relative to the mean prediction.
