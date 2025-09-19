@@ -107,12 +107,17 @@ using EpiAware
 @show DiffLatentModel
 
 # Composition through nesting using existing EpiAware components
+# ARIMA(1,1,1): MA(1) -> AR(1) -> Differencing(1)
 arima_model = DiffLatentModel(
-    d = 1,
+    d = 1,  # I(1) - first differencing component
     model = AR(
-        damp_priors = [Normal(0.5, 0.2)],
+        damp_priors = [Normal(0.5, 0.2)],  # AR(1) parameters
         init_priors = [Normal(0.0, 1.0)],
-        ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
+        ϵ_t = MA(  # MA(1) component as innovation process
+            ma_priors = [Normal(0.3, 0.1)],
+            init_priors = [Normal(0.0, 0.5)],
+            ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
+        )
     )
 )
 
