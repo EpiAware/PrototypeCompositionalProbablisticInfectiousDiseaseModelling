@@ -171,7 +171,11 @@ For the AR component, the implementation demonstrates how multiple dispatch enab
 
     return ar
 end
+```
 
+The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state:
+
+```julia
 # The ARStep function that implements the AR dynamics
 struct ARStep{D <: AbstractVector{<:Real}} <: AbstractAccumulationStep
     damp_AR::D
@@ -182,13 +186,15 @@ function (ar::ARStep)(state, ϵ)
     new_state = vcat(state[2:end], new_val)
     return new_state
 end
-
-# Example: Create executable ARIMA model using our composed structure
-arima_turing_model = generate_latent(arima_model, 50)
-
-# Sample from the model
-arima_samples = [arima_turing_model() for _ in 1:100]
 ```
+
+With our composed ARIMA structure defined, we can create an executable Turing model:
+
+```julia
+@show generate_latent(arima_model, 50)
+```
+
+This demonstrates how the compositional design seamlessly translates abstract model specifications into concrete probabilistic programs through multiple dispatch.
 
 This backend implementation showcases how the abstract compositional design maintains full compatibility with Turing's probabilistic programming capabilities whilst enabling the modular "swap-in/swap-out" functionality that distinguishes our approach from monolithic alternatives.
 
