@@ -658,20 +658,56 @@ Mathematically, we represent delays by modelling the expected number of cases ob
 
 $$
 \begin{aligned}
-D_t &= \sum_s I_{t-s} \xi_s, \\
-\overline{C}(t) &= D_t \omega_{t~\text{mod}~7}, \\
-C_t &\sim \text{NegBin}(\overline{C}(t), \phi).
+D_t &= \sum_{s\geq1} I_{t-s} \xi_s,~~ \text{Delayed latent infections}\\
+\tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
+\omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
+C_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
 \end{aligned}
 $$ {#eq-epinow2-model}
 
-Where $D_t$ is "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres. Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ . The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays). The final equation defines a negative binomial link to data, which we can reuse from example 1.
+Where $D_t$ is a "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres. Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ . The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays). The final equation defines a negative binomial link to data, which we can reuse from example 1.
 
-In `EpiAware`, we recreate this complex observation process through **composition** of modular components. We **reuse the underlying negative binomial observation model (`obs`) from Example 1**, demonstrating the modularity of our approach. We then layer additional modeling components on top:
+In `EpiAware`, we recreate this complex observation process through **composition** of modular components. We **reuse the underlying negative binomial link observation model (`obs`) from Example 1**, demonstrating the modularity of our approach. We then layer additional modeling components on top.
+
+Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `obs` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
+
+```{julia}
+dayofweek_logit_ascert = ascertainment_dayofweek(obs;  # Reuse obs from Example 1
+    latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
+    ) 
+```
+
+Unpacking this helper function we have a nested stack of modelling constructions. First on the transformation and broadcasting,
+
+```{julia}
+#| eval: false
+function broadcast_dayofweek(latent_model::AbstractTuringLatentModel; link = x -> 7 * softmax(x))
+    transformed_model = TransformLatentModel(latent_model, link)
+    return BroadcastLatentModel(transformed_model, 7, RepeatEach())
+end
+```
+Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
+
+And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
+
+```{julia}
+#| eval: false
+function ascertainment_dayofweek(model::AbstractTuringObservationModel;
+        latent_model::AbstractTuringLatentModel = HierarchicalNormal(),
+        transform = (x, y) -> x .* y, latent_prefix = "DayofWeek")
+    return Ascertainment(model, broadcast_dayofweek(latent_model), transform, latent_prefix)
+end
+```
+
+For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
 
 ```{julia}
 delay_distribution = LogNormal(log(5), 0.2)
-dayofweek_logit_ascert = ascertainment_dayofweek(obs;  # Reuse obs from Example 1
-    latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))) 
+```
+
+The `LatentDelay` struct uses double interval censoring to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
+
+```{julia}
 delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution) 
 ```
 
@@ -679,13 +715,15 @@ This code demonstrates three key aspects of our compositional approach:
 
 1.  **Component reuse**: The base observation model `obs` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
 
-2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers. At this stage we can add a latent model to describe the distribution of $\omega$, we choose a hierarchical set normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
+2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers. At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
 
-3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation, this is specified with a continuous delay distribution which is converted by double-censoring on a daily scale **citation** into the pmf $\xi_t$. For this example, we choose a median of 5 days between latent infection and observation. **NB: Mishra et al is effectively a model on latent symptom onsets due to using the serial interval but not sure how much detail to go into here.**
+3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation. The delay is specified with a continuous delay distribution which is converted by double-censoring on a daily scale into the discrete pmf $\xi_t$. For this example, we choose a median of 5 days between latent infection and observation.
 
-The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week reporting patterns, and reporting delays into a single coherent observation process. The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
+### Demonstrating the delay and day-of-week effects
 
-Given a sequence of latent infections, we can get very different generated data compared to Figure @fig-discretised-gen-cases . Notably, compared to an oscillating latent infection signal we can generate data that is both delayed, e.g. the peak observations occur after the true latent signal, and can have relatively higher observations on a particular day of the week, e.g. the first day of the week.
+The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process. The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
+
+To illustrate how these effects work together, let's examine how they transform a simple oscillating latent infection signal:
 
 ```{julia}
 #| output: true
@@ -721,26 +759,39 @@ plt_delayed_obs = let
 end
 ```
 
-### Composition into `EpiProblem`
+Compared to an oscillating latent infection signal, we can see that the generated data exhibits two key features: the observations are **delayed** (the peak observations occur after the true latent signal peaks) and can have **systematically higher observations on specific days of the week** (here, the first day of the week shows enhanced reporting).
 
-The complete EpiNow2-style model combines the new delayed observation process with the **same epidemiological and latent models from Example 1**. This demonstrates another key advantage of our compositional approach: we can mix and match components across different modeling scenarios without reimplementation.
+### Building the complete EpiNow2-style model
+
+Now we compose this new observation model with the epidemiological and latent components from Example 1. This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
+
+In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a _differenced_ stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments. In analogy, we compose the latent AR(2) process used in example 1 with the modifer `DiffLatentModel`. This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
+
+```{julia}
+diff_ar = DiffLatentModel(ar, Normal(); d = 1) # Normal prior for initial value of process
+```
+
+As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
 cutout = length(delayed_obs.rev_pmf)
 
 epi_prob_with_delay = EpiProblem(epi_model = epi,          # Reused from Example 1
-    latent_model = ar,                                     # Reused from Example 1  
+    latent_model = diff_ar,                                # modified from Example 1  
     observation_model = delayed_obs,                       # New compositional model
-    tspan = (45-cutout, 80))
+    tspan = (45-cutout, 80))                               # Longer time span because of delay
 ```
 
-Here we reuse: - **`epi`**: The renewal-based epidemiological model with generation time distribution - **`ar`**: The AR(2) latent process model for time-varying transmission rates
+This `EpiProblem` reuses all three core components from Example 1:
+- **`epi`**: The renewal-based epidemiological model with generation time distribution
+- **`ar`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar`
+- **`obs`**: The negative binomial link model to data from expected observations.
 
-While introducing: - **`delayed_obs`**: The new compositional observation model combining delays and day-of-week effects
+While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
 
-This showcases how our framework enables rapid prototyping and exploration of different modeling assumptions by recombining validated components in new ways.
+### Preparing data and model for inference  
 
-We perform inference with data that accounts for the extended time window needed to handle reporting delays.
+We need to account for the extended time window required to handle reporting delays:
 
 ```{julia}
 longer_south_korea_data = (
@@ -749,37 +800,43 @@ longer_south_korea_data = (
     )
 ```
 
-
-Also, as mentioned in [example 1](#inference-and-analysis), adding a delay effect disentangles reporting variance from changes in the reproductive number. This makes the cluster factor parameter of the negative binomial link distribution, $\phi$, identifiable. We iterate on the approach in example 1 by _not_ conditioning on a particular `cluster_facter` value, this is to be jointly inferred with other parameters, as in EpiNow2.
+As mentioned in [example 1](#inference-and-analysis), adding delay effects helps disentangle reporting variance from changes in the reproductive number. This makes the cluster factor parameter $\phi$ of the negative binomial distribution identifiable. Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
 
 ```{julia}
-
 mdl_with_delay = generate_epiaware(epi_prob_with_delay, longer_south_korea_data)
 ```
 
-We can now perform inference reusing the `inference_method` defined in Example 1
+We can reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions:
 
 ```{julia}
-
 inference_results_with_delay = apply_method(mdl_with_delay,
     inference_method,
     longer_south_korea_data
 )
-
 ```
 
-### Example 2: results
+### Analysis of results
 
-The results of the inference are similar to example 2 **More to put here but focus on the easy iteration and ability to fit the full model**.
+The EpiNow2-style model with delays and day-of-week effects provides several advantages over the simpler model in Example 1. Most importantly, the explicit modeling of reporting delays helps disentangle true changes in transmission dynamics from observation artifacts, leading to more reliable $R_t$ estimates.
+
+#### Posterior predictive checking
+
+Let's examine how well our model captures the observed data patterns:
+
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-example2
-#| 
 plot_post_pred(longer_south_korea_data, inference_results_with_delay; 
         epi_prob = epi_prob_with_delay
         )
 ```
+
+The posterior predictive plots show that the model successfully captures both the overall epidemic trajectory and the day-to-day variation in case counts. The inclusion of delay and day-of-week effects allows the model to account for reporting irregularities that would otherwise be attributed to changes in transmission.
+
+#### Latent process parameters
+
+The AR(2) latent process parameters remain well-identified even with the more complex observation model:
 
 ```{julia}
 #| output: true
@@ -807,24 +864,14 @@ fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, p
 fig
 ```
 
+#### Observation model parameters
+
+The newly introduced observation model components are also well-identified:
+
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-pairwise-example-2-obs-parameters
-let
-    idxs = identify_good_chains(inference_results_with_delay.samples; threshold = 3.0)
-    sub_chn = inference_results_with_delay.samples[:, :, idxs]
-    parameters_to_plot = ["obs.DayofWeek.std",
-                            "obs.DayofWeek.ϵ_t[7]",
-                            "obs.cluster_factor"]
-    sub_chn = sub_chn[parameters_to_plot]
-    fig = pairplot(sub_chn)
-    lines!(fig[1, 1], delayed_obs.model.latent_model.model.model.model.std_prior, label = "Prior")
-    # lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
-    lines!(fig[3, 3], delayed_obs.model.model.cluster_factor_prior, label = "Prior")
-
-    fig
-end
 
 parameters_to_plot = ["obs.DayofWeek.std",
                             "obs.DayofWeek.ϵ_t[7]",
