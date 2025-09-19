@@ -29,3 +29,4 @@ JuliaLocalPreferences.toml
 
 /.quarto/
 .vscode/settings.json
+resources
