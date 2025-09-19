@@ -1173,50 +1173,52 @@ gens = generated_quantities(stochastic_uncond_mdl, chn2)
 #| output: true
 #| echo: false
 #| label: fig-posterior-pred-stoch
-
 plot_predYt(data, gens;
     title = "Fitted stochastic model",
     ylabel = "Number of Infected students"
 )
-
 ```
 
-# Discussion {#sec-discussion}
-
-## Demonstrated benefits of compositional modelling
-
--   Talk about how this has demonstrated the potential of compositional approaches to epidemiological modelling
-    -   Facilitated model comparison by isolating individual components.
-    -   Enabled rapid development with new model components.
-    -   Improve transparency: The compositional structure makes modelling assumptions explicit
-
-## Implications for epidemiological practice
-
--   How this approach addresses the limitations identified in the introduction
--   Benefits for outbreak response and real-time surveillance
--   Potential for improving reproducibility and transparency in epidemiological modelling
-
-## Limitations and challenges
-
--   Current limitations of the compositional approach
--   Computational considerations
--   Learning curve and adoption challenges
-
-## Future directions
-
-Several avenues for future development emerge from this work:
-
--   **Expanded component library**: Development of additional components covering specialized epidemiological scenarios
--   **Automated model selection**: Tools for systematically exploring component combinations
--   **Performance optimization**: Techniques for efficient inference in complex composed models
--   **Integration with existing tools**: Bridges to popular epidemiological modelling packages
-
-# Conclusions {#sec-conclusions}
-
-## Software availability
+# Software Availability {#sec-software}
 
 All code and data for reproducing the analyses in this paper are available at: https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling.
 The compositional modelling framework is implemented as an open-source Julia package [`EpiAware`](https://github.com/seabbs/Rt-without-renewal).
+
+# Discussion {#sec-discussion}
+
+<!-- Summary paragraph -->
+- Compositional approach to epidemiological modelling enables "swap-in/swap-out" model construction
+- Three case studies demonstrate model comparison, validation, and methodological transparency
+- Maintains rigour of established approaches while adding flexibility
+
+<!-- Strengths and weaknesses interwoven -->
+- Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
+- Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
+- Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
+- Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
+
+<!-- Comparison to literature - Algebraic Julia -->
+- Builds on algebraic Julia ecosystem (DifferentialEquations.jl, etc.)
+- Extends scientific machine learning to epidemiological contexts
+- Utilises Julia's multiple dispatch for component composition
+
+<!-- Comparison to literature - Other approaches -->
+- Contrast with pipeline approaches (separate models passing information)
+- Comparison to modular frameworks in other scientific domains
+- Relationship to probabilistic programming languages and compositional features
+
+<!-- Future work -->
+- Expanded component library for specialised epidemiological scenarios
+- Automated model selection tools
+- Performance optimisation for complex composed models
+- Integration bridges to existing epidemiological packages
+
+<!-- Conclusions -->
+- Addresses key limitations while maintaining scientific rigour
+- Potential to accelerate methodological development
+- Improves accessibility of advanced epidemiological methods
+
+## Acknowledgements
 
 # References {.unnumbered}
 
