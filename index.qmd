@@ -11,7 +11,7 @@ author:
     orcid: "0000-0001-8057-8037"
 date: today
 abstract: |
-  This paper presents a compositional approach to epidemiological modelling that enables "swap-in/swap-out" modelling decisions. We demonstrate the flexibility and power of this paradigm through three case studies that recreate existing infectious disease models using compositional components, showing how this design facilitates model comparison, validation, and methodological transparency in epidemiological research.
+  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach), or representing a single model tuned to the specific scenario (the joint model approach). Both approaches have significant downsides. Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour. Joint approaches often use single monolithic models that, whilst powerful in their ability to systematically integrate multiple processes and data streams, are difficult to transfer to other settings or extend with additional model components. These barriers have prevented advances in settings where models could have provided actionable insights such as early outbreak analysis, wastewater surveillance, phylodynamics, clinical biomarkers, pooled testing, and large-scale clinical datasets. This paper presents a prototype framework that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components. Our approach enables "LEGO-like" model building ands supports composability for multiple model types including discrete time models and ordinary differential equations. It can be readily extended for different computational backends. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The composable framework presented here enables adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise essential for future public health decision making.
 format:
   pdf:
     documentclass: article
@@ -61,14 +61,14 @@ The algebraic Julia ecosystem has applied these theoretical foundations to scien
 SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
 The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
 
-This paper presents a prototype framework that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
+This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
-The framework supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
+The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
 We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
 This provides dual interfaces: a high-level epidemiological interface for domain experts and a low-level Turing interface.
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
 Through three case studies using the prototype, we show how components can be reused across different models: the first replicates @mishra2020covid; the second reuses components from the first, along with new elements, to replicate @epinow2; the third implements @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
-Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional framework, and identify key areas for future development.
+Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
 
 # Prototype Implementation {#sec-approach}
 
@@ -805,7 +805,7 @@ EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimat
 
 3.  **Temporal modifiers to observation**: Case counts are modeled using a (default) negative binomial distribution to capture overdispersion, with additional modifiers such as day-of-week effects to account for systematic biases in reporting patterns.
 
-In this example, we use out compositional approach in `EpiAware` to demonstrate layering modelling components 2 and 3 onto the Renewal-based transmission model we already defined in example 1. We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**. This showcases the flexibility and modularity of our framework - rather than implementing everything from scratch, we build upon previously defined components in a principled way. We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
+In this example, we use out compositional approach in `EpiAware` to demonstrate layering modelling components 2 and 3 onto the Renewal-based transmission model we already defined in example 1. We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**. This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way. We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
 
 ### Reporting delays, incubation period and generation time
 
@@ -1566,7 +1566,7 @@ plot_predYt(data, gens;
 # Discussion {#sec-discussion}
 
 This paper has demonstrated that compositional approaches can address key barriers in epidemiological modelling.
-We presented a prototype framework that enables "LEGO-like" model construction through standardised interfaces, maintaining the statistical rigour of joint models whilst providing the flexibility of pipeline approaches.
+We presented a prototype that enables "LEGO-like" model construction through standardised interfaces, maintaining the statistical rigour of joint models whilst providing the flexibility of pipeline approaches.
 The autoregressive model example illustrated how complex models emerge from simple component combinations using the struct-in-struct pattern.
 Our three case studies replicated previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrating model composability for a range of problems and using different underlying methods.
 
@@ -1597,7 +1597,7 @@ However, these approaches require generalisation to explicitly model probabiliti
 Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
 
 <!-- Conclusions -->
-The composable framework presented here provides a foundation for transforming real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
+A fully featured implementation of the prototype we present here has the potential to transform real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
 This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing key limitations of both pipeline and joint modelling approaches.
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
 

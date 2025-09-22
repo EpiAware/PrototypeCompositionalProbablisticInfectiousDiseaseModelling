@@ -35,3 +35,5 @@ JuliaLocalPreferences.toml
 .vscode/settings.json
 resources
 .cache/index.qmd.3Z6dbYBNa9l.json
+
+**/*.quarto_ipynb
