@@ -49,10 +49,20 @@ jobs:
             Pkg.precompile()
           '
 
+      - name: Cache Quarto
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache
+            .quarto/project-cache
+          key: ${{ runner.os }}-${{ github.ref_name }}-quarto
+          restore-keys: |
+            ${{ runner.os }}-main-quarto
+
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
-          version: pre-release
+          version: "1.8.24"
           tinytex: true
 
       - name: Validate Quarto project
@@ -60,7 +70,7 @@ jobs:
 
       - name: Render Quarto project
         run: |
-          quarto render
+          quarto render --to html,pdf
         env:
           JULIA_NUM_THREADS: auto
 

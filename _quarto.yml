@@ -1,4 +1,5 @@
 project:
+  type: manuscript
   render:
     - index.qmd
 
