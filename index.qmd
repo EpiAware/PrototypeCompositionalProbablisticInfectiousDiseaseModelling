@@ -246,6 +246,7 @@ Panel figure combining all visualisations:
 - Dependencies imported when first needed, not in large blocks
 - Each code statement in separate block with explanatory text before and after
 - Minimal, clear code focused on demonstrating compositional concepts
+- Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
 - Mathematical formulation precedes code implementation for each component
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
