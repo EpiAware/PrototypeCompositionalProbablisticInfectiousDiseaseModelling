@@ -1,10 +1,9 @@
 project:
-  type: default
+  type: manuscript
+  render:
+    - index.qmd
 
 engines: ['julia']
-
-manuscript:
-  article: index.qmd
   
 format:
   html:
