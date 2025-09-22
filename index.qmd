@@ -1016,7 +1016,7 @@ priors_to_plot = [
     epi.initialisation_prior,
 ]
 
-fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+fig = pairplot(inference_results_with_delay.samples[parameters_to_plot])
 
 fig
 ```
@@ -1040,7 +1040,7 @@ priors_to_plot = [
     delayed_obs.model.model.cluster_factor_prior,
 ]
 
-fig = plot_parameter_corners(inference_results_with_delay, parameters_to_plot, priors_to_plot)
+fig = pairplot(inference_results_with_delay.samples[parameters_to_plot])
 
 fig
 ```
