@@ -45,7 +45,7 @@ Individual-level data such as viral loads, biomarkers, genomic sequences, and cl
 These barriers have prevented advances in settings where models could have provided actionable insights such as early outbreak analysis, wastewater surveillance, phylodynamics, clinical biomarkers, pooled testing, and large-scale clinical datasets.
 The next infectious disease threat is unpredictable and may be exacerbated by climate change [@Tsui2024-gy], requiring adaptable response capabilities that can rapidly incorporate diverse data sources and domain expertise.
 
-Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach, e.g., [@huisman2022]), or representing a single model tuned to the specific scenario (the joint model approach, e.g., [@birrell2024;@Watson2024-vj]).
+Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach, e.g., [@huisman2022]), or representing a single model tuned to the specific scenario (the joint model approach, e.g., [@birrell2024; @Watson2024-vj]).
 Both approaches have significant downsides.
 Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour [@lison2024].
 Joint approaches use single monolithic models that, whilst powerful in their ability to systematically integrate multiple processes and data streams, are too complex to enable transfer to other settings or extension with additional model components.
@@ -55,7 +55,7 @@ This prevents effective integration of expertise across disciplines.
 Transfer of methodology between outbreak events has proven difficult, with each posing unanticipated challenges that existing tools cannot accommodate.
 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour that could address these limitations.
-Advances in Turing.jl have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua;@fjelde2025turin].
+Advances in Turing.jl have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
 Category theory provides the underlying mathematical frameworks for this composability through operadic composition in hierarchical model construction [@libkind2022algebraic].
 The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with HydroModels.jl and ModelingToolkit.jl demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
 SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
@@ -92,123 +92,129 @@ Finally, we need a framework that can be composed with out of domain approaches 
 
 ## Design Philosophy {#sec-design}
 
-- Epidemiological models as collections of interchangeable components
-- Full uncertainty propagation through standardised interfaces
-- Julia's type system and multiple dispatch for domain-specific language
-- Complex models emerging from composing simpler, reusable components
-- Dispatch at Turing level with support for arbitrary computational backends
-- Architecture supports ODE solvers, agent-based models, symbolic-numeric systems
-- Turing.jl chosen for: flexible probabilistic programming, robust submodel support
-- Extensive inference algorithms, complex hierarchical structures, minimal boilerplate
-- Eliminates "two-language problem": high-level specs compile to efficient code
-- Julia's metaprogramming enables domain-specific abstractions hiding complexity
-- Of available options, only Julia PPLs provide necessary abstraction capabilities
-- Turing.jl: highest adoption, largest team, best model composition support
-- Light interface layer leveraging ecosystem vs reimplementing everything
-- No lock-in: users work at high-level or drop to Turing level
-- Distributed ecosystem increases sustainability: multiple institutions maintain different components
-- Python/R entry points for accessibility, but core composability requires Julia's abstractions
-- "ODE experts work on ODEs, GP experts on GPs, domain experts on domain" principle
-- Abstraction layer handles automated bookwork: stratification, interface requirements, parameter hierarchies
+-   Epidemiological models as collections of interchangeable components
+-   Full uncertainty propagation through standardised interfaces
+-   Julia's type system and multiple dispatch for domain-specific language
+-   Complex models emerging from composing simpler, reusable components
+-   Dispatch at Turing level with support for arbitrary computational backends
+-   Architecture supports ODE solvers, agent-based models, symbolic-numeric systems
+-   Turing.jl chosen for: flexible probabilistic programming, robust submodel support
+-   Extensive inference algorithms, complex hierarchical structures, minimal boilerplate
+-   Eliminates "two-language problem": high-level specs compile to efficient code
+-   Julia's metaprogramming enables domain-specific abstractions hiding complexity
+-   Of available options, only Julia PPLs provide necessary abstraction capabilities
+-   Turing.jl: highest adoption, largest team, best model composition support
+-   Light interface layer leveraging ecosystem vs reimplementing everything
+-   No lock-in: users work at high-level or drop to Turing level
+-   Distributed ecosystem increases sustainability: multiple institutions maintain different components
+-   Python/R entry points for accessibility, but core composability requires Julia's abstractions
+-   "ODE experts work on ODEs, GP experts on GPs, domain experts on domain" principle
+-   Abstraction layer handles automated bookwork: stratification, interface requirements, parameter hierarchies
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
 <!-- Reference to Panel A of Figure 1 -->
-- Domain-specific language built on Julia's type system
-- Abstract types define hierarchy of epidemiological model components
-- Struct-in-struct composition pattern enables recursive model building
-- Complex models constructed by nesting simpler components in containers
-- Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
-- Package extension pattern: high-level epidemiological interface over standard Julia package
-- Dual interfaces for different user needs
+
+-   Domain-specific language built on Julia's type system
+-   Abstract types define hierarchy of epidemiological model components
+-   Struct-in-struct composition pattern enables recursive model building
+-   Complex models constructed by nesting simpler components in containers
+-   Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
+-   Package extension pattern: high-level epidemiological interface over standard Julia package
+-   Dual interfaces for different user needs
 
 <!-- Reference to Panel B of Figure 1 -->
-- ARIMA model demonstration as stack of reusable components
-- ARIMA(p,d,q) constructed by composing: moving average (`MA`), autoregressive (`AR`), differencing (`DiffLatentModel`) components
 
-```julia
-@show AR
+-   ARIMA model demonstration as stack of reusable components
+-   ARIMA(p,d,q) constructed by composing: moving average (`MA`), autoregressive (`AR`), differencing (`DiffLatentModel`) components
+
+```{julia}
+using Revise, CodeTracking, EpiAware
+print(@code_string AR())
 ```
 
-```julia
-@show MA
+```{julia}
+print(@code_string MA())
 ```
 
-```julia
-@show DiffLatentModel
+```{julia}
+print(@code_string DiffLatentModel())
 ```
 
-- ARIMA(2,1,1) composition by nesting components within each other
-- "Struct-in-struct" pattern: complex models from simple component combinations
-- MA model serves as error term for AR model, which becomes underlying process for differencing
+-   ARIMA(2,1,1) composition by nesting components within each other
+-   "Struct-in-struct" pattern: complex models from simple component combinations
+-   MA model serves as error term for AR model, which becomes underlying process for differencing
 
-```julia
-arima_model = DiffLatentModel(
-    d = 1,
-    model = AR(
+```{julia}
+using Distributions
+arima_model = DiffLatentModel(AR(;
         damp_priors = [truncated(Normal(0.8, 0.1), 0, 1),
                        truncated(Normal(0.1, 0.05), 0, 1)],
         init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-        ϵ_t = MA(
-            ma_priors = [truncated(Normal(0.0, 0.05), -1, 1)],
-            init_priors = [Normal(0.0, 0.1)],
+        ϵ_t = MA(;
+            θ_priors = [truncated(Normal(0.0, 0.05), -1, 1)],
             ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
         )
-    )
+    ),
+    Normal(),
+    1
 )
 ```
 
-- Struct-in-struct design enables component swapping for model comparison
-- Mathematical consistency maintained through type system
+-   Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
 
+<!-- -->
+
+-   Struct-in-struct design enables component swapping for model comparison
+-   Mathematical consistency maintained through type system
 
 ## Backend Implementation: Turing Interface {#sec-backend}
 
 <!-- Reference to Panel D of Figure 1 -->
-- Compositional design translates to concrete Turing models via `generate_latent` function
-- Abstract model specifications converted to executable probabilistic programs
-- AR component implementation demonstrates multiple dispatch for seamless backend integration
 
-```julia
-# Show the actual EpiAware implementation method
-@show @which EpiAwareBase.generate_latent(AR(), 50)
+-   Compositional design translates to concrete Turing models via `generate_latent` function
+-   Abstract model specifications converted to executable probabilistic programs
+-   AR component implementation demonstrates multiple dispatch for seamless backend integration
+
+```{julia}
+print(@code_string EpiAwareBase.generate_latent(AR(), 50))
 ```
 
-- AR dynamics implemented through custom accumulation step maintaining autoregressive state
+-   AR dynamics implemented through custom accumulation step maintaining autoregressive state
 
-```julia
-# Show the actual ARStep implementation
-@show ARStep
-# Show the callable function for ARStep
-@show @which ARStep()(state, ϵ)
+```{julia}
+print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
 ```
 
-- MA model is similar
+-   MA model is similar
 
-```julia
-# Show the actual MA generate_latent implementation
-@show @which EpiAwareBase.generate_latent(MA(), 50)
+```{julia}
+print(@code_string EpiAwareBase.generate_latent(MA(), 50))
 ```
 
-- The differenced process is purely deterministic...
+-   The differenced process is purely deterministic...
 
-```julia
-# Show the actual DiffLatentModel generate_latent implementation
-@show @which EpiAwareBase.generate_latent(DiffLatentModel(), 50)
+```{julia}
+print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(), 50))
 ```
 
-- Composed ARIMA structure creates executable Turing model
+- Again this has a composable step function
 
-```julia
-@show generate_latent(arima_model, 50)
+```{julia}
+print(@code_string EpiLatentModels.MAStep([1, 2, 1])(1, 1))
 ```
 
-- Compositional design seamlessly translates abstract specifications to concrete probabilistic programs via multiple dispatch
-- Backend implementation maintains full Turing compatibility
-- Enables modular "swap-in/swap-out" functionality distinguishing from monolithic alternatives
+-   Composed ARIMA structure creates executable Turing model by dispatching through each layer of the ARIMA struct. This means the code at the top level is the same as for the `DiffLatentModel`.
 
-**Figure 1**: Compositional Modelling Architecture
-*Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
+```{julia}
+print(@code_string generate_latent(arima_model, 50))
+```
+
+-   Compositional design translates abstract specifications to concrete probabilistic programs via multiple dispatch
+-   Backend implementation maintains full Turing compatibility
+-   Enables modular "swap-in/swap-out" functionality distinguishing from monolithic alternatives
+
+**Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
 *Panel B*: ARIMA composition example demonstrating component stacking with struct definitions.
 *Panel C*: Prior predictive checks demonstrating model behavior before data conditioning.
 *Panel D*: Backend abstraction architecture with Turing as current implementation and potential for ODE, agent-based, and other computational backends.
@@ -221,45 +227,45 @@ All code and data for reproducing the analyses in this paper are available at: h
 
 Each case study follows this standardised structure to ensure consistency and clarity:
 
-A concise paragraph explaining:
-- The original paper and its contribution
-- Why we selected this study for replication
-- Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors)
+A concise paragraph explaining: - The original paper and its contribution - Why we selected this study for replication - Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors)
 
 ### Data
+
 Brief description of the dataset with a single code block loading the data.
 
 ### Model
 
-Compositional model specification with subsections. Give a very high levle overview of the model in text.
+Compositional model specification with subsections.
+Give a very high levle overview of the model in text.
 
 #### Infection Generating Process
-- Mathematical formulation
-- Code implementation using `AbstractEpiModel` types
-- Prior predictive checking
+
+-   Mathematical formulation
+-   Code implementation using `AbstractEpiModel` types
+-   Prior predictive checking
 
 #### Observation Model
-- Mathematical formulation
-- Code implementation using `ObservationModel` types
-- Prior predictive checking
+
+-   Mathematical formulation
+-   Code implementation using `ObservationModel` types
+-   Prior predictive checking
 
 ### Fitting to Data
-- Model composition into `EpiProblem`
-- Inference configuration
-- Posterior sampling
-- Posterior predictive checking
 
-Panel figure combining all visualisations:
-- Prior predictive plots for each model component
-- Posterior predictive plots showing model fit
-- Parameter inference summaries
+-   Model composition into `EpiProblem`
+-   Inference configuration
+-   Posterior sampling
+-   Posterior predictive checking
+
+Panel figure combining all visualisations: - Prior predictive plots for each model component - Posterior predictive plots showing model fit - Parameter inference summaries
 
 ### **Code Organisation Principles**
-- Dependencies imported when first needed, not in large blocks
-- Each code statement in separate block with explanatory text before and after
-- Minimal, clear code focused on demonstrating compositional concepts
-- Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
-- Mathematical formulation precedes code implementation for each component
+
+-   Dependencies imported when first needed, not in large blocks
+-   Each code statement in separate block with explanatory text before and after
+-   Minimal, clear code focused on demonstrating compositional concepts
+-   Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
+-   Mathematical formulation precedes code implementation for each component
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
@@ -568,8 +574,7 @@ neg_bin_obs_plot
 
 In `EpiAware` we provide an `EpiProblem` constructor for this common epidemiological model pattern.
 
-The constructor for an `EpiProblem` requires: 
-- An `epi_model`.
+The constructor for an `EpiProblem` requires: - An `epi_model`.
 - A `latent_model`.
 - An `observation_model`.
 - A `tspan`.
@@ -610,7 +615,7 @@ inference_method = EpiMethod(
 )
 ```
 
-### Inference and analysis
+### Inference and analysis {#inference-and-analysis}
 
 We supply the data as a `NamedTuple` with the `y_t` field containing the observed data, shortened to fit the chosen `tspan` of `epi_prob`.
 
@@ -809,19 +814,28 @@ fig
 
 This case study recreates a representative EpiNow2 configuration, demonstrating how our compositional approach can represent a complex inference and forecasting workflow used in real-time epidemiological surveillance.
 
-EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time. It represents a further development in Renewal-based transmission modelling compared to *Mishra et al* @mishra introduced in example 1. EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations:
+EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
+It represents a further development in Renewal-based transmission modelling compared to *Mishra et al* @mishra introduced in example 1.
+EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations:
 
-1.  **Renewal-based transmission modeling with generation intervals**: EpiNow2 uses the discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain). This follows *Mishra et al* as demonstrated in example 1.
+1.  **Renewal-based transmission modeling with generation intervals**: EpiNow2 uses the discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain).
+    This follows *Mishra et al* as demonstrated in example 1.
 
 2.  **Delayed observation processes**: The framework explicitly accounts for the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags.
 
 3.  **Temporal modifiers to observation**: Case counts are modeled using a (default) negative binomial distribution to capture overdispersion, with additional modifiers such as day-of-week effects to account for systematic biases in reporting patterns.
 
-In this example, we use out compositional approach in `EpiAware` to demonstrate layering modelling components 2 and 3 onto the Renewal-based transmission model we already defined in example 1. We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**. This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way. We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
+In this example, we use out compositional approach in `EpiAware` to demonstrate layering modelling components 2 and 3 onto the Renewal-based transmission model we already defined in example 1.
+We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**.
+This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
+We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
 
 ### Reporting delays, incubation period and generation time
 
-Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak. When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates. Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making. Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
+Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak.
+When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates.
+Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making.
+Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
 
 Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
 
@@ -834,9 +848,15 @@ C_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to dat
 \end{aligned}
 $$ {#eq-epinow2-model}
 
-Where $D_t$ is a "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$. $\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres. Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ . The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays). The final equation defines a negative binomial link to data, which we can reuse from example 1.
+Where $D_t$ is a "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$.
+$\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres.
+Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ .
+The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays).
+The final equation defines a negative binomial link to data, which we can reuse from example 1.
 
-In `EpiAware`, we recreate this complex observation process through **composition** of modular components. We **reuse the underlying negative binomial link observation model (`obs`) from Example 1**, demonstrating the modularity of our approach. We then layer additional modeling components on top.
+In `EpiAware`, we recreate this complex observation process through **composition** of modular components.
+We **reuse the underlying negative binomial link observation model (`obs`) from Example 1**, demonstrating the modularity of our approach.
+We then layer additional modeling components on top.
 
 Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `obs` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
 
@@ -846,26 +866,19 @@ dayofweek_logit_ascert = ascertainment_dayofweek(obs;  # Reuse obs from Example 
     ) 
 ```
 
-Unpacking this helper function we have a nested stack of modelling constructions. First on the transformation and broadcasting,
+Unpacking this helper function we have a nested stack of modelling constructions.
+First on the transformation and broadcasting,
 
 ```{julia}
-#| eval: false
-function broadcast_dayofweek(latent_model::AbstractTuringLatentModel; link = x -> 7 * softmax(x))
-    transformed_model = TransformLatentModel(latent_model, link)
-    return BroadcastLatentModel(transformed_model, 7, RepeatEach())
-end
+print(@code_string broadcast_dayofweek(HierarchicalNormal()))
 ```
+
 Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
 
 And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
 
 ```{julia}
-#| eval: false
-function ascertainment_dayofweek(model::AbstractTuringObservationModel;
-        latent_model::AbstractTuringLatentModel = HierarchicalNormal(),
-        transform = (x, y) -> x .* y, latent_prefix = "DayofWeek")
-    return Ascertainment(model, broadcast_dayofweek(latent_model), transform, latent_prefix)
-end
+print(@code_string ascertainment_dayofweek(NegativeBinomialError()))
 ```
 
 For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
@@ -884,13 +897,17 @@ This code demonstrates three key aspects of our compositional approach:
 
 1.  **Component reuse**: The base observation model `obs` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
 
-2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers. At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
+2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers.
+    At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
 
-3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation. The delay is specified with a continuous delay distribution which is converted by double-censoring on a daily scale into the discrete pmf $\xi_t$. For this example, we choose a median of 5 days between latent infection and observation.
+3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation.
+    The delay is specified with a continuous delay distribution which is converted by double-censoring on a daily scale into the discrete pmf $\xi_t$.
+    For this example, we choose a median of 5 days between latent infection and observation.
 
 ### Demonstrating the delay and day-of-week effects
 
-The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process. The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
+The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process.
+The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
 
 To illustrate how these effects work together, let's examine how they transform a simple oscillating latent infection signal:
 
@@ -932,9 +949,12 @@ Compared to an oscillating latent infection signal, we can see that the generate
 
 ### Building the complete EpiNow2-style model
 
-Now we compose this new observation model with the epidemiological and latent components from Example 1. This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
+Now we compose this new observation model with the epidemiological and latent components from Example 1.
+This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
 
-In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a _differenced_ stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments. In analogy, we compose the latent AR(2) process used in example 1 with the modifer `DiffLatentModel`. This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
+In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
+In analogy, we compose the latent AR(2) process used in example 1 with the modifer `DiffLatentModel`.
+This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
 
 ```{julia}
 diff_ar = DiffLatentModel(ar, Normal(); d = 1) # Normal prior for initial value of process
@@ -951,14 +971,11 @@ epi_prob_with_delay = EpiProblem(epi_model = epi,          # Reused from Example
     tspan = (45-cutout, 80))                               # Longer time span because of delay
 ```
 
-This `EpiProblem` reuses all three core components from Example 1:
-- **`epi`**: The renewal-based epidemiological model with generation time distribution
-- **`ar`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar`
-- **`obs`**: The negative binomial link model to data from expected observations.
+This `EpiProblem` reuses all three core components from Example 1: - **`epi`**: The renewal-based epidemiological model with generation time distribution - **`ar`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
 
 While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
 
-### Preparing data and model for inference  
+### Preparing data and model for inference
 
 We need to account for the extended time window required to handle reporting delays:
 
@@ -969,7 +986,9 @@ longer_south_korea_data = (
     )
 ```
 
-As mentioned in [example 1](#inference-and-analysis), adding delay effects helps disentangle reporting variance from changes in the reproductive number. This makes the cluster factor parameter $\phi$ of the negative binomial distribution identifiable. Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
+As mentioned in [example 1](#inference-and-analysis), adding delay effects helps disentangle reporting variance from changes in the reproductive number.
+This makes the cluster factor parameter $\phi$ of the negative binomial distribution identifiable.
+Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
 
 ```{julia}
 mdl_with_delay = generate_epiaware(epi_prob_with_delay, longer_south_korea_data)
@@ -986,7 +1005,8 @@ inference_results_with_delay = apply_method(mdl_with_delay,
 
 ### Analysis of results
 
-The EpiNow2-style model with delays and day-of-week effects provides several advantages over the simpler model in Example 1. Most importantly, the explicit modeling of reporting delays helps disentangle true changes in transmission dynamics from observation artifacts, leading to more reliable $R_t$ estimates.
+The EpiNow2-style model with delays and day-of-week effects provides several advantages over the simpler model in Example 1.
+Most importantly, the explicit modeling of reporting delays helps disentangle true changes in transmission dynamics from observation artifacts, leading to more reliable $R_t$ estimates.
 
 #### Posterior predictive checking
 
@@ -1001,7 +1021,8 @@ plot_post_pred(longer_south_korea_data, inference_results_with_delay;
         )
 ```
 
-The posterior predictive plots show that the model successfully captures both the overall epidemic trajectory and the day-to-day variation in case counts. The inclusion of delay and day-of-week effects allows the model to account for reporting irregularities that would otherwise be attributed to changes in transmission.
+The posterior predictive plots show that the model successfully captures both the overall epidemic trajectory and the day-to-day variation in case counts.
+The inclusion of delay and day-of-week effects allows the model to account for reporting irregularities that would otherwise be attributed to changes in transmission.
 
 #### Latent process parameters
 
@@ -1123,13 +1144,18 @@ function sir!(du, u, p, t)
 end
 ```
 
-We combine vector field function `sir!` with a initial condition `u0` and the integration period `tspan` to make an `ODEProblem`. We do not define the parameters, these will be defined within an inference approach.
+We combine vector field function `sir!` with a initial condition `u0` and the integration period `tspan` to make an `ODEProblem`.
+We do not define the parameters, these will be defined within an inference approach.
 
-Note that this is analogous to the `EpiProblem` approach we expose from `EpiAware`, as used in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/). The difference is that here we are going to use ODE solvers from the `SciML` ecosystem to generate the dynamics of the underlying infections. In the linked example, we use latent process generation exposed by `EpiAware` as the underlying generative process for underlying dynamics.
+Note that this is analogous to the `EpiProblem` approach we expose from `EpiAware`, as used in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/).
+The difference is that here we are going to use ODE solvers from the `SciML` ecosystem to generate the dynamics of the underlying infections.
+In the linked example, we use latent process generation exposed by `EpiAware` as the underlying generative process for underlying dynamics.
 
 ### Data for inference
 
-There was a brief, but intense, outbreak of Influenza within the (semi-) closed community of a boarding school reported to the British medical journal in 1978. The outbreak lasted from 22nd January to 4th February and it is reported that one infected child started the epidemic and then it spread rapidly. Of the 763 children at the boarding scholl, 512 became ill.
+There was a brief, but intense, outbreak of Influenza within the (semi-) closed community of a boarding school reported to the British medical journal in 1978.
+The outbreak lasted from 22nd January to 4th February and it is reported that one infected child started the epidemic and then it spread rapidly.
+Of the 763 children at the boarding scholl, 512 became ill.
 
 We downloaded the data of this outbreak using the R package `outbreaks` which is maintained as part of the [R Epidemics Consortium(RECON)](http://www.%20repidemicsconsortium.org).
 
@@ -1208,7 +1234,8 @@ We instantiate the model in two ways:
 1.  `deterministic_mdl`: This conditions the generative model on the data observation. We can sample from this model to find the posterior distribution of the parameters.
 2.  `deterministic_uncond_mdl`: This *doesn't* condition on the data. This is useful for prior and posterior predictive modelling.
 
-Here we construct the `Turing` model directly, in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/) we using the `EpiProblem` functionality to build a `Turing` model under the hood. Because in this note we are using a mix of functionality from `SciML` and `EpiAware`, we construct the model to sample from directly.
+Here we construct the `Turing` model directly, in the [Mishra et al replication](https://cdcgov.github.io/Rt-without-renewal/dev/showcase/replications/mishra-2020/) we using the `EpiProblem` functionality to build a `Turing` model under the hood.
+Because in this note we are using a mix of functionality from `SciML` and `EpiAware`, we construct the model to sample from directly.
 
 ```{julia}
 deterministic_mdl = deterministic_ode_mdl(data.in_bed, data.ts, obs, sir_prob, N)
@@ -1369,7 +1396,8 @@ S(0) /N &\sim \text{Beta}(0.5, 0.5)\\
 
 We will using the `AR` struct from `EpiAware` to define the auto-regressive process in this model which has a direct parameterisation of the `AR` model.
 
-To convert from the formulation above we sample from the priors, and define `HalfNormal` priors based on the sampled prior means of $e^{-\phi}$ and ${\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)$. We also add a strong prior that $\kappa_1 \approx 0$.
+To convert from the formulation above we sample from the priors, and define `HalfNormal` priors based on the sampled prior means of $e^{-\phi}$ and ${\sigma^2 \over 2 \phi} \left(1 - e^{-2\phi} \right)$.
+We also add a strong prior that $\kappa_1 \approx 0$.
 
 ```{julia}
 ϕs = rand(truncated(Normal(0, 100), lower = 0.0), 1000)
@@ -1415,7 +1443,9 @@ ar_prior_pred_plot
 
 We see that the choice of priors implies an *a priori* belief that the extra observation noise on the mean prediction of the ODE model is fairly small, approximately 10% relative to the mean prediction.
 
-We can now define the probabilistic model. The stochastic model assumes a (random) time-varying ascertainment, which we implement using the `Ascertainment` struct from `EpiAware`. Note that instead of implementing an ascertainment factor `exp.(κₜ)` directly, which can be unstable for large primal values, by default `Ascertainment` uses the `LogExpFunctions.xexpy` function which implements $x\exp(y)$ stabily for a wide range of values.
+We can now define the probabilistic model.
+The stochastic model assumes a (random) time-varying ascertainment, which we implement using the `Ascertainment` struct from `EpiAware`.
+Note that instead of implementing an ascertainment factor `exp.(κₜ)` directly, which can be unstable for large primal values, by default `Ascertainment` uses the `LogExpFunctions.xexpy` function which implements $x\exp(y)$ stabily for a wide range of values.
 
 To distinguish random variables sampled by various sub-processes `EpiAware` process types create prefixes.
 The default for `Ascertainment` is just the string `\"Ascertainment\"`, but in this case we use the less verbose `\"va\"` for "varying ascertainment".
@@ -1424,7 +1454,12 @@ The default for `Ascertainment` is just the string `\"Ascertainment\"`, but in t
 mdl_prefix = "va"
 ```
 
-Now we can construct our time varying ascertianment model. The main keyword arguments here are `model` and `latent_model`. `model` sets the connection between the expected observation and the actual observation. In this case, we reuse our `PoissonError` model from above. `latent_model` sets the modification model on the expected values. In this case, we use the `AR` process we defined above.
+Now we can construct our time varying ascertianment model.
+The main keyword arguments here are `model` and `latent_model`.
+`model` sets the connection between the expected observation and the actual observation.
+In this case, we reuse our `PoissonError` model from above.
+`latent_model` sets the modification model on the expected values.
+In this case, we use the `AR` process we defined above.
 
 ```{julia}
 varying_ascertainment = Ascertainment(
@@ -1504,7 +1539,8 @@ plot_predYt(data, gens;
 
 The prior predictive checking again shows misaligned prior beliefs; for example *a priori* without data we would not expect the median prediction of number of ill children as about 600 out of \$N after 1 day.
 
-The latent process for the log-residuals $\kappa_t$ doesn't make much sense without priors, so we look for a reasonable MAP point to start NUTS from. We do this by first making an initial guess which is a mixture of:
+The latent process for the log-residuals $\kappa_t$ doesn't make much sense without priors, so we look for a reasonable MAP point to start NUTS from.
+We do this by first making an initial guess which is a mixture of:
 
 1.  The posterior averages from the deterministic model.
 2.  The prior averages of the structure parameters of the AR(1) process.
@@ -1583,22 +1619,26 @@ The autoregressive model example illustrated how complex models emerge from simp
 Our three case studies replicated previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrating model composability for a range of problems and using different underlying methods.
 
 <!-- Strengths and weaknesses interwoven -->
-- Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
-- Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
-- Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
-- Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
+
+-   Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
+-   Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
+-   Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
+-   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
 
 <!-- Comparison to literature - Algebraic Julia -->
-- Builds on algebraic Julia ecosystem (DifferentialEquations.jl, etc.)
-- Extends scientific machine learning to epidemiological contexts
-- Utilises Julia's multiple dispatch for component composition
+
+-   Builds on algebraic Julia ecosystem (DifferentialEquations.jl, etc.)
+-   Extends scientific machine learning to epidemiological contexts
+-   Utilises Julia's multiple dispatch for component composition
 
 <!-- Comparison to literature - Other approaches -->
-- Contrast with pipeline approaches (separate models passing information)
-- Comparison to modular frameworks in other scientific domains
-- Relationship to probabilistic programming languages and compositional features
+
+-   Contrast with pipeline approaches (separate models passing information)
+-   Comparison to modular frameworks in other scientific domains
+-   Relationship to probabilistic programming languages and compositional features
 
 <!-- Future work -->
+
 Areas for future work include expanding the component library to address epidemiological applications across multiple scales and data types.
 Priority areas include retrospective analysis of historical outbreaks to develop robust templates for real-time response.
 Integration of diverse domain expertise through models linking within-host dynamics, environmental surveillance, economic trade-offs, and behavioural feedback mechanisms is essential because disease transmission often emerges from complex interactions between biological, environmental, and social processes that single-domain models struggle to capture.
@@ -1610,6 +1650,7 @@ An alternative abstraction approach would be to build the domain-specific langua
 Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
 
 <!-- Conclusions -->
+
 A fully featured implementation of the prototype we present here has the potential to transform real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
 This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing key limitations of both pipeline and joint modelling approaches.
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
