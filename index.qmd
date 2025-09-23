@@ -130,41 +130,61 @@ Finally, we need a framework that can be composed with out of domain approaches 
 -   ARIMA model demonstration as stack of reusable components
 -   ARIMA(p,d,q) constructed by composing: moving average (`MA`), autoregressive (`AR`), differencing (`DiffLatentModel`) components
 
-```{julia}
-using Revise, CodeTracking, EpiAware
-print(@code_string AR())
-```
+-   Individual AR process
 
 ```{julia}
-print(@code_string MA())
+using EpiAware
+ar_model = AR()
+display(ar_model)
 ```
 
+- Internally this is creating a `AR` struct.
 ```{julia}
-print(@code_string DiffLatentModel())
+print(@code_string generate_latent(ar_model, 50))
 ```
 
--   ARIMA(2,1,1) composition by nesting components within each other
--   "Struct-in-struct" pattern: complex models from simple component combinations
--   MA model serves as error term for AR model, which becomes underlying process for differencing
+-   Moving average component for error terms
 
 ```{julia}
 using Distributions
-arima_model = DiffLatentModel(AR(;
-        damp_priors = [truncated(Normal(0.8, 0.1), 0, 1),
-                       truncated(Normal(0.1, 0.05), 0, 1)],
-        init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-        ϵ_t = MA(;
-            θ_priors = [truncated(Normal(0.0, 0.05), -1, 1)],
-            ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
-        )
-    ),
-    Normal(),
-    1
-
+ma_model = MA(;
+    θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
 )
+display(ma_model)
 ```
 
--   Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
+- Again the constructor is creating a `MA` struct.
+```{julia}
+using Revise, CodeTracking
+print(@code_string generate_latent(ma_model, 50))
+```
+
+-   Combining AR with MA error term creates ARMA model. Here we redefine the `AR` process so that we have a `ARMA(2, 1)`
+
+```{julia}
+arma_model = AR(;
+    damp_priors=[truncated(Normal(0.8, 0.1), 0, 1),
+        truncated(Normal(0.1, 0.05), 0, 1)],
+    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
+    ϵ_t=ma_model
+)
+display(arma_model)
+```
+
+-   Differencing the ARMA model produces the full ARIMA(2, 1, 1) structure as a composition
+
+```{julia}
+arima_model = DiffLatentModel(arma_model, Normal(); d=1)
+display(arima_model)
+```
+
+The constructor for this is just creating a `DiffLatentModel`
+```{julia}
+print(@code_string generate_latent(arima_model, 50))
+```
+
+-   Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification. Whilst not implemented we could avoid redefining the AR process using a `update` function.
 
 <!-- -->
 
@@ -199,7 +219,7 @@ print(@code_string EpiAwareBase.generate_latent(MA(), 50))
 -   The differenced process is purely deterministic...
 
 ```{julia}
-    print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(AR(), Normal(); d = 1), 50))
+print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(AR(), Normal(); d=1), 50))
 ```
 
 -   Again this has a composable step function
@@ -357,6 +377,7 @@ ar = AR(
     init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
     ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
 )
+display(ar)
 ```
 
 #### `Turing` model interface to the AR process
@@ -528,6 +549,7 @@ A prior for $\phi$ was not specified in *Mishra et al*, we select one below but 
 
 ```{julia}
 obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
+display(obs)
 ```
 
 #### `Turing` model interface to the `NegativeBinomialError` model
@@ -892,7 +914,8 @@ delay_distribution = LogNormal(log(5), 0.2)
 The `LatentDelay` struct uses double interval censoring to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
 
 ```{julia}
-delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution) 
+delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution)
+display(delayed_obs)
 ```
 
 This code demonstrates three key aspects of our compositional approach:
@@ -1196,6 +1219,7 @@ From `EpiAware`, we have the `PoissonError` struct which defines the probabilist
 
 ```{julia}
 obs = PoissonError()
+display(obs)
 ```
 
 Now we can write the probabilistic model using the `Turing` PPL. Note that instead of using $I(t)$ directly we do the [softplus](https://en.wikipedia.org/wiki/Softplus) transform on $I(t)$ implemented by `LogExpFunctions.log1pexp`.
