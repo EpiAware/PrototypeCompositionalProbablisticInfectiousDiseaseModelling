@@ -120,6 +120,7 @@ Finally, we need a framework that can be composed with out of domain approaches 
 -   Struct-in-struct composition pattern enables recursive model building
 -   Complex models constructed by nesting simpler components in containers
 -   Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
+- Turing specific types in the prototype but actually not needed
 -   Package extension pattern: high-level epidemiological interface over standard Julia package
 -   Dual interfaces for different user needs
 
@@ -172,7 +173,7 @@ arima_model = DiffLatentModel(AR(;
 
 <!-- Reference to Panel D of Figure 1 -->
 
--   Compositional design translates to concrete Turing models via `generate_latent` function
+-   Compositional design translates to concrete Turing models via `generate_latent` and other generator functions (by absract model type).
 -   Abstract model specifications converted to executable probabilistic programs
 -   AR component implementation demonstrates multiple dispatch for seamless backend integration
 
