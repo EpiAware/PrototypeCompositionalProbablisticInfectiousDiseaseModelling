@@ -120,9 +120,10 @@ Finally, we need a framework that can be composed with out of domain approaches 
 -   Struct-in-struct composition pattern enables recursive model building
 -   Complex models constructed by nesting simpler components in containers
 -   Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
-- Turing specific types in the prototype but actually not needed
+-   Turing specific types in the prototype but actually not needed
 -   Package extension pattern: high-level epidemiological interface over standard Julia package
 -   Dual interfaces for different user needs
+-   Don't focus heavily on the specialised Turing abstract types, the `EpiMethod` , `apply_method`, `EpiData` etc. as this won't likely be carried forward. Can briefly discuss in the case study as they come up and add why they aren't a good idea in the discussion of our approach in the discussion.
 
 <!-- Reference to Panel B of Figure 1 -->
 
@@ -159,6 +160,7 @@ arima_model = DiffLatentModel(AR(;
     ),
     Normal(),
     1
+
 )
 ```
 
@@ -176,6 +178,7 @@ arima_model = DiffLatentModel(AR(;
 -   Compositional design translates to concrete Turing models via `generate_latent` and other generator functions (by absract model type).
 -   Abstract model specifications converted to executable probabilistic programs
 -   AR component implementation demonstrates multiple dispatch for seamless backend integration
+-   Do not dwell on the many different generate functions as not part of an ongoing design.
 
 ```{julia}
 print(@code_string EpiAwareBase.generate_latent(AR(), 50))
@@ -196,10 +199,10 @@ print(@code_string EpiAwareBase.generate_latent(MA(), 50))
 -   The differenced process is purely deterministic...
 
 ```{julia}
-print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(), 50))
+    print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(AR(), Normal(); d = 1), 50))
 ```
 
-- Again this has a composable step function
+-   Again this has a composable step function
 
 ```{julia}
 print(@code_string EpiLatentModels.MAStep([1, 2, 1])(1, 1))
@@ -602,15 +605,13 @@ The composition of doing variational inference as a pre-sampler step which gets 
 `EpiMethod` also allows the specification of NUTS parameters, such as type of automatic differentiation, type of parallelism and number of parallel chains to sample.
 
 ```{julia}
-num_threads = min(10, Threads.nthreads())
-
 inference_method = EpiMethod(
-    pre_sampler_steps = [ManyPathfinder(nruns = 10, maxiters = 100)],
+    pre_sampler_steps = [ManyPathfinder(nruns = 5, maxiters = 100)],
     sampler = NUTSampler(
         target_acceptance = 0.9,
         adtype = AutoReverseDiff(compile = true),
-        ndraws = 2000,
-        nchains = num_threads,
+        ndraws = 1000,
+        nchains = 4,
         mcmc_parallel = MCMCThreads(),
         nadapts = 1000)
 )
