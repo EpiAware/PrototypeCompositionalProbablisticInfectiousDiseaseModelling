@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.6"
+julia_version = "1.11.7"
 manifest_format = "2.0"
 project_hash = "e891ce30fc8b99bfe508936aa602b084d0e46920"
 
@@ -852,9 +852,10 @@ uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
 version = "0.0.195+0"
 
 [[deps.EpiAware]]
-deps = ["ADTypes", "AbstractMCMC", "AdvancedHMC", "DataFramesMeta", "Distributions", "DocStringExtensions", "DynamicPPL", "FillArrays", "LinearAlgebra", "LogExpFunctions", "MCMCChains", "OrdinaryDiffEq", "Pathfinder", "QuadGK", "Random", "Reexport", "SparseArrays", "Statistics", "Tables", "Turing"]
-git-tree-sha1 = "43a4780ddf1f07bfd352d11a57447ab05b511397"
+deps = ["ADTypes", "AbstractMCMC", "AdvancedHMC", "DataFramesMeta", "Distributions", "DocStringExtensions", "DynamicPPL", "FillArrays", "LinearAlgebra", "LogExpFunctions", "MCMCChains", "OrdinaryDiffEq", "Pathfinder", "PrettyPrinting", "QuadGK", "Random", "Reexport", "SparseArrays", "Statistics", "Tables", "Turing"]
+git-tree-sha1 = "d35534eccc112b0ecee46112dd539ef7ff21fdb8"
 path = "EpiAware/EpiAware"
+repo-rev = "main"
 repo-subdir = "EpiAware"
 repo-url = "https://github.com/seabbs/Rt-without-renewal"
 uuid = "b2eeebe4-5992-4301-9193-7ebc9f62c855"
@@ -2538,6 +2539,11 @@ deps = ["TOML"]
 git-tree-sha1 = "0f27480397253da18fe2c12a4ba4eb9eb208bf3d"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.5.0"
+
+[[deps.PrettyPrinting]]
+git-tree-sha1 = "142ee93724a9c5d04d78df7006670a93ed1b244e"
+uuid = "54e16d92-306c-5ea0-a30b-337be88ac337"
+version = "0.4.2"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "Reexport", "StringManipulation", "Tables"]

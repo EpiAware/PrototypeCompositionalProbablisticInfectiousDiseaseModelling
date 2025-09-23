@@ -55,9 +55,11 @@ jobs:
           path: |
             .cache
             .quarto/project-cache
-          key: ${{ runner.os }}-${{ github.ref_name }}-quarto
+            _freeze/
+          key: ${{ runner.os }}-${{ github.ref_name }}-quarto-${{ hashFiles('index.qmd', '_quarto.yml') }}
           restore-keys: |
-            ${{ runner.os }}-main-quarto
+            ${{ runner.os }}-${{ github.ref_name }}-quarto-
+            ${{ runner.os }}-main-quarto-
 
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2

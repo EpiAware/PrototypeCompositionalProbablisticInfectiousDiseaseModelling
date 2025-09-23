@@ -140,6 +140,7 @@ display(ar_model)
 
 - Internally this is creating a `AR` struct.
 ```{julia}
+using Revise, CodeTracking
 print(@code_string generate_latent(ar_model, 50))
 ```
 
@@ -156,7 +157,6 @@ display(ma_model)
 
 - Again the constructor is creating a `MA` struct.
 ```{julia}
-using Revise, CodeTracking
 print(@code_string generate_latent(ma_model, 50))
 ```
 

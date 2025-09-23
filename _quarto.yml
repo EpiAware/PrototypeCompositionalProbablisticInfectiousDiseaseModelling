@@ -18,4 +18,4 @@ format:
     linestretch: 1.5
     
 execute:
-  freeze: false
+  freeze: auto
