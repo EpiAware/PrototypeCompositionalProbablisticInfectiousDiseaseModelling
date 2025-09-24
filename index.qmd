@@ -187,7 +187,7 @@ This approach enables representation of arbitrary latent processes through compo
 -   Abstract model specifications converted to executable probabilistic programs
 -   AR component implementation demonstrates multiple dispatch for seamless backend integration
 -   Do not dwell on the many different generate functions as not part of an ongoing design.
-
+-   Once a generate function has been used to create a Turing.jl model these models can be used with all the functionality that Turing supports including sampling, inference with a wide range of approaches, including gradient based approaches, model conditioning and adaption, as well as includsion in other models as submodels themselves.
 Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function:
 
 ```{julia}
