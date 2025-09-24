@@ -6,11 +6,6 @@ project:
 engines: ['julia']
   
 format:
-  html:
-    theme: cosmo
-    css: styles.css
-    toc: true
-    
   pdf:
     documentclass: article
     geometry: margin=1in
@@ -18,4 +13,4 @@ format:
     linestretch: 1.5
     
 execute:
-  freeze: auto
+  freeze: true

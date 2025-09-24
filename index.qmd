@@ -21,10 +21,6 @@ format:
     keep-tex: false
     number-sections: false
     colorlinks: true
-  html:
-    toc: true
-    number-sections: true
-    embed-resources: true
 bibliography: references.bib
 csl: https://www.zotero.org/styles/plos-computational-biology
 execute:
@@ -88,12 +84,11 @@ This means supporting abstract back-ends that seamlessly switch between inferenc
 We also need to have model components that encapsulate both structure and prior distributions so that domain experts can contribute specialised knowledge: a virologist's understanding of within-host dynamics, an epidemiologist's of contact patterns, a clinician's of disease progression insights without reviewing the entire modelling framework.
 Standardised interfaces between components are needed to allow individual components to work together, to support handling of multiple strata, and to allow for proper uncertainty propagation.
 As there are a range of different potential ways to express infectious disease models including ordinary differential equations, agent-based models, network models, stochastic processes, and discrete time models these all need to be supported both independently and in combination.
+Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches.
 
 ## Design Philosophy {#sec-design}
 
--   Epidemiological models as collections of interchangeable components
--   Full uncertainty propagation through standardised interfaces
 -   Julia's type system and multiple dispatch for domain-specific language
 -   Complex models emerging from composing simpler, reusable components
 -   Dispatch at Turing level with support for arbitrary computational backends
