@@ -188,23 +188,32 @@ This approach enables representation of arbitrary latent processes through compo
 -   AR component implementation demonstrates multiple dispatch for seamless backend integration
 -   Do not dwell on the many different generate functions as not part of an ongoing design.
 
+Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function:
+
 ```{julia}
-print(@code_string EpiAwareBase.generate_latent(AR(), 50))
+using CodeTracking, Revise
+print(@code_string EpiAwareBase.generate_latent(ar_model, 50))
 ```
 
--   AR dynamics implemented through custom accumulation step maintaining autoregressive state
+The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state:
 
 ```{julia}
 print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
 ```
 
--   MA model is similar and also has an internal `AbstractStep` function that can also be composed within iterations of a discrete process.,
+This step function works with `accumulate_scan` to build the AR series by applying the autoregressive equation at each time step.
+The MA model has a similar structure with its own internal step function.
+The `accumulate_scan` pattern enables composable iteration steps, allowing complex processes like renewal models with susceptible depletion to be built by composing simple step operations.
+This design means we only need to write the single-step operation without worrying about the iteration process, making components more modular and reusable.
 
--   Composed ARIMA structure creates executable Turing model by dispatching through each layer of the ARIMA struct. This means the code at the top level is the same as for the `DiffLatentModel`.
+The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach:
 
 ```{julia}
 print(@code_string generate_latent(arima_model, 50))
 ```
+
+The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
+This recursive delegation through `@submodel` enables arbitrary depth composition while maintaining clean separation between components.
 
 
 **Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
@@ -1619,7 +1628,9 @@ Our three case studies replicated previous studies [@mishra2020covid; @epinow2; 
 -   Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
 -   Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
 -   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
-
+ - The Turing PPL DSL is not fully stable and since developing this prototype the submodel macro has changed syntax and had a breaking change in how it handles prefixes.
+ - However, these changes allow for more flexible models as they reduce the difference betweeen specifying something as a distribution and as a sub model.
+ 
 <!-- Comparison to literature - Algebraic Julia -->
 
 -   Builds on algebraic Julia ecosystem (DifferentialEquations.jl, etc.)
