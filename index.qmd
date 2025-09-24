@@ -61,7 +61,6 @@ This paper presents a prototype that combines the modularity of pipeline approac
 Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
 The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
 We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
-This provides dual interfaces: a high-level epidemiological interface for domain experts and a low-level Turing interface.
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
 Through three case studies using the prototype, we show how components can be reused across different models: the first replicates @mishra2020covid; the second reuses components from the first, along with new elements, to replicate @epinow2; the third implements @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
 Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
@@ -87,24 +86,19 @@ As there are a range of different potential ways to express infectious disease m
 Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches.
 
-## Design Philosophy {#sec-design}
+## Our approach {#sec-design}
 
--   Julia's type system and multiple dispatch for domain-specific language
--   Complex models emerging from composing simpler, reusable components
--   Dispatch at Turing level with support for arbitrary computational backends
--   Architecture supports ODE solvers, agent-based models, symbolic-numeric systems
--   Turing.jl chosen for: flexible probabilistic programming, robust submodel support
--   Extensive inference algorithms, complex hierarchical structures, minimal boilerplate
--   Eliminates "two-language problem": high-level specs compile to efficient code
--   Julia's metaprogramming enables domain-specific abstractions hiding complexity
--   Of available options, only Julia PPLs provide necessary abstraction capabilities
--   Turing.jl: highest adoption, largest team, best model composition support
--   Light interface layer leveraging ecosystem vs reimplementing everything
--   No lock-in: users work at high-level or drop to Turing level
--   Distributed ecosystem increases sustainability: multiple institutions maintain different components
--   Python/R entry points for accessibility, but core composability requires Julia's abstractions
--   "ODE experts work on ODEs, GP experts on GPs, domain experts on domain" principle
--   Abstraction layer handles automated bookwork: stratification, interface requirements, parameter hierarchies
+Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
+We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and crucially access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
+As far as we are aware, only probabilistic programming languages built in Julia provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
+Among Julia's options, Turing.jl best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
+Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch for clean component composition, and accessing the mature SciML ecosystem for differential equations and other scientific computing tools.
+
+Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using Turing.jl (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
+This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
+The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
+The backend layer handles the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the Turing.jl and wider Julia ecosystems.
+Alternative approaches using category theory or symbolic-numeric frameworks remain accessible through Julia's interoperability and could be made parts of future backends [@libkind2022algebraic; @modelingtoolkit2021].
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
@@ -1657,6 +1651,7 @@ Our three case studies replicated previous studies [@mishra2020covid; @epinow2; 
 -   Contrast with pipeline approaches (separate models passing information)
 -   Comparison to modular frameworks in other scientific domains
 -   Relationship to probabilistic programming languages and compositional features
+-   Gen.jl and Genify (https://ztangent.github.io/assets/pdf/2021-genify.pdf)
 
 <!-- Future work -->
 
