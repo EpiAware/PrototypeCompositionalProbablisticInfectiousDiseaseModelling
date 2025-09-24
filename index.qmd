@@ -106,20 +106,23 @@ Alternative approaches using category theory or symbolic-numeric frameworks rema
 
 -   Domain-specific language built on Julia's type system
 -   Abstract types define hierarchy of epidemiological model components
--   Struct-in-struct composition pattern enables recursive model building
+-   Struct-in-struct design enables component swapping for model comparison
+-   Mathematical consistency maintained through type system
 -   Complex models constructed by nesting simpler components in containers
 -   Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
 -   Turing specific types in the prototype but actually not needed
 -   Package extension pattern: high-level epidemiological interface over standard Julia package
--   Dual interfaces for different user needs
 -   Don't focus heavily on the specialised Turing abstract types, the `EpiMethod` , `apply_method`, `EpiData` etc. as this won't likely be carried forward. Can briefly discuss in the case study as they come up and add why they aren't a good idea in the discussion of our approach in the discussion.
+-   Compositional design translates abstract specifications to concrete probabilistic programs via multiple dispatch
+-   Enables modular "swap-in/swap-out" functionality distinguishing from monolithic alternatives
 
 <!-- Reference to Panel B of Figure 1 -->
 
--   ARIMA model demonstration as stack of reusable components
--   ARIMA(p,d,q) constructed by composing: moving average (`MA`), autoregressive (`AR`), differencing (`DiffLatentModel`) components
+To demonstrate the structure and use of `AbstractLatentModels`, we start with an autoregressive order one (AR(1)) process, which mathematically is:
 
--   Individual AR process
+$$Z_t = \rho Z_{t-1} + \epsilon_t, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
+
+In our prototype DSL, this is defined using the `AR` struct:
 
 ```{julia}
 using EpiAware
@@ -127,13 +130,11 @@ ar_model = AR()
 display(ar_model)
 ```
 
-- Internally this is creating a `AR` struct.
-```{julia}
-using Revise, CodeTracking
-print(@code_string generate_latent(ar_model, 50))
-```
+Another common latent model is the moving average model
 
--   Moving average component for error terms
+$$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
+
+The `MA` struct encapsulates this:
 
 ```{julia}
 using Distributions
@@ -141,15 +142,14 @@ ma_model = MA(;
     θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
 )
-display(ma_model)
 ```
 
-- Again the constructor is creating a `MA` struct.
-```{julia}
-print(@code_string generate_latent(ma_model, 50))
-```
+A popular combination of these models is the autoregressive moving average (ARMA) model that can have different orders for both the AR and MA components.
+An ARMA(2,1) can be defined as:
 
--   Combining AR with MA error term creates ARMA model. Here we redefine the `AR` process so that we have a `ARMA(2, 1)`
+$$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
+
+In our DSL this can be represented as a composition of the AR and MA structs by passing MA as the error term to AR:
 
 ```{julia}
 arma_model = AR(;
@@ -158,27 +158,26 @@ arma_model = AR(;
     init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
     ϵ_t=ma_model
 )
-display(arma_model)
 ```
 
--   Differencing the ARMA model produces the full ARIMA(2, 1, 1) structure as a composition
+Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
+
+$$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
+
+We compose the ARMA model with a differencing operation using the `DiffLatentModel` wrapper:
 
 ```{julia}
 arima_model = DiffLatentModel(arma_model, Normal(); d=1)
 display(arima_model)
 ```
 
-The constructor for this is just creating a `DiffLatentModel`
-```{julia}
-print(@code_string generate_latent(arima_model, 50))
-```
+Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
+Whilst not implemented we could avoid redefining the AR process using an `update` function.
 
--   Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification. Whilst not implemented we could avoid redefining the AR process using a `update` function.
+Other latent models extend possibilities through combining models additively, multiplicative scaling, and piecewise processes.
+This approach enables representation of arbitrary latent processes through composition.
 
 <!-- -->
-
--   Struct-in-struct design enables component swapping for model comparison
--   Mathematical consistency maintained through type system
 
 ## Backend Implementation: Turing Interface {#sec-backend}
 
@@ -199,23 +198,7 @@ print(@code_string EpiAwareBase.generate_latent(AR(), 50))
 print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
 ```
 
--   MA model is similar
-
-```{julia}
-print(@code_string EpiAwareBase.generate_latent(MA(), 50))
-```
-
--   The differenced process is purely deterministic...
-
-```{julia}
-print(@code_string EpiAwareBase.generate_latent(DiffLatentModel(AR(), Normal(); d=1), 50))
-```
-
--   Again this has a composable step function
-
-```{julia}
-print(@code_string EpiLatentModels.MAStep([1, 2, 1])(1, 1))
-```
+-   MA model is similar and also has an internal `AbstractStep` function that can also be composed within iterations of a discrete process.,
 
 -   Composed ARIMA structure creates executable Turing model by dispatching through each layer of the ARIMA struct. This means the code at the top level is the same as for the `DiffLatentModel`.
 
@@ -223,9 +206,6 @@ print(@code_string EpiLatentModels.MAStep([1, 2, 1])(1, 1))
 print(@code_string generate_latent(arima_model, 50))
 ```
 
--   Compositional design translates abstract specifications to concrete probabilistic programs via multiple dispatch
--   Backend implementation maintains full Turing compatibility
--   Enables modular "swap-in/swap-out" functionality distinguishing from monolithic alternatives
 
 **Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
 *Panel B*: ARIMA composition example demonstrating component stacking with struct definitions.
