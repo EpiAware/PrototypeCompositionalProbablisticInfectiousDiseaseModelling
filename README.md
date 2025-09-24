@@ -55,6 +55,11 @@ Available tasks:
    ```
 
 3. Set up Julia environment:
+   ```bash
+   julia +1.11.6
+   ```
+
+   Then in the Julia REPL:
    ```julia
    using Pkg
    Pkg.activate(".")
@@ -64,13 +69,4 @@ Available tasks:
 4. Render the document:
    ```bash
    quarto render
-   ```
-
-5. For interactive Julia REPL with project environment:
-   ```bash
-   julia +1.11.6
-   ```
-   Then in Julia:
-   ```julia
-   using Pkg; Pkg.activate(".")
    ```
