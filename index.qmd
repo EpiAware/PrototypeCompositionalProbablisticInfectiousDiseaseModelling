@@ -130,6 +130,13 @@ ar_model = AR()
 display(ar_model)
 ```
 
+This default constructor returns the AR(1), we can also construct AR(p)
+
+```{julia}
+ar2_model = AR(Normal(), Normal(); p = 2)
+display(ar2_model)
+```
+
 Another common latent model is the moving average model
 
 $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
@@ -152,12 +159,24 @@ $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
 In our DSL this can be represented as a composition of the AR and MA structs by passing MA as the error term to AR:
 
 ```{julia}
-arma_model = AR(;
-    damp_priors=[truncated(Normal(0.8, 0.1), 0, 1),
-        truncated(Normal(0.1, 0.05), 0, 1)],
-    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-    ϵ_t=ma_model
-)
+using Accessors
+function update_fields(obj; kwargs...)
+    result = obj
+    for (key, value) in kwargs
+        result = set(result, PropertyLens(key), value)
+    end
+    return result
+end
+```
+
+
+```{julia}
+using Turing: filldist
+arma_model = update_fields(ar2_model;
+            damp_prior=arraydist([truncated(Normal(0.8, 0.1), 0, 1),
+                                    truncated(Normal(0.1, 0.05), 0, 1)]),
+            init_prior = arraydist([Normal(-1.0, 0.1), Normal(-1.0, 0.5)]),
+            ϵ_t=ma_model)
 ```
 
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
