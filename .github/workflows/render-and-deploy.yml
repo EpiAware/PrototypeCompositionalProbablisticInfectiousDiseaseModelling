@@ -72,7 +72,7 @@ jobs:
 
       - name: Render Quarto project
         run: |
-          quarto render --to html,pdf
+          quarto render
         env:
           JULIA_NUM_THREADS: auto
 
@@ -80,9 +80,6 @@ jobs:
         id: check-outputs
         run: |
           outputs_exist="false"
-          if [ -f "_site/index.html" ] || [ -f "index.html" ]; then
-            outputs_exist="true"
-          fi
           if [ -f "index.pdf" ]; then
             outputs_exist="true"
           fi
