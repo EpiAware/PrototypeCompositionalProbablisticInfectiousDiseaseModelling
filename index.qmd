@@ -171,7 +171,7 @@ end
 
 
 ```{julia}
-using Turing: filldist
+using Turing: arraydist
 arma_model = update_fields(ar2_model;
             damp_prior=arraydist([truncated(Normal(0.8, 0.1), 0, 1),
                                     truncated(Normal(0.1, 0.05), 0, 1)]),
