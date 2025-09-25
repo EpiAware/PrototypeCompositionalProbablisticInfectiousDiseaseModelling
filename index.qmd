@@ -275,9 +275,14 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
 
-In this example we use `EpiAware` functionality to largely recreate an epidemiological model presented in [On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)](https://arxiv.org/abs/2006.16487).
-*Mishra et al* consider test-confirmed cases of COVID-19 in South Korea between January to July 2020.
-The components of the epidemilogical model they consider are:
+In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, originally introduced by Kermack and McKendrick @kermack1927contribution, as a renewal model with time-varying reproductive number $R(t)$. 
+*Mishra et al* show how solutions to the renewal equation, when combined with a negative binomial link to count data, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea between January to July 2020.
+The renewal equation is a flexible model for latent infections which can be thought of as a epidemiologically motivated transformation on the process $R(t)$ @mishra, in the sense that it solution trajectory $I(t)$ is conditional on the value of $R(t)$ and initial values $I(0), I(-1), \dots$.
+We show how our prototype framework compose a latent process model, reusing components from previous examples, with a renewal equation solution model and an observation link model to recreate the Bayesian framework in @mishra .
+The relative simplicity of the observation model in this example makes this a good initial case study.
+
+
+The components of the epidemiological model they consider are:
 
 -   The time varying reproductive number modelled as an [AR(2) process](https://en.wikipedia.org/wiki/Autoregressive_model) on the log-scale $\log R_t \sim \text{AR(2)}$.
 -   The latent infection ($I_t$) generating process is a renewal model (note that we leave out external infections in this note): $$
