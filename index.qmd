@@ -276,10 +276,21 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
 
 In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, originally introduced by Kermack and McKendrick @kermack1927contribution, as a renewal model with time-varying reproductive number $R(t)$. 
-*Mishra et al* show how solutions to the renewal equation, when combined with a negative binomial link to count data, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea between January to July 2020.
+*Mishra et al* show how solutions to the renewal equation, when combined with a negative binomial link to count data, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
 The renewal equation is a flexible model for latent infections which can be thought of as a epidemiologically motivated transformation on the process $R(t)$ @mishra, in the sense that it solution trajectory $I(t)$ is conditional on the value of $R(t)$ and initial values $I(0), I(-1), \dots$.
 We show how our prototype framework compose a latent process model, reusing components from previous examples, with a renewal equation solution model and an observation link model to recreate the Bayesian framework in @mishra .
 The relative simplicity of the observation model in this example makes this a good initial case study.
+
+### Data
+
+_Mishra et al_ made inference on daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
+This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
+
+```{julia}
+using CSV, DataFramesMeta
+data = CSV.read("data/south_korea_data.csv", DataFrame)
+```
+
 
 
 The components of the epidemiological model they consider are:
@@ -314,17 +325,6 @@ using Random
 Random.seed!(1234)
 ```
 
-### Load early SARS-2 case data for South Korea
-
-First, we make sure that we have the data we want to analysis in scope by downloading it for where we have saved a copy in the `EpiAware` repository.
-
-NB: The case data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package.
-We accessed the South Korean case data using a short [R script](https://github.com/CDCgov/Rt-without-renewal/blob/main/EpiAware/docs/src/showcase/replications/mishra-2020/get_data.R).
-It is possible to interface directly from a Julia session using the `RCall.jl` package, but we do not do this in this notebook to reduce the number of underlying dependencies required to run this notebook.
-
-```{julia}
-data = CSV.read("data/south_korea_data.csv", DataFrame)
-```
 
 ### Time-varying reproduction number as an `AbstractLatentModel` type
 
