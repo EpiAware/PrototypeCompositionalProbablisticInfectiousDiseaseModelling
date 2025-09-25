@@ -133,6 +133,7 @@ display(ar_model)
 This default constructor returns the AR(1), we can also construct AR(p)
 
 ```{julia}
+using Distributions
 ar2_model = AR(Normal(), Normal(); p = 2)
 display(ar2_model)
 ```
@@ -144,7 +145,6 @@ $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(
 The `MA` struct encapsulates this:
 
 ```{julia}
-using Distributions
 ma_model = MA(;
     θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
