@@ -255,7 +255,7 @@ Give a very high levle overview of the model in text.
 ### Fitting to Data
 
 -   Model composition into `EpiProblem`
--   Inference configuration
+-   Inference configurationn
 -   Posterior sampling
 -   Posterior predictive checking
 
@@ -1630,6 +1630,7 @@ Our three case studies replicated previous studies [@mishra2020covid; @epinow2; 
 -   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
  - The Turing PPL DSL is not fully stable and since developing this prototype the submodel macro has changed syntax and had a breaking change in how it handles prefixes.
  - However, these changes allow for more flexible models as they reduce the difference betweeen specifying something as a distribution and as a sub model.
+ - Ignores category theory.
  
 <!-- Comparison to literature - Algebraic Julia -->
 
