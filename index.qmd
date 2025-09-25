@@ -275,9 +275,9 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
 
-In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, originally introduced by Kermack and McKendrick @kermack1927contribution, as a renewal model with time-varying reproductive number $R(t)$. 
+In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, originally introduced by Kermack and McKendrick @kermack1927contribution, as a renewal model with time-varying reproduction number $R_t$. 
 *Mishra et al* show how solutions to the renewal equation, when combined with a negative binomial link to count data, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
-The renewal equation is a flexible model for latent infections which can be thought of as a epidemiologically motivated transformation on the process $R(t)$ @mishra, in the sense that it solution trajectory $I(t)$ is conditional on the value of $R(t)$ and initial values $I(0), I(-1), \dots$.
+The renewal equation is a flexible model for latent infections which can be thought of as a epidemiologically motivated transformation on the process $R_t$ @mishra, in the sense that it solution trajectory $I_t$ is conditional on the value of $R_t$ and initial values $I(0), I(-1), \dots$.
 We show how our prototype framework compose a latent process model, reusing components from previous examples, with a renewal equation solution model and an observation link model to recreate the Bayesian framework in @mishra .
 The relative simplicity of the observation model in this example makes this a good initial case study.
 
@@ -291,104 +291,58 @@ using CSV, DataFramesMeta
 data = CSV.read("data/south_korea_data.csv", DataFrame)
 ```
 
+### Model
+
+The generative model for case data demonstrated in _Mishra et al_ has a hierarchical structure, consisting of a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
+The latent infection process is linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
 
 
-The components of the epidemiological model they consider are:
+#### Infection Generating Process
 
--   The time varying reproductive number modelled as an [AR(2) process](https://en.wikipedia.org/wiki/Autoregressive_model) on the log-scale $\log R_t \sim \text{AR(2)}$.
--   The latent infection ($I_t$) generating process is a renewal model (note that we leave out external infections in this note): $$
-    I_t = R_t \sum_{s\geq 1} I_{t-s} g_s.
-    $$
--   The discrete generation interval $g_t$ is a daily discretisation of the probability mass function of an estimated serial interval distribution for SARS-CoV-2: $$
-    G \sim \text{Gamma}(6.5,0.62).
-    $$
--   Observed cases $C_t$ are distributed around latent infections with negative binomial errors: $$
-    C_t \sim \text{NegBin}(\text{mean} = I_t,~ \text{overdispersion} = \phi).
-    $$
+The probabilistic model for the latent infections $I_t$ is
 
-In the examples below we are going to largely recreate the *Mishra et al* model, whilst emphasing that each component of the overall epidemiological model is, itself, a stand alone model that can be sampled from.
+$$
+\begin{aligned}
+Z_t & = \log R_t, \\
+\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma &\sim \pi(), \\
+\epsilon_t & \sim \text{Normal}(0, \sigma)~~ \text{i.i.d } \forall t, \\
+Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t,~~ t = 1, 2, 3, \dots\\
+r & \text{ solves } G(r) = 1 / R_1, \\
+I_{t} & = I_0 e^{rt},~~ t = 0, -1, -2, -3,-n+1, \\
+I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots.
+\end{aligned}
+$$
 
-### Dependencies and setup
+Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model for the log-scale reproductive number and the initial conditions for the AR(2) and renewal trajectories.
+$g_t$ is the generation distribution probability mass function (pmf).
+$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation
 
+$$
+G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
+$$
+
+We reuse the ARMA(2,1) model from above by reseting its noise model to independent normal with a hyperprior for $\sigma \sim \text{HalfNormal}(0.5)$.
+This transforms the ARMA(2,1) model into the AR(2) model we desire.
+ 
 ```{julia}
-using EpiAware
-using Turing, DynamicPPL #Underlying Turing ecosystem packages to interact with models
-using Distributions, Statistics #Statistics packages
-using CSV, DataFramesMeta #Data wrangling
-using CairoMakie, PairPlots, TimeSeries #Plotting backend
-using ReverseDiff #Automatic differentiation backend
-CairoMakie.activate!(type = "png") # Compatible format
-
-#Date utility and set Random seed
-using Dates
-using Random
-Random.seed!(1234)
-```
-
-
-### Time-varying reproduction number as an `AbstractLatentModel` type
-
-`EpiAware` exposes a `AbstractLatentModel` abstract type; the purpose of which is to group stochastic processes which can be interpreted as generating time-varying parameters/quantities of interest which we call latent process models.
-
-In the *Mishra et al* model the log-time varying reproductive number $Z_t$ is assumed to evolve as an auto-regressive process, AR(2):
-
-\begin{align}
-R_t &= \exp Z_t, \\
-Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \\
-\epsilon_t &\sim \text{Normal}(0, \sigma^*).
-\end{align}
-
-Where $\rho_1,\rho_2$, which are the parameters of AR process, and $\epsilon_t$ is a white noise process with standard deviation $\sigma^*$.
-
-In `EpiAware` we determine the behaviour of a latent process by choosing a concrete subtype (i.e. a struct) of `AbstractLatentModel` which has fields that set the priors of the various parameters required for the latent process.
-
-The AR process has the struct `AR <: AbstractLatentModel`.
-The user can supply the priors for $\rho_1,\rho_2$ in the field `damp_priors`, for $\sigma^*$ in the field `std_prior`, and the initial values $Z_1, Z_2$ in the field `init_priors`.
-
-We choose priors based on *Mishra et al* using the `Distributions.jl` interface to probability distributions.
-Note that we condition the AR parameters onto $[0,1]$, as in *Mishra et al*, using the `truncated` function.
-
-In *Mishra et al* the standard deviation of the *stationary distribution* of $Z_t$ which has a standard normal distribution conditioned to be positive $\sigma \sim \mathcal{N}^+(0,1)$.
-The value $σ^*$ was determined from a nonlinear function of sampled $\sigma, ~\rho_1, ~\rho_2$ values.
-Since, *Mishra et al* give sharply informative priors for $\rho_1,~\rho_2$ (see below) we simplify by calculating $\sigma^*$ at the prior mode of $\rho_1,~\rho_2$.
-This results in a $\sigma^* \sim \mathcal{N}^+(0, 0.5)$ prior.
-
-```{julia}
-ar = AR(
-    damp_priors = [truncated(Normal(0.1, 0.05), 0, 1),
-        truncated(Normal(0.8, 0.05), 0, 1)],
-    init_priors = [Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
-)
+using Accessors
+ar = @set arma_model.ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
 display(ar)
 ```
 
-#### `Turing` model interface to the AR process
-
-As mentioned above, we can use this instance of the `AR` latent model to construct a [`Turing`](https://turinglang.org/) model object which implements the probabilistic behaviour determined by `ar`.
-We do this with the constructor function exposed by `EpiAware`: `generate_latent` which combines an `AbstractLatentModel` substype struct with the number of time steps for which we want to generate the latent process.
-
-As a refresher, we remind that the `Turing.Model` object has the following properties:
-
--   The model object parameters are sampleable using `rand`; that is we can generate parameters from the specified priors e.g. `θ = rand(mdl)`.
--   The model object is generative as a callable; that is we can sample instances of $Z_t$ e.g. `Z_t = mdl()`.
--   The model object can construct new model objects by conditioning parameters using the [`DynamicPPL.jl`](https://turinglang.org/DynamicPPL.jl/stable/) syntax, e.g. `conditional_mdl = mdl | (σ_AR = 1.0, )`.
-
-As a concrete example we create a model object for the AR(2) process we specified above for 50 time steps:
+We define the associated Turing model to `ar`, concretising its sampling period to 50 days for prior predictive modelling.
 
 ```{julia}
 ar_mdl = generate_latent(ar, 50)
 ```
 
-Ultimately, this will only be one component of the full epidemiological model.
-However, it is useful to visualise its probabilistic behaviour for model diagnostic and prior predictive checking.
-
-We can spaghetti plot generative samples from the AR(2) process with the priors specified above.
+We show our prior predictive modelling samples as spaghetti plots.
 
 ```{julia}
 #| output: true
 #| label: fig-ar-sample
 #| echo: false
+using CairoMakie
 ar_sample_plot = let
     n_samples = 100
     ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -409,7 +363,8 @@ end
 ar_sample_plot
 ```
 
-This suggests that *a priori* we believe that there is a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
+Using the decomposed models we can rapidly visualise that *a priori* the _Mishra et al_ example assigned a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
+
 
 ### The Renewal model as an `AbstractEpiModel` type {#the-renewal-model-as-an-abstractepimodel-type}
 
