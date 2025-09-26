@@ -644,30 +644,6 @@ inference_results = apply_method(mdl,
 
 To assess the quality of the inference visually we can plot predictive quantiles for generated case data, as well as quantities of interest such as posterior $R_t$ samples from the model.
 
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-pairwise-CS1
-#| fig-cap: Pair plotting of joint posterior distribution of the AR(2) hyperparameters and the initial number of latent infecteds.
-using PairPlots
-parameters_to_plot = ["latent.ar_init[1]", 
-                            "latent.ar_init[2]", 
-                            "latent.damp_AR[1]",
-                            "latent.damp_AR[2]",
-                            "latent.std",
-                            "init_incidence"]
-
-fig = @chain inference_results.samples begin
-    identify_good_chains(; threshold = 3.0)
-    inference_results.samples[:, :, _]
-    pairplot(_[parameters_to_plot])
-end
-
-fig
-```
-
-
 ```{julia}
 #| echo: false
 
@@ -928,6 +904,32 @@ figure2
 Figure @fig-posterior-preds-CS1 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak) before rapidly dropping below 1 in early March 2020.
 
 We can also interrogate joint posterior distribution of selected model parameters using pair plotting.
+
+
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairwise-CS1
+#| fig-cap: Pair plotting of joint posterior distribution of the AR(2) hyperparameters and the initial number of latent infecteds.
+using PairPlots
+parameters_to_plot = ["latent.ar_init[1]", 
+                            "latent.ar_init[2]", 
+                            "latent.damp_AR[1]",
+                            "latent.damp_AR[2]",
+                            "latent.std",
+                            "init_incidence"]
+
+fig = @chain inference_results.samples begin
+    identify_good_chains(; threshold = 3.0)
+    inference_results.samples[:, :, _]
+    pairplot(_[parameters_to_plot])
+end
+
+fig
+```
+
+
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
