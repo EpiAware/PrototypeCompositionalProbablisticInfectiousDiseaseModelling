@@ -11,6 +11,20 @@ format:
     geometry: margin=1in
     fontsize: 11pt
     linestretch: 1.5
-    
+    keep-tex: false
+    number-sections: false
+    colorlinks: true
+  ipynb: default
+
+bibliography: references.bib
+csl: https://www.zotero.org/styles/plos-computational-biology
+
 execute:
-  freeze: true
+  echo: true
+  warning: false
+  cache: true
+  output: false
+  freeze: auto
+
+julia: 
+  exeflags: ["+1.11.6", "--threads=4", "-O3"]

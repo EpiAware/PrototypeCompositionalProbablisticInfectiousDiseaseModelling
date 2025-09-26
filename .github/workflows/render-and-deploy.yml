@@ -98,6 +98,7 @@ jobs:
           name: quarto-outputs-${{ github.sha }}
           path: |
             index.pdf
+            index.ipynb
             _site/
           retention-days: 30
           if-no-files-found: warn

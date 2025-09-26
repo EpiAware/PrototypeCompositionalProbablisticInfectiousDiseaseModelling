@@ -42,6 +42,7 @@ resources
 index.html
 index.pdf
 index.tex
+index_files/
 
 _freeze/
 _manuscript/

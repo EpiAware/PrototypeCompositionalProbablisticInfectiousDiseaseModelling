@@ -6,6 +6,8 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 📖 **[Read the paper](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/index.pdf)**
 
+📓 **[Jupyter Notebook](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/index.ipynb)**
+
 📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
 
 ## Citation
@@ -47,6 +49,7 @@ Available tasks:
 1. Install Julia 1.11.6 (we expect any version of 1.11 to work well):
    ```bash
    juliaup add 1.11.6
+   juliaup override set 1.11.6
    ```
 
 2. Initialise git submodules:
