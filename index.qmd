@@ -269,7 +269,7 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 -   Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
 -   Mathematical formulation precedes code implementation for each component
 
-## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
+## Case study 1: On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
 <!-- Reference: https://arxiv.org/abs/2006.16487 -->
 
@@ -291,46 +291,63 @@ using CSV, DataFramesMeta
 data = CSV.read("data/south_korea_data.csv", DataFrame)
 ```
 
-### Model
+### Generative model for case study 1
 
 The generative model for case data demonstrated in _Mishra et al_ has a hierarchical structure, consisting of a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
 The latent infection process is linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
 
-
-#### Infection Generating Process
-
-The probabilistic model for the latent infections $I_t$ is
+The full probabilistic model we use in this case study is,
 
 $$
 \begin{aligned}
 Z_t & = \log R_t, \\
-\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma &\sim \pi(), \\
+\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma, \phi &\sim \pi(\cdot), \\
 \epsilon_t & \sim \text{Normal}(0, \sigma)~~ \text{i.i.d } \forall t, \\
 Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t,~~ t = 1, 2, 3, \dots\\
 r & \text{ solves } G(r) = 1 / R_1, \\
 I_{t} & = I_0 e^{rt},~~ t = 0, -1, -2, -3,-n+1, \\
-I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots.
+I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
+y_t & \sim \text{NegBin}(I_t, \phi), ~~ t = 1, 2, 3, \dots.
 \end{aligned}
 $$
 
-Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model for the log-scale reproductive number and the initial conditions for the AR(2) and renewal trajectories.
+Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the damping parameters $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
 $g_t$ is the generation distribution probability mass function (pmf).
-$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation
+$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation 
 
 $$
 G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
 $$
 
-We reuse the ARMA(2,1) model from above by reseting its noise model to independent normal with a hyperprior for $\sigma \sim \text{HalfNormal}(0.5)$.
-This transforms the ARMA(2,1) model into the AR(2) model we desire.
+This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
+The sampling distribution for these parameters defines a generative model for the daily case data $y_t$ through solution of the renewal equation for latent infections $I_t$, therefore, this model can be used for Bayesian inference by conditioning on the observed case data.
+
+#### Infection Generating Process
+
+The priors for the latent AR(2) process we use, based on _Mishra et al_, are,
+
+$$
+\begin{aligned}
+\rho_1 & \sim \text{Normal}(0.8, 0.1) \mid \{0 \geq \rho_1 \geq 1 \},\\
+\rho_1 & \sim \text{Normal}(0.1, 0.05) \mid \{0 \geq \rho_1 \geq 1 \},\\
+Z_0 & \sim \text{Normal}(-1.0, 0.1) ,\\
+Z_{-1} & \sim \text{Normal}(-1.0, 0.5),\\
+\sigma & \sim \text{HalfNormal}(0.5).
+\end{aligned}
+$$
+
+The ARMA(2,1) model defined above already has these priors for the damping parameters and initial conditions.
+Therefore, we reuse the ARMA(2,1) model from above by reseting its noise model to independent normal with a hyperprior for $\sigma \sim \text{HalfNormal}(0.5)$.
+This transforms the ARMA(2,1) model into the AR(2) model we desire, whilst maintaining code reusability, 
  
 ```{julia}
 using Accessors
 ar = @set arma_model.ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
-display(ar)
+display(ar) # FIX: Currently gives incorrect display but inspection returns correct strucutual transformation
 ```
 
-We define the associated Turing model to `ar`, concretising its sampling period to 50 days for prior predictive modelling.
+The `ar` model object defines the full sampling distribution, both for hyperparameters and trajectory, for $Z_t$ defined in the [generative model](#generative-model-for-case-study-1) section.
+To do prior predictive modelling on $Z_t$ we define the associated Turing model to `ar`, concretising its sampling period to 50 days using the `generate_latent` method from our prototype system.
 
 ```{julia}
 ar_mdl = generate_latent(ar, 50)
@@ -363,36 +380,25 @@ end
 ar_sample_plot
 ```
 
-Using the decomposed models we can rapidly visualise that *a priori* the _Mishra et al_ example assigned a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
+Using the decomposed models we have rapidly visualised that *a priori* the _Mishra et al_ example assigned a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
 
-
-### The Renewal model as an `AbstractEpiModel` type {#the-renewal-model-as-an-abstractepimodel-type}
-
-The abstract type for models that generate infections exposed by `EpiAware` is called `AbstractEpiModel`.
-As with latent models different concrete subtypes of `AbstractEpiModel` define different classes of infection generating process.
-In this case we want to implement a renewal model.
-
-The `Renewal <: AbstractEpiModel` type of struct needs two fields:
-
--   Data about the generation interval of the infectious disease so it can construct $g_t$.
--   A prior for the initial numbers of infected.
-
-In *Mishra et al* they use an estimate of the serial interval of SARS-CoV-2 as an estimate of the generation interval.
+The renewal equation above is defined in daily time increments, but its is common to estimate and report underlying delay distributions as continuous.
+In our prototype system we give a convenience constructor for the data required to solve the renewal model that convert generation interval distributions into the generation interval pmf $g_t$ required for this model.
+In _Mishra et al_, the serial interval distribution is used in place of the generation interval distribution, which can be problematic @park2023inferring, but is common in practice especially early in an outbreak @zhao2020preliminary.
+The specific continuous serial interval distribution used was $\text{Gamma}(6.5, 0.62)$,
 
 ```{julia}
-truth_GI = Gamma(6.5, 0.62)
+truth_SI = Gamma(6.5, 0.62)
 ```
 
-This is a representation of the generation interval distribution as continuous whereas the infection process will be formulated in discrete daily time steps.
-By default, `EpiAware` performs [double interval censoring](https://www.medrxiv.org/content/10.1101/2024.01.12.24301247v1) to convert our continuous estimate of the generation interval into a discretized version $g_t$, whilst also applying left truncation such that $g_0 = 0$ and normalising $\sum_t g_t = 1.$
-
-The constructor for converting a continuous estimate of the generation interval distribution into a usable discrete time estimate is `EpiData`.
+Our prototype epidemiological system offers a convenience constructor which converts this continuous distribution into the discrete pmf $g_t$ for the generative model using double interval censoring @charniga2024best.
 
 ```{julia}
-model_data = EpiData(gen_distribution = truth_GI)
+model_data = EpiData(gen_distribution = truth_SI)
+display(model_data.gen_int)
 ```
 
-We can compare the discretized generation interval with the continuous estimate, which in this example is the serial interval estimate.
+We can compare the discretized generation interval with the underlying continuous distribution to visualise the similarity between the commonly reported continous distribution and the discrete version used in modelling,
 
 ```{julia}
 #| output: true
@@ -408,7 +414,7 @@ discretised_gen_plot = let
     barplot!(ax, model_data.gen_int;
         label = "Discretized next gen pmf"
     )
-    lines!(truth_GI;
+    lines!(truth_SI;
         label = "Continuous serial interval",
         color = :green
     )
@@ -418,32 +424,30 @@ end
 discretised_gen_plot
 ```
 
-The user also needs to specify a prior for the log incidence at time zero, $\log I_0$.
-The initial *history* of latent infections $I_{-1}, I_{-2},\dots$ is constructed as $$
-I_t = e^{rt} I_0,\qquad t = 0, -1, -2,...
-$$ Where the exponential growth rate $r$ is determined by the initial reproductive number $R_1$ via the solution to the implicit equation, $$
-R_1 = 1 \Big{/} \sum_{t\geq 1} e^{-rt} g_t
-$$
+We use a lognormal prior for the initial latent infections $I_0 \sim LogNormal(0., 1.0)$, as defined above the other necessary initial conditions are defined in combination with the initial sampled reproductive number $I_1$.
+The `model_data` object composes with the initial latent infections prior to construct a full renewal model,
 
 ```{julia}
 log_I0_prior = Normal(log(1.0), 1.0)
 epi = Renewal(model_data; initialisation_prior = log_I0_prior)
+display(epi)
 ```
 
-*NB: We don't implement a background infection rate in this model.*
+The `epi` model object defines the sampling distribution for $I_t$ defined in the [generative model](#generative-model-for-case-study-1) section, conditional on the time-varying reproductive number process $R_t$.
+We can concretise the sampling behavious of $I_t$ by supplying the model object and a specific $R_t$ trajectory to the `generate_latent_infs` method. Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ over the course of 50 days.
 
-#### `Turing` model interface to `Renewal` process
+```{julia}
+R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
+latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed))
+```
 
-As mentioned above, we can use this instance of the `Renewal` latent infection model to construct a `Turing` `Model` which implements the probabilistic behaviour determined by `epi` using the constructor function `generate_latent_infs` which combines `epi` with a provided $\log R_t$ time series.
-
-Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ over the course of 50 days.
+The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can be sampled independently of other model components.
 
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-gen-epi
-R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
-latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed))
+
 
 renewal_model_plot = let
     n_samples = 100
@@ -471,6 +475,9 @@ renewal_model_plot = let
 end
 renewal_model_plot
 ```
+
+The full infection generating process, that is the model defined in the [generative model section](#generative-model-for-case-study-1) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
+Since sampling information only passes from the latent process for $Z_t = \log R_t$ into the renewal model, at a high level this can be abstracted as a Bayesian network @heckerman1998tutorial, but at the level of fully coherent probabilistic/data-generative models rather simple parameteric random variables.
 
 ### Negative Binomial Observations as an `ObservationModel` type
 
