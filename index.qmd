@@ -363,22 +363,29 @@ We show our prior predictive modelling samples as spaghetti plots.
 #| output: true
 #| label: fig-ar-sample
 #| echo: false
-using CairoMakie
+using CairoMakie, Random
+Random.seed!(1234)
+
+function ar_sample_plot!(ax, ar_mdl; n_samples = 100)
+    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        ar_mdl() .|> exp
+    end
+    for col in eachcol(ar_mdl_samples)
+        lines!(ax, col, color = (:grey, 0.1))
+    end
+    return nothing
+end
+
+
 ar_sample_plot = let
     n_samples = 100
-    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        ar_mdl() .|> exp #Sample Z_t trajectories for the model
-    end
-
     fig = Figure()
     ax = Axis(fig[1, 1];
         yscale = log10,
         ylabel = "Time varying Rₜ",
         title = "$(n_samples) draws from the prior Rₜ model"
     )
-    for col in eachcol(ar_mdl_samples)
-        lines!(ax, col, color = (:grey, 0.1))
-    end
+    ar_sample_plot!(ax, ar_mdl; n_samples)
     fig
 end
 ar_sample_plot
@@ -408,6 +415,19 @@ We can compare the discretized generation interval with the underlying continuou
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-pmf
+
+function discretised_gen_plot!(ax, model_data, truth_SI)
+    barplot!(ax, model_data.gen_int;
+        label = "Discretized next gen pmf"
+    )
+    lines!(ax, truth_SI;
+        label = "Continuous serial interval",
+        color = :green
+    )
+    axislegend(ax)
+    return nothing
+end
+
 discretised_gen_plot = let
     fig = Figure()
     ax = Axis(fig[1, 1];
@@ -415,14 +435,7 @@ discretised_gen_plot = let
         xlabel = "Days",
         title = "Continuous and discrete generation intervals"
     )
-    barplot!(ax, model_data.gen_int;
-        label = "Discretized next gen pmf"
-    )
-    lines!(truth_SI;
-        label = "Continuous serial interval",
-        color = :green
-    )
-    axislegend(ax)
+    discretised_gen_plot!(ax, model_data, truth_SI)
     fig
 end
 discretised_gen_plot
@@ -452,13 +465,28 @@ The implied distribution of $I_t$ trajectories conditional on this $R_t$ traject
 #| echo: false
 #| label: fig-gen-epi
 
-
-renewal_model_plot = let
-    n_samples = 100
-    #Sample unconditionally the underlying parameters of the model
+function plot_latent_infections!(ax, latent_inf_mdl; n_samples)
     epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         latent_inf_mdl()
     end
+    for col in eachcol(epi_mdl_samples)
+        lines!(ax, col;
+            color = (:grey, 0.1)
+        )
+    end
+    return nothing
+end
+
+function plot_Rt_traj!(ax, R_t_fixed)
+    lines!(ax, R_t_fixed;
+            linewidth = 2
+        )
+    return nothing
+end
+
+renewal_model_plot = let
+    n_samples = 100
+    
     fig = Figure()
     ax1 = Axis(fig[1, 1];
         title = "$(n_samples) draws from renewal model with chosen Rt",
@@ -467,14 +495,8 @@ renewal_model_plot = let
     ax2 = Axis(fig[2, 1];
         ylabel = "Rt"
     )
-    for col in eachcol(epi_mdl_samples)
-        lines!(ax1, col;
-            color = (:grey, 0.1)
-        )
-    end
-    lines!(ax2, R_t_fixed;
-        linewidth = 2
-    )
+    plot_latent_infections!(ax1, latent_inf_mdl; n_samples)
+    plot_Rt_traj!(ax2, R_t_fixed)
     fig
 end
 renewal_model_plot
@@ -509,27 +531,33 @@ This Turing model can be sampled from to make a prior predictive visualisation o
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-cases
-neg_bin_obs_plot = let
-    n_samples = 100
+
+function neg_bin_obs_plot!(ax, obs_mdl; n_samples)
     obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
     end
+    for col in eachcol(obs_mdl_samples)
+            scatter!(ax, col;
+                color = (:grey, 0.2)
+            )
+        end
+        lines!(ax, I_t;
+            color = :red,
+            linewidth = 3,
+            label = "Latent infections"
+        )
+    axislegend(ax)
+    return nothing
+end
+neg_bin_obs_plot = let
+    n_samples = 100
+    
     fig = Figure()
     ax = Axis(fig[1, 1];
         title = "$(n_samples) draws from neg. bin. obs model",
         ylabel = "Observed cases"
     )
-    for col in eachcol(obs_mdl_samples)
-        scatter!(ax, col;
-            color = (:grey, 0.2)
-        )
-    end
-    lines!(ax, I_t;
-        color = :red,
-        linewidth = 3,
-        label = "Latent infections"
-    )
-    axislegend(ax)
+    neg_bin_obs_plot!(ax, obs_mdl; n_samples)
     fig
 end
 neg_bin_obs_plot
@@ -617,24 +645,18 @@ The `inference_results` object includes standard MCMC chain output along with th
 display(inference_results.samples[:, 1:10, :])
 ```
 
-Note that we display a subslice of parameters for demonstration brevity.
+Note that we display a subslice of parameters for brevity.
 
 #### Case Study 1: Predictive plotting
 
-To assess the quality of the inference visually we can plot predictive quantiles for generated case data using parameters drawn from the posterior distribution, as well as 
-For this purpose, we add a `generated_quantiles` utility function.
-This kind of visualisation is known as *posterior predictive checking*, and is a useful diagnostic tool for Bayesian inference (see [here](http://www.stat.columbia.edu/~gelman/book/BDA3.pdf)).
+To assess the quality of the inference visually we can plot predictive quantiles for generated case data, as well as quantities of interest such as posterior $R_t$ samples from the model.
 
-We also plot the inferred $R_t$ estimates from the model.
-We find that the `EpiAware` model recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak) before rapidly dropping below 1 in early March 2020.
-
-Note that, in reality, the peak $R_t$ found here and in *Mishra et al* is unrealistically high, this might be due to a combination of: - A mis-estimated generation interval/serial interval distribution.
-- An ascertainment rate that was, in reality, changing over time.
-
-In a future note, we'll demonstrate having a time-varying ascertainment rate.
 
 ```{julia}
 #| echo: false
+
+dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
+
 function generated_quantiles(gens, quantity, qs; transformation = x -> x)
     mapreduce(hcat, gens) do gen #loop over sampled generated quantities
         getfield(gen, quantity) |> transformation
@@ -655,115 +677,149 @@ function identify_good_chains(chn; threshold = 3.0)
     return idxs
 end
 
-function plot_post_pred(inference_data, inference_results; epi_prob, 
-    fixed_cluster_factor = nothing,
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975],
-    threshold = 3.0)
-    # Get data
-    y_t = inference_data.y_t
-    dates = inference_data.dates
-    # Convert into numbers for xaxis flexibility
-    ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
-    # Ticks
-    t_ticks = string.(dates) 
-
+function posterior_gens_for_plot(inference_results, n; fixed_cluster_factor, threshold)
     #Case unconditional model for posterior predictive sampling
     #Supports conditional cluster factor
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
-        generate_epiaware(epi_prob,(y_t = fill(missing, length(y_t)),)) :
-        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
+        generate_epiaware(epi_prob,(y_t = fill(missing, n),)) :
+        generate_epiaware(epi_prob, (y_t = fill(missing, n),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
     
     # Posterior predictive sampling
     good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
+    return posterior_gens
+end
 
-    #Prediction quantiles
+function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
+    # Convert into numbers for xaxis flexibility
+    ts = dates_to_times(inference_data.dates)
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-        transformation = x -> exp.(x))
-
-    #There may be missings generated due to delays
+    #Remove any predictions with missing values from beginning of generate y_t
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
     predicted_y_t = predicted_y_t[(n+1):end, :] 
 
-    # ts = D[(n+1):end] .|> d -> d - minimum(D) .|> d -> d.value + 1
-    # t_ticks = string.(D[(n+1):end])
-    fig = Figure()
-    ax1 = Axis(fig[1, 1];
-        ylabel = "Daily cases",
-        xticks = (ts[1:14:end], t_ticks[1:14:end]),
-        title = "Posterior predictive: Cases"
-    )
-    ax2 = Axis(fig[2, 1];
-        yscale = log10,
-        title = "Prediction: Reproduction number",
-        xticks = (ts[1:14:end], t_ticks[1:14:end])
-    )
-    linkxaxes!(ax1, ax2)
-
-    lines!(ax1, ts[(n+1):end], predicted_y_t[:, 3];
+    lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
         color = :purple,
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax1, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
         color = (:purple, 0.4),
         label = "50%"
     )
-    band!(ax1, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
         color = (:purple, 0.2),
         label = "95%"
     )
-    scatter!(ax1, ts, y_t;
+    scatter!(ax, ts, inference_data.y_t;
         color = :black,
         label = "Actual cases")
-    axislegend(ax1)
+    axislegend(ax)
 
-    lines!(ax2, ts, predicted_R_t[:, 3];
+    return nothing
+end
+
+function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
+    ts = dates_to_times(inference_data.dates)
+    #Prediction quantiles
+    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
+            transformation = x -> exp.(x))
+
+    lines!(ax, ts, predicted_R_t[:, 3];
         color = :green,
         linewidth = 2,
         label = "Post. median"
     )
-    band!(ax2, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
+    band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
         color = (:green, 0.4),
         label = "50%"
     )
-    band!(ax2, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
+    band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
         color = (:green, 0.2),
         label = "95%"
     )
-    axislegend(ax2)
-
-    return fig
+    axislegend(ax)
 end
+
+
 ```
 
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-posterior-preds-example1
-plot_post_pred(training_data, inference_results; epi_prob = epi_prob, fixed_cluster_factor = fixed_cluster_factor)
+#| label: fig-posterior-preds-CS1
+#| fig-cap: (Top) Comparison of continuous serial interval distribution with double censored discrete distribution used in modelling. (Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
 
+figure2 = let 
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    # Get Ticks
+    t_ticks = @chain training_data begin
+            _.dates
+            string.(_)
+        end
+    ts = dates_to_times(training_data.dates)
+    # Posterior generative plotting
+    posterior_gens = posterior_gens_for_plot(inference_results, length(training_data.y_t); 
+            fixed_cluster_factor = fixed_cluster_factor,
+            threshold = 3.0)
+
+    # Figure scene
+    fig = Figure(size = (800, 800))
+
+    # Axis definitions
+    ax1 = Axis(fig[1, 1];
+        xticks = 0:14,
+        xlabel = "Days",
+        title = "Continuous and discrete generation intervals"
+    )
+    ax2 = Axis(fig[2, 1];
+        ylabel = "Daily cases",
+        xticks = (ts[1:14:end], t_ticks[1:14:end]),
+        title = "Posterior predictive: Cases"
+    )
+    ax3 = Axis(fig[3, 1];
+        yscale = log10,
+        title = "Prediction: Reproductive number",
+        xticks = (ts[1:14:end], t_ticks[1:14:end])
+    )
+    linkxaxes!(ax2, ax3)
+
+    # Plot functions into axes
+    discretised_gen_plot!(ax1, model_data, truth_SI)
+    post_predictive_yt!(ax2, training_data, posterior_gens; qs)
+    post_predictive_Rt!(ax3, training_data, posterior_gens; qs)
+
+    fig
+end
+
+
+figure2
 ```
 
-#### Parameter inference
+Figure @fig-posterior-preds-CS1 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak) before rapidly dropping below 1 in early March 2020.
 
-We can interrogate the sampled chains directly from the `samples` field of the `inference_results` object.
+We can also interrogate joint posterior distribution of selected model parameters using pair plotting.
 
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-pairwise
-sub_chn = inference_results.samples[inference_results.samples.name_map.parameters[[1:5;
-                                                                                   end]]]
-fig = pairplot(sub_chn)
-lines!(fig[1, 1], ar.init_prior.v[1], label = "Prior")
-lines!(fig[2, 2], ar.init_prior.v[2], label = "Prior")
-lines!(fig[3, 3], ar.damp_prior.v[1], label = "Prior")
-lines!(fig[4, 4], ar.damp_prior.v[2], label = "Prior")
-lines!(fig[5, 5], ar.ϵ_t.std_prior, label = "Prior")
-lines!(fig[6, 6], epi.initialisation_prior, label = "Prior")
+#| label: fig-pairwise-CS1
+#| fig-cap: Pair plotting of joint posterior distribution of the AR(2) hyperparameters and the initial number of latent infecteds.
+using PairPlots
+parameters_to_plot = ["latent.ar_init[1]", 
+                            "latent.ar_init[2]", 
+                            "latent.damp_AR[1]",
+                            "latent.damp_AR[2]",
+                            "latent.std",
+                            "init_incidence"]
+
+fig = @chain inference_results.samples begin
+    identify_good_chains(; threshold = 3.0)
+    inference_results.samples[:, :, _]
+    pairplot(_[parameters_to_plot])
+end
+
 fig
 ```
 
