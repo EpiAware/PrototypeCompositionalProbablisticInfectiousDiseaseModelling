@@ -36,12 +36,13 @@ Install [Task](https://taskfile.dev/installation/) for automated workflow manage
 task
 ```
 
-This automatically handles git submodules, Julia environment setup, and Quarto rendering.
+This automatically handles git submodules, Julia environment setup, Quarto extension installation, and document rendering.
 
 Available tasks:
 - `task` - Complete workflow (default)
 - `task preview` - Preview document with live reload
 - `task repl` - Launch Julia REPL with project environment
+- `task install-extensions` - Install Quarto extensions
 - `task --list` - Show all available tasks
 
 ### Manual Execution

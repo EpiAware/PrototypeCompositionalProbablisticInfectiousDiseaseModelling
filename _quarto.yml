@@ -4,7 +4,10 @@ project:
     - index.qmd
 
 engines: ['julia']
-  
+
+filters:
+  - authors-block
+
 format:
   pdf:
     documentclass: article
@@ -26,5 +29,5 @@ execute:
   output: false
   freeze: auto
 
-julia: 
-  exeflags: ["+1.11.6", "--threads=4", "-O3"]
+julia:
+  exeflags: ["--threads=4", "-O3"]

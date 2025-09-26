@@ -3,7 +3,7 @@ version: '3'
 tasks:
   default:
     desc: "Render the Quarto document (main development task)"
-    deps: [instantiate]
+    deps: [instantiate, install-extensions]
     cmds:
       - quarto render
 
@@ -34,9 +34,16 @@ tasks:
       - julia +1.11.6 -i -e "using Pkg; Pkg.activate(\".\")"
     interactive: true
 
+  install-extensions:
+    desc: "Install Quarto extensions"
+    cmds:
+      - quarto add kapsner/authors-block --no-prompt
+    status:
+      - test -d _extensions/authors-block
+
   preview:
     desc: "Preview the Quarto document with live reload"
-    deps: [instantiate]
+    deps: [instantiate, install-extensions]
     cmds:
       - quarto preview
     interactive: true
