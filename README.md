@@ -46,7 +46,7 @@ Available tasks:
 
 1. Install Julia 1.11.6 (we expect any version of 1.11 to work well):
    ```bash
-   juliaup install 1.11.6
+   juliaup add 1.11.6
    ```
 
 2. Initialise git submodules:
