@@ -287,8 +287,12 @@ _Mishra et al_ made inference on daily reported test-confirmed cases of COVID-19
 This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
 
 ```{julia}
-using CSV, DataFramesMeta
-data = CSV.read("data/south_korea_data.csv", DataFrame)
+using Chain, CSV, DataFramesMeta
+datapath = "data/south_korea_data.csv"
+south_korea_data = @chain datapath begin
+    CSV.read(DataFrame)
+    (y_t = _.cases_new, dates = _.date)
+end
 ```
 
 ### Case study 1: Generative model
@@ -477,7 +481,6 @@ renewal_model_plot
 ```
 
 The full infection generating process, that is the model defined in the [generative model section](#case-study-1-generative-model) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
-Since sampling information only passes from the latent process for $Z_t = \log R_t$ into the renewal model, at a high level this can be abstracted as a Bayesian network @heckerman1998tutorial, but at the level of fully coherent probabilistic/data-generative models rather simple parameteric random variables.
 
 ### Case study 1: Observation model
 
@@ -532,37 +535,49 @@ end
 neg_bin_obs_plot
 ```
 
-### Composing models into an `EpiProblem`
+### Case 1: Fitting to Data
 
-*Mishra et al* follows a common pattern of having an infection generation process driven by a latent process with an observation model that links the infection process to a discrete valued time series of incidence data.
-
-In `EpiAware` we provide an `EpiProblem` constructor for this common epidemiological model pattern.
-
-The constructor for an `EpiProblem` requires: - An `epi_model`.
-- A `latent_model`.
-- An `observation_model`.
-- A `tspan`.
-
-The `tspan` set the range of the time index for the models.
+In each of the models defined above, samples only pass in one direction: $Z_t$ samples can be used in sampling $I_t$, and $I_t$ samples can be used to generate case data $y_t$.
+At a high level this can be abstracted as a Bayesian network @heckerman1998tutorial, but at the level of fully coherent probabilistic/data-generative models rather than simple parameteric random variables.
+Our prototype system has compacted the full Bayesian network implied by the full generative model into a small Bayesian network where the latent model flows into the epidemiological model for latent infections, which then flows into the observational link model to obseravable data.
+We supply a constructor method for this Bayesian network struture composing the defined submodels.
 
 ```{julia}
+tspan = (45, 80)
 epi_prob = EpiProblem(epi_model = epi,
     latent_model = ar,
     observation_model = obs,
-    tspan = (45, 80))
+    tspan = tspan)
+display(epi_prob) # TO DO: pretty print
 ```
 
-### Inference Methods
+Where the `tspan` argument set the range of the time range for the generative model.
 
-We make inferences on the unobserved quantities, such as $R_t$ by sampling from the model conditioned on the observed data.
-We generate the posterior samples using the No U-Turns (NUTS) sampler.
+#### Case 1: Training data for inference
 
-To make NUTS more robust we provide `manypathfinder`, which is built on pathfinder variational inference from [Pathfinder.jl](https://mlcolab.github.io/Pathfinder.jl/stable/).
-`manypathfinder` runs `nruns` pathfinder processes on the inference problem and returns the pathfinder run with maximum estimated ELBO.
+We create our training data by reducing the range of full data onto `tspan`.
 
-The composition of doing variational inference as a pre-sampler step which gets passed to NUTS initialisation is defined using the `EpiMethod` struct, where a sequence of pre-sampler steps can be be defined.
+```{julia}
+training_data = @chain south_korea_data begin
+    @set _.y_t = _.y_t[first(tspan):last(tspan)]
+    @set _.dates = _.dates[first(tspan):last(tspan)]
+end 
+```
 
-`EpiMethod` also allows the specification of NUTS parameters, such as type of automatic differentiation, type of parallelism and number of parallel chains to sample.
+#### Case 1: Composition into Turing model
+
+As with the submodels, our prototype system has a method `generate_epiaware` to construct a Turing model to implement the composed Bayesian network.
+We use the conditioning capability of Turing to condition on a fixed cluster factor value in the generative model to improve identifiability, as well as passing in the training data.
+
+```{julia}
+using Turing
+fixed_cluster_factor = 0.25
+mdl = generate_epiaware(epi_prob, training_data) |
+      (var"obs.cluster_factor" = fixed_cluster_factor,)
+```
+
+We make inferences on the unobserved quantities, such as $R_t$ by sampling from this composed model, further conditioned on the training data.
+We generate the posterior samples using the No U-Turns (NUTS) sampler, with a pre-sampling step of drawing start points from `ManyPathfinder`, a batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound (ELBO).
 
 ```{julia}
 inference_method = EpiMethod(
@@ -577,50 +592,16 @@ inference_method = EpiMethod(
 )
 ```
 
-### Inference and analysis {#inference-and-analysis}
+The `apply_method` function combines the elements above: 
 
-We supply the data as a `NamedTuple` with the `y_t` field containing the observed data, shortened to fit the chosen `tspan` of `epi_prob`.
-
-```{julia}
-south_korea_data = (y_t = data.cases_new[epi_prob.tspan[1]:epi_prob.tspan[2]],
-    dates = data.date[epi_prob.tspan[1]:epi_prob.tspan[2]])
-```
-
-In the epidemiological model it is hard to identify between the AR parameters such as the standard deviation of the AR process and the cluster factor of the negative binomial observation model.
-The reason for this identifiability problem is that the model assumes no delay between infection and observation.
-Therefore, on any day the data could be explained by $R_t$ changing *or* observation noise and its not easy to disentangle greater volatility in $R_t$ from higher noise in the observations.
-
-In models with latent delays, changes in $R_t$ impact the observed cases over several days which means that it easier to disentangle trend effects from observation-to-observation fluctuations.
-
-To counter act this problem we condition the model on a fixed cluster factor value.
-
-```{julia}
-fixed_cluster_factor = 0.25
-```
-
-`EpiAware` has the `generate_epiaware` function which joins an `EpiProblem` object with the data to produce as `Turing` model.
-This `Turing` model composes the three unit `Turing` models defined above: the Renewal infection generating process, the AR latent process for $\log R_t$, and the negative binomial observation model.
-Therefore, [we can condition on variables as with any other `Turing` model](https://turinglang.org/DynamicPPL.jl/stable/api/#Condition-and-decondition).
-
-```{julia}
-mdl = generate_epiaware(epi_prob, south_korea_data) |
-      (var"obs.cluster_factor" = fixed_cluster_factor,)
-```
-
-#### Sampling with `apply_method`
-
-The `apply_method` function combines the elements above: - An `EpiProblem` object or `Turing` model.
-- An `EpiMethod` object.
+- The composed epidemiological model.
+- A defined pre-heating and sampling method.
 - Data to condition the model upon.
-
-And returns a collection of results: - The epidemiological model as a `Turing` `Model`.
-- Samples from MCMC.
-- Generated quantities of the model.
 
 ```{julia}
 inference_results = apply_method(mdl,
     inference_method,
-    south_korea_data
+    training_data
 )
 ```
 
