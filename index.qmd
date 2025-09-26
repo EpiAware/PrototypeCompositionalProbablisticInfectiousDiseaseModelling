@@ -287,7 +287,7 @@ _Mishra et al_ made inference on daily reported test-confirmed cases of COVID-19
 This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
 
 ```{julia}
-using Chain, CSV, DataFramesMeta
+using Chain, CSV, DataFramesMeta, Dates
 datapath = "data/south_korea_data.csv"
 south_korea_data = @chain datapath begin
     CSV.read(DataFrame)
@@ -535,7 +535,7 @@ end
 neg_bin_obs_plot
 ```
 
-### Case 1: Fitting to Data
+### Case Study 1: Fitting to data
 
 In each of the models defined above, samples only pass in one direction: $Z_t$ samples can be used in sampling $I_t$, and $I_t$ samples can be used to generate case data $y_t$.
 At a high level this can be abstracted as a Bayesian network @heckerman1998tutorial, but at the level of fully coherent probabilistic/data-generative models rather than simple parameteric random variables.
@@ -553,7 +553,7 @@ display(epi_prob) # TO DO: pretty print
 
 Where the `tspan` argument set the range of the time range for the generative model.
 
-#### Case 1: Training data for inference
+#### Case Study 1: Training data for inference
 
 We create our training data by reducing the range of full data onto `tspan`.
 
@@ -564,7 +564,7 @@ training_data = @chain south_korea_data begin
 end 
 ```
 
-#### Case 1: Composition into Turing model
+#### Case Study 1: Composition into Turing model
 
 As with the submodels, our prototype system has a method `generate_epiaware` to construct a Turing model to implement the composed Bayesian network.
 We use the conditioning capability of Turing to condition on a fixed cluster factor value in the generative model to improve identifiability, as well as passing in the training data.
@@ -576,10 +576,13 @@ mdl = generate_epiaware(epi_prob, training_data) |
       (var"obs.cluster_factor" = fixed_cluster_factor,)
 ```
 
+#### Case Study 1: Defining sampler configuration
+
 We make inferences on the unobserved quantities, such as $R_t$ by sampling from this composed model, further conditioned on the training data.
 We generate the posterior samples using the No U-Turns (NUTS) sampler, with a pre-sampling step of drawing start points from `ManyPathfinder`, a batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound (ELBO).
 
 ```{julia}
+using ReverseDiff
 inference_method = EpiMethod(
     pre_sampler_steps = [ManyPathfinder(nruns = 5, maxiters = 100)],
     sampler = NUTSampler(
@@ -592,11 +595,15 @@ inference_method = EpiMethod(
 )
 ```
 
+#### Case Study 1: Sampling from posterior distribution
+
 The `apply_method` function combines the elements above: 
 
 - The composed epidemiological model.
-- A defined pre-heating and sampling method.
+- A defined inference method as a combination of pre-heating and sampling method.
 - Data to condition the model upon.
+
+And deploys the inference method on the data conditioned Turing model returning samples from the posterior distribution of the composed model parameters and generated quantities.
 
 ```{julia}
 inference_results = apply_method(mdl,
@@ -605,9 +612,16 @@ inference_results = apply_method(mdl,
 )
 ```
 
-#### Results and Predictive plotting
+The `inference_results` object includes standard MCMC chain output along with the basic "R hat" chain diagnostic measure.
+```{julia}
+display(inference_results.samples[:, 1:10, :])
+```
 
-To assess the quality of the inference visually we can plot predictive quantiles for generated case data from the version of the model *which hasn't conditioned on case data* using posterior parameters inferred from the version conditioned on observed data.
+Note that we display a subslice of parameters for demonstration brevity.
+
+#### Case Study 1: Predictive plotting
+
+To assess the quality of the inference visually we can plot predictive quantiles for generated case data using parameters drawn from the posterior distribution, as well as 
 For this purpose, we add a `generated_quantiles` utility function.
 This kind of visualisation is known as *posterior predictive checking*, and is a useful diagnostic tool for Bayesian inference (see [here](http://www.stat.columbia.edu/~gelman/book/BDA3.pdf)).
 
@@ -729,7 +743,7 @@ end
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-example1
-plot_post_pred(south_korea_data, inference_results; epi_prob = epi_prob, fixed_cluster_factor = fixed_cluster_factor)
+plot_post_pred(training_data, inference_results; epi_prob = epi_prob, fixed_cluster_factor = fixed_cluster_factor)
 
 ```
 
