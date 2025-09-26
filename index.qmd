@@ -281,7 +281,7 @@ The renewal equation is a flexible model for latent infections which can be thou
 We show how our prototype framework compose a latent process model, reusing components from previous examples, with a renewal equation solution model and an observation link model to recreate the Bayesian framework in @mishra .
 The relative simplicity of the observation model in this example makes this a good initial case study.
 
-### Data
+### Case study 1: Data
 
 _Mishra et al_ made inference on daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
 This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
@@ -291,7 +291,7 @@ using CSV, DataFramesMeta
 data = CSV.read("data/south_korea_data.csv", DataFrame)
 ```
 
-### Generative model for case study 1
+### Case study 1: Generative model
 
 The generative model for case data demonstrated in _Mishra et al_ has a hierarchical structure, consisting of a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
 The latent infection process is linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
@@ -322,7 +322,7 @@ $$
 This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
 The sampling distribution for these parameters defines a generative model for the daily case data $y_t$ through solution of the renewal equation for latent infections $I_t$, therefore, this model can be used for Bayesian inference by conditioning on the observed case data.
 
-#### Infection Generating Process
+#### Case study 1: Infection Generating Process
 
 The priors for the latent AR(2) process we use, based on _Mishra et al_, are,
 
@@ -433,7 +433,7 @@ epi = Renewal(model_data; initialisation_prior = log_I0_prior)
 display(epi)
 ```
 
-The `epi` model object defines the sampling distribution for $I_t$ defined in the [generative model](#generative-model-for-case-study-1) section, conditional on the time-varying reproductive number process $R_t$.
+The `epi` model object defines the sampling distribution for $I_t$ defined in the [generative model](#case-study-1-generative-model1) section, conditional on the time-varying reproductive number process $R_t$.
 We can concretise the sampling behavious of $I_t$ by supplying the model object and a specific $R_t$ trajectory to the `generate_latent_infs` method. Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ over the course of 50 days.
 
 ```{julia}
@@ -476,44 +476,37 @@ end
 renewal_model_plot
 ```
 
-The full infection generating process, that is the model defined in the [generative model section](#generative-model-for-case-study-1) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
+The full infection generating process, that is the model defined in the [generative model section](#case-study-1-generative-model) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
 Since sampling information only passes from the latent process for $Z_t = \log R_t$ into the renewal model, at a high level this can be abstracted as a Bayesian network @heckerman1998tutorial, but at the level of fully coherent probabilistic/data-generative models rather simple parameteric random variables.
 
-### Negative Binomial Observations as an `ObservationModel` type
+### Case study 1: Observation model
 
-In *Mishra et al* latent infections were assumed to occur on their observation day with negative binomial errors, this motivates using the serial interval (the time between onset of symptoms of a primary and secondary case) rather than generation interval distribution (the time between infection time of a primary and secondary case).
-
-Observation models are set in `EpiAware` as concrete subtypes of an `ObservationModel`.
-The Negative binomial error model without observation delays is set with a `NegativeBinomialError` struct.
-In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors, $$
-\text{var} = \text{mean} + {\text{mean}^2 \over \phi}.
-$$ In `EpiAware`, we default to a prior on $\sqrt{1/\phi}$ because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
+In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors.
+In our prototype system, we default to a prior on $\sqrt{1/\phi}$ because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
 We call this quantity the cluster factor.
-
-A prior for $\phi$ was not specified in *Mishra et al*, we select one below but we will condition a value in analysis below.
+A prior for $\phi$ was not specified in *Mishra et al*, we select $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$ but we will condition a value for the cluster factor in analysis below due to non-identifiability with the variance in the innovation process of $Z_t$.
 
 ```{julia}
 obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
 display(obs)
 ```
 
-#### `Turing` model interface to the `NegativeBinomialError` model
+As with other component models, we can define a Turing model from the `obs` object conditional on a latent infection time series $I_t$ that defines the expected number of cases observed on each day.
+With an fixed latent infection times series, we use the `generate_observations` method from our prototype system,
 
-We can construct a `NegativeBinomialError` model implementation as a `Turing` `Model` using the `EpiAware` `generate_observations` functions.
+```{julia}
+I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
+obs_mdl = generate_observations(obs, missing, I_t)
+```
 
-`Turing` uses `missing` arguments to indicate variables that are to be sampled.
-We use this to observe a forward model that samples observations, conditional on an underlying expected observation time series.
-
-First, we set an artificial expected cases curve.
+Turing uses `missing` arguments to indicate observed variables that are to be sampled rather than only used to accumulate log posterior density.
+This Turing model can be sampled from to make a prior predictive visualisation on the dispersion around the mean implied by our choice of prior.
 
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-discretised-gen-cases
 neg_bin_obs_plot = let
-    expected_cases = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
-    obs_mdl = generate_observations(obs, missing, expected_cases)
-
     n_samples = 100
     obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
@@ -528,10 +521,10 @@ neg_bin_obs_plot = let
             color = (:grey, 0.2)
         )
     end
-    lines!(ax, expected_cases;
+    lines!(ax, I_t;
         color = :red,
         linewidth = 3,
-        label = "Expected cases"
+        label = "Latent infections"
     )
     axislegend(ax)
     fig
