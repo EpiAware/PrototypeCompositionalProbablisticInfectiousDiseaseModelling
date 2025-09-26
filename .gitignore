@@ -42,3 +42,9 @@ resources
 index.html
 index.pdf
 index.tex
+
+_freeze/
+_manuscript/
+.task
+.vscode
+.claude
