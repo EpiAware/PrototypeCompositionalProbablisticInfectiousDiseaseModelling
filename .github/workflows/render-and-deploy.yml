@@ -86,10 +86,18 @@ jobs:
           echo "has-artifacts=$outputs_exist" >> $GITHUB_OUTPUT
           echo "Found outputs: $outputs_exist"
 
+      - name: Copy Julia environment files to _site
+        run: |
+          mkdir -p _site
+          cp Project.toml _site/ || echo "Project.toml not found"
+          cp Manifest.toml _site/ || echo "Manifest.toml not found"
+
       - name: List generated files
         run: |
           echo "Generated files:"
-          find . -name "*.html" -o -name "*.pdf" | head -20
+          find . -name "*.html" -o -name "*.pdf" -o -name "*.ipynb" | head -20
+          echo "Contents of _site:"
+          ls -la _site/
 
       - name: Upload artifacts
         if: steps.check-outputs.outputs.has-artifacts == 'true'
