@@ -275,7 +275,7 @@ end
 
 plot_fit_with_truth(
     chains,
-    truth,
+    simulated_params,
     params
 )
 ```
