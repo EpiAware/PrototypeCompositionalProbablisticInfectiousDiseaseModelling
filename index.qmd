@@ -233,7 +233,7 @@ Then sample from it,
 simulated_params = rand(gen_model)
 ```
 
-and finally fix the random variables in the generative model using the sampled parameters and the `fix` function. We can then call it to get simulated oberservations for `y`.
+Now we have parameters we can simulated some data using the generative model by fixing the random variables using the sampled parameters and the `fix` function. We can then call it, like any normal function, to get simulated observations for `y`.
 
 ```{julia}
 fixed_model = fix(gen_model, simulated_params)
