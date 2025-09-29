@@ -250,6 +250,9 @@ chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl`.
 
 ```{julia}
+#| output: true
+#| label: fig-ar-pp
+#| echo: false
 using PairPlots, CairoMakie
 params = [:damp_AR, :ar_init, :θ]
 
@@ -1692,6 +1695,7 @@ Our three case studies replicated previous studies [@mishra2020covid; @epinow2; 
 -   Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
 -   Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
 -   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
+-   Current struct manipulation approaches require users to understand the complete nested structure when modifying deeply embedded model components, and cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention
  - The Turing PPL DSL is not fully stable and since developing this prototype the submodel macro has changed syntax and had a breaking change in how it handles prefixes.
  - However, these changes allow for more flexible models as they reduce the difference betweeen specifying something as a distribution and as a sub model.
  - Ignores category theory.
@@ -1712,13 +1716,12 @@ Our three case studies replicated previous studies [@mishra2020covid; @epinow2; 
 <!-- Future work -->
 
 Areas for future work include expanding the component library to address epidemiological applications across multiple scales and data types.
-Priority areas include retrospective analysis of historical outbreaks to develop robust templates for real-time response.
-Integration of diverse domain expertise through models linking within-host dynamics, environmental surveillance, economic trade-offs, and behavioural feedback mechanisms is essential because disease transmission often emerges from complex interactions between biological, environmental, and social processes that single-domain models struggle to capture.
-Methodological advances are also needed including for the joint estimation of interdependent epidemiological parameters, seamless integration of individual and population-level observations, and systematic evaluation of complementary surveillance approaches.
-Alternative design patterns should also be investigated, particularly more formal category theory approaches that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in AlgebraicPetri.jl and AlgebraicDynamics.jl [@libkind2022algebraic].
+More work is also needed to allow for modifying deeply nested model specifications without the user needing to be aware of the structure of the nested model.
+Methodological advances are also needed including for the joint estimation of interdependent epidemiological parameters, and then seamless integration of individual and population-level observations.
+Alternative approaches also need to investigated, particularly more formal category theory based methods that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in AlgebraicPetri.jl and AlgebraicDynamics.jl [@libkind2022algebraic].
 Symbolic-numeric frameworks like ModelingToolkit.jl [@modelingtoolkit2021] offer potential performance improvements through automatic optimisation and code generation.
 However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both essential for infectious disease modelling applications.
-An alternative abstraction approach would be to build the domain-specific language on Distributions.jl rather than Turing.jl, which would enable compatibility with multiple probabilistic programming languages like JuliaBUGS whilst trading off the expressiveness of Turing's submodel interface.
+An alternative potential abstraction approach would be to build the domain-specific language on Distributions.jl rather than Turing.jl, which would enable compatibility with multiple probabilistic programming languages like JuliaBUGS whilst trading off the expressiveness of Turing's submodel interface.
 Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
 
 <!-- Conclusions -->
