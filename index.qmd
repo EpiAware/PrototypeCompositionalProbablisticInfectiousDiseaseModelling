@@ -109,15 +109,19 @@ Alternative approaches using category theory or symbolic-numeric frameworks rema
 
 <!-- Reference to Panel B of Figure 1 -->
 
-To demonstrate the structure and use of `AbstractLatentModels`, we start with an autoregressive order one (AR(1)) process, which mathematically is:
+To demonstrate the structure and use of `AbstractLatentModels`, we start with an autoregressive order two (AR(2)) process, which mathematically is:
 
-$$Z_t = \rho Z_{t-1} + \epsilon_t, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
+$$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
 
 In our prototype DSL, this is defined using the `AR` struct:
 
 ```{julia}
-using EpiAware
-ar_model = AR()
+using EpiAware, Distributions
+ar_model = AR(;
+    damp_priors=[truncated(Normal(0.5, 0.1), 0, 1),
+                 truncated(Normal(0.1, 0.05), 0, 1)],
+    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)]
+)
 display(ar_model)
 ```
 
@@ -128,7 +132,6 @@ $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(
 The `MA` struct encapsulates this:
 
 ```{julia}
-using Distributions
 ma_model = MA(;
     θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
@@ -140,15 +143,12 @@ An ARMA(2,1) can be defined as:
 
 $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
 
-In our DSL this can be represented as a composition of the AR and MA structs by passing MA as the error term to AR:
+In our DSL this can be represented as a composition of the AR and MA structs by updating the AR error term:
 
 ```{julia}
-arma_model = AR(;
-    damp_priors=[truncated(Normal(0.8, 0.1), 0, 1),
-        truncated(Normal(0.1, 0.05), 0, 1)],
-    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-    ϵ_t=ma_model
-)
+using Accessors
+arma_model = @set ar_model.ϵ_t = ma_model
+display(arma_model)
 ```
 
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
@@ -206,6 +206,79 @@ print(@code_string generate_latent(arima_model, 50))
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
 This recursive delegation through `@submodel` enables arbitrary depth composition while maintaining clean separation between components.
 
+The generated models are standard Turing models supporting all DynamicPPL.jl functionality.
+To demonstrate we create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
+
+```{julia}
+using DynamicPPL, Turing, LinearAlgebra
+
+@model function arima_with_obs(arima_spec, n_timesteps)
+    @submodel Z_t = generate_latent(arima_spec, n_timesteps)
+    σ_obs ~ truncated(Normal(0.0, 0.01), 0, Inf)
+    y_obs ~ MvNormal(Z_t, σ_obs * I)
+    return y_obs;
+end
+```
+
+We can then generate synthetic data with fixed parameters which we sample from the prior distribution using the `rand`, and `fix` functions and calling the model to simulate the observations. We first define the model.
+
+```{julia}
+n_timesteps = 20
+gen_model = arima_with_obs(arima_model, n_timesteps)
+```
+
+Then sample from it,
+
+```{julia}
+simulated_params = rand(gen_model)
+```
+
+and finally fix the random variables in the generative model using the sampled parameters and the `fix` function. We can then call it to get simulated oberservations for `y`.
+
+```{julia}
+fixed_model = fix(gen_model, simulated_params)
+y_observed = fixed_model()
+```
+
+For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-turn sampler (a popular variant of MCMC).
+
+```{julia}
+conditioned_model = gen_model | (; y_obs = y_observed)
+chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
+```
+
+We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl`.
+
+```{julia}
+using PairPlots, CairoMakie
+params = [:damp_AR, :ar_init, :θ]
+
+function plot_fit_with_truth(chain, truth, params)
+
+    params_with_names = mapreduce(param -> namesingroup(chain, param), vcat, params)
+    filtered_chains = chain[params_with_names]
+
+    filtered_truth = reduce(vcat, truth[params])
+    filtered_truth = Dict(
+        zip(params_with_names, reduce(vcat, truth[params]))
+    )
+
+    f = pairplot(
+        filtered_chains,
+        PairPlots.Truth(
+            filtered_truth,
+            label="True Values"
+        )
+    )
+    return f
+end
+
+plot_fit_with_truth(
+    chains,
+    truth,
+    params
+)
+```
 
 **Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
 *Panel B*: ARIMA composition example demonstrating component stacking with struct definitions.
