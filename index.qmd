@@ -95,17 +95,29 @@ Alternative approaches using category theory or symbolic-numeric frameworks rema
 
 <!-- Reference to Panel A of Figure 1 -->
 
--   Domain-specific language built on Julia's type system
--   Abstract types define hierarchy of epidemiological model components
--   Struct-in-struct design enables component swapping for model comparison
--   Mathematical consistency maintained through type system
--   Complex models constructed by nesting simpler components in containers
--   Type hierarchy: `AbstractEpiModel` (infection processes), `AbstractLatentModel` (time-varying parameters), `ObservationModel` (latent-to-observed links)
--   Turing specific types in the prototype but actually not needed
--   Package extension pattern: high-level epidemiological interface over standard Julia package
--   Don't focus heavily on the specialised Turing abstract types, the `EpiMethod` , `apply_method`, `EpiData` etc. as this won't likely be carried forward. Can briefly discuss in the case study as they come up and add why they aren't a good idea in the discussion of our approach in the discussion.
--   Compositional design translates abstract specifications to concrete probabilistic programs via multiple dispatch
--   Enables modular "swap-in/swap-out" functionality distinguishing from monolithic alternatives
+Our prototype domain-specific language builds on Julia's type system to enable composable epidemiological modelling through two key design patterns.
+First, abstract types define interfaces that implementations must follow, analogous to contracts specifying what operations a model component must support rather than how it implements them.
+All model components inherit from a parent `AbstractModel` type, establishing a common foundation whilst allowing specialised behaviour through subtypes.
+Second, structures contain other structures as fields (a struct-in-struct pattern), allowing complex models to be built by nesting simpler components.
+This pattern enables models to be assembled like building blocks whilst maintaining clear boundaries between different epidemiological processes.
+
+We organise model components into three abstract type hierarchies, each of which inherits from `AbstractModel`, corresponding to distinct epidemiological processes.
+`AbstractEpiModel` represents infection generation processes such as renewal models or ordinary differential equation transmission dynamics.
+`AbstractLatentModel` captures time-varying parameters and unobserved processes such as changing reproduction numbers or reporting rates, implemented through structures like autoregressive processes, random walks, or moving averages.
+`AbstractObservationModel` links latent states to observed data by encoding measurement processes such as reporting delays, aggregation over time periods, and observation error distributions.
+These structures are data-agnostic, specifying what to do when they encounter data rather than containing data themselves, making model definitions reusable across different datasets and scenarios.
+Each hierarchy supports multiple concrete implementations that can be swapped to compare modelling assumptions whilst keeping other components fixed.
+
+Models can compose across these hierarchies rather than being restricted to combining components within a single type.
+An observation model can contain a latent process as a field to represent time-varying ascertainment, or wrap another observation model to add reporting delays.
+This cross-hierarchy composition extends the building block analogy to include more complex models.
+For instance, we can construct a delay convolution observation model, `LatentDelay`, using an underlying observation model and a delay distribution model.
+
+The `EpiProblem` structure serves as the top-level container assembling these components into a complete epidemiological model.
+It holds an infection process (`epi_model`), a latent process (`latent_model`), an observation process (`observation_model`), and a time span for inference or simulation.
+Structures can be modified in place using tools like Accessors.jl, enabling both rapid model iteration and complex patterns such as partially pooled models that dynamically update low-level priors based on grouping structures.
+The abstract type system enables shared methods across all model components, such as print methods (shown below) for displaying model specifications or functions for visualising model directed acyclic graphs.
+This approach also allows for the creation of mappings between submodels such as one to one, one to many, and many to many mappings so that, for example, a single infection process can be linked to multiple observations models by specifying a mapping model.
 
 <!-- Reference to Panel B of Figure 1 -->
 
@@ -163,9 +175,8 @@ display(arima_model)
 ```
 
 Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
-Whilst not implemented we could avoid redefining the AR process using an `update` function.
 
-Other latent models extend possibilities through combining models additively, multiplicative scaling, and piecewise processes.
+Other latent models extend modelling options through combining models additively, multiplicative scaling, and piecewise processes.
 This approach enables representation of arbitrary latent processes through composition.
 
 <!-- -->
