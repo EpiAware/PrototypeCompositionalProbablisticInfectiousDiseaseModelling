@@ -317,7 +317,7 @@ $$
 
 Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the damping parameters $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
 $g_t$ is the generation distribution probability mass function (pmf).
-$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation 
+$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation.
 
 $$
 G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
