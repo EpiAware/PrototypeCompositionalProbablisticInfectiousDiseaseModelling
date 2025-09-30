@@ -797,19 +797,13 @@ function plot_post_pred(inference_data, inference_results; epi_prob,
 
     return fig
 end
-
 ```
-
-
 
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-CS1
 #| fig-cap: (Top row) Prior predictive visualisation for the three submodels of case study 1. (Top Left) Samples from the log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory from $R_t =3$ to $R_t =0.5$. (Top Right) Samples from the negative binomial observation submodel around a latent infection curve (Bottom row) Component using composed full generative model. (Bottom left) Comparison of continuous serial interval distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
-
-
-
 figure2 = let 
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
