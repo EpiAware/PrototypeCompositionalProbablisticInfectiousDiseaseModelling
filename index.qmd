@@ -458,10 +458,9 @@ Prior predictive samples (Figure @fig-posterior-preds-CS1, top left panel) show 
 
 #### Infection Generating Process
 
-The renewal equation above is defined in daily time increments, but its is common to estimate and report underlying delay distributions as continuous.
-In our prototype, we give a convenience constructor for the data required to solve the renewal model that convert generation interval distributions into the generation interval pmf $g_t$ required for this model.
-In _Mishra et al_, the serial interval distribution is used in place of the generation interval distribution, which can be problematic @park2023inferring, but is common in practice especially early in an outbreak @zhao2020preliminary.
-The specific continuous serial interval distribution used was $\text{Gamma}(6.5, 0.62)$,
+The renewal equation is defined in daily time increments, but delay distributions are commonly estimated and reported as continuous.
+Our prototype provides a convenience constructor that converts continuous distributions into the discrete pmf $g_t$ required for the renewal model.
+_Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
 
 ```{julia}
 truth_SI = Gamma(6.5, 0.62)
@@ -912,13 +911,17 @@ EpiNow2 is built around three core modeling components that work together to rec
 We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**.
 This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
 We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
-n
+
 ### Reporting delays, incubation period and generation time
 
 Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak.
 When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates.
 Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making.
 Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
+
+Unlike Example 1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
+EpiNow2's use of the generation time distribution is therefore preferable when such estimates are available.
 
 Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
 
