@@ -126,7 +126,7 @@ To demonstrate the structure and use of `AbstractLatentModels`, we start with an
 $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
 
 In our prototype DSL, this is defined using the `AR` struct.
-We use priors based on @mishra which we will reuse in case study 1.
+We use priors based on @mishra which we will reuse in @sec-example1.
 
 ```{julia}
 using EpiAware, Distributions
@@ -469,7 +469,7 @@ function plot_Rt_traj!(ax, Rt)
 end
 ```
 
-The full infection generating process, that is the model defined in the [generative model section](#case-study-1-generative-model) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
+The full infection generating process, that is the model defined in @sec-example1 without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
 
 #### Observation Model
 
@@ -495,21 +495,20 @@ Prior predictive samples (Figure @fig-posterior-preds-CS1, top right panel) show
 
 ```{julia}
 #| echo: false
-
 function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
     negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         θ = negbin_mdl() #Sample unconditionally the underlying parameters of the model
     end
     for col in eachcol(negbin_mdl_samples)
-            scatter!(ax, col;
-                color = (:grey, 0.2)
-            )
-        end
-        lines!(ax, I_t;
-            color = :red,
-            linewidth = 3,
-            label = "Latent infections"
+        scatter!(ax, col;
+            color=(:grey, 0.2)
         )
+    end
+    lines!(ax, I_t;
+        color=:red,
+        linewidth=3,
+        label="Latent infections"
+    )
     axislegend(ax)
     return nothing
 end
@@ -576,10 +575,9 @@ summarystats(mishra_results.samples)
 
 ```{julia}
 #| echo: false
-
 dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
 
-function generated_quantiles(gens, quantity, qs; transformation = x -> x)
+function generated_quantiles(gens, quantity, qs; transformation=x -> x)
     mapreduce(hcat, gens) do gen #loop over sampled generated quantities
         getfield(gen, quantity) |> transformation
     end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
@@ -591,12 +589,12 @@ function generated_quantiles(gens, quantity, qs; transformation = x -> x)
             end
         end
     end
-    
+
 end
 
-function identify_good_chains(chn; threshold = 3.0)
+function identify_good_chains(chn; threshold=3.0)
     idxs = @chain chn[:lp] begin
-        mean(; dims = 1)
+        mean(; dims=1)
         vec
         findall(maximum(_) .- _ .< threshold)
     end
@@ -605,8 +603,8 @@ end
 
 function posterior_gens_for_plot(inference_results, n; epi_prob, fixed_cluster_factor, threshold)
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
-        generate_epiaware(epi_prob,(y_t = fill(missing, n),)) :
-        generate_epiaware(epi_prob, (y_t = fill(missing, n),)) | (var"obs.cluster_factor" = fixed_cluster_factor,)
+                        generate_epiaware(epi_prob, (y_t=fill(missing, n),)) :
+                        generate_epiaware(epi_prob, (y_t=fill(missing, n),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
 
     good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
@@ -618,24 +616,24 @@ function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
     ts = dates_to_times(inference_data.dates)
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
-    predicted_y_t = predicted_y_t[(n+1):end, :] 
+    predicted_y_t = predicted_y_t[(n+1):end, :]
 
     lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
-        color = :purple,
-        linewidth = 2,
-        label = "Post. median"
+        color=:purple,
+        linewidth=2,
+        label="Post. median"
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color = (:purple, 0.4),
-        label = "50%"
+        color=(:purple, 0.4),
+        label="50%"
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color = (:purple, 0.2),
-        label = "95%"
+        color=(:purple, 0.2),
+        label="95%"
     )
     scatter!(ax, ts, inference_data.y_t;
-        color = :black,
-        label = "Actual cases")
+        color=:black,
+        label="Actual cases")
     axislegend(ax)
 
     return nothing
@@ -645,37 +643,37 @@ function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
     ts = dates_to_times(inference_data.dates)
     #Prediction quantiles
     predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-            transformation = x -> exp.(x))
+        transformation=x -> exp.(x))
 
     lines!(ax, ts, predicted_R_t[:, 3];
-        color = :green,
-        linewidth = 2,
-        label = "Post. median"
+        color=:green,
+        linewidth=2,
+        label="Post. median"
     )
     band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
-        color = (:green, 0.4),
-        label = "50%"
+        color=(:green, 0.4),
+        label="50%"
     )
     band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
-        color = (:green, 0.2),
-        label = "95%"
+        color=(:green, 0.2),
+        label="95%"
     )
     axislegend(ax)
 end
 
 # Older plotting left temporarily so render continues (used further down)
-function plot_post_pred(inference_data, inference_results; epi_prob, 
-    fixed_cluster_factor = nothing,
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975],
-    threshold = 3.0)
+function plot_post_pred(inference_data, inference_results; epi_prob,
+    fixed_cluster_factor=nothing,
+    qs=[0.025, 0.25, 0.5, 0.75, 0.975],
+    threshold=3.0)
     y_t = inference_data.y_t
     dates = inference_data.dates
     ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
     t_ticks = string.(dates)
 
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
-        generate_epiaware(epi_prob,(y_t = fill(missing, length(y_t)),)) :
-        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,)
+                        generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) :
+                        generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
 
     good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
@@ -683,54 +681,54 @@ function plot_post_pred(inference_data, inference_results; epi_prob,
 
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
     predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-        transformation = x -> exp.(x))
+        transformation=x -> exp.(x))
 
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
     predicted_y_t = predicted_y_t[(n+1):end, :]
 
     fig = Figure()
     ax1 = Axis(fig[1, 1];
-        ylabel = "Daily cases",
-        xticks = (ts[1:14:end], t_ticks[1:14:end]),
-        title = "Posterior predictive: Cases"
+        ylabel="Daily cases",
+        xticks=(ts[1:14:end], t_ticks[1:14:end]),
+        title="Posterior predictive: Cases"
     )
     ax2 = Axis(fig[2, 1];
-        yscale = log10,
-        title = "Prediction: Reproduction number",
-        xticks = (ts[1:14:end], t_ticks[1:14:end])
+        yscale=log10,
+        title="Prediction: Reproduction number",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
     )
     linkxaxes!(ax1, ax2)
 
     lines!(ax1, ts[(n+1):end], predicted_y_t[:, 3];
-        color = :purple,
-        linewidth = 2,
-        label = "Post. median"
+        color=:purple,
+        linewidth=2,
+        label="Post. median"
     )
     band!(ax1, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color = (:purple, 0.4),
-        label = "50%"
+        color=(:purple, 0.4),
+        label="50%"
     )
     band!(ax1, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color = (:purple, 0.2),
-        label = "95%"
+        color=(:purple, 0.2),
+        label="95%"
     )
     scatter!(ax1, ts, y_t;
-        color = :black,
-        label = "Actual cases")
+        color=:black,
+        label="Actual cases")
     axislegend(ax1)
 
     lines!(ax2, ts, predicted_R_t[:, 3];
-        color = :green,
-        linewidth = 2,
-        label = "Post. median"
+        color=:green,
+        linewidth=2,
+        label="Post. median"
     )
     band!(ax2, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
-        color = (:green, 0.4),
-        label = "50%"
+        color=(:green, 0.4),
+        label="50%"
     )
     band!(ax2, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
-        color = (:green, 0.2),
-        label = "95%"
+        color=(:green, 0.2),
+        label="95%"
     )
     axislegend(ax2)
 
@@ -742,53 +740,53 @@ end
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-CS1
-#| fig-cap: (Top row) Prior predictive visualisation for the three submodels of case study 1. (Top Left) Samples from the log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory from $R_t =3$ to $R_t =0.5$. (Top Right) Samples from the negative binomial observation submodel around a latent infection curve (Bottom row) Component using composed full generative model. (Bottom left) Comparison of continuous serial interval distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
-figure2 = let 
+#| fig-cap: (Top row) Prior predictive visualisation for the three submodels of @sec-example1. (Top Left) Samples from the log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory from $R_t =3$ to $R_t =0.5$. (Top Right) Samples from the negative binomial observation submodel around a latent infection curve (Bottom row) Component using composed full generative model. (Bottom left) Comparison of continuous serial interval distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
+figure2 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
     t_ticks = @chain training_data begin
-            _.dates
-            string.(_)
-        end
+        _.dates
+        string.(_)
+    end
     ts = dates_to_times(training_data.dates)
 
     posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
-            epi_prob = mishra,
-            fixed_cluster_factor = fixed_cluster_factor,
-            threshold = 3.0)
+        epi_prob=mishra,
+        fixed_cluster_factor=fixed_cluster_factor,
+        threshold=3.0)
 
-    fig = Figure(size = (1200, 1000))
+    fig = Figure(size=(1200, 1000))
     ax11 = Axis(fig[1, 1];
-        yscale = log10,
-        ylabel = "Time varying Rₜ",
-        title = "$(n_samples) draws from the prior Rₜ model"
+        yscale=log10,
+        ylabel="Time varying Rₜ",
+        title="$(n_samples) draws from the prior Rₜ model"
     )
     n_ax12_samples = 100
     ax12 = Axis(fig[1, 2];
-            title = "$(n_samples) draws from renewal model with chosen Rt",
-            ylabel = "Latent infections"
-        )
+        title="$(n_samples) draws from renewal model with chosen Rt",
+        ylabel="Latent infections"
+    )
 
     ax13 = Axis(fig[1, 3];
-        title = "$(n_samples) draws from neg. bin. obs model",
-        ylabel = "Observed cases"
+        title="$(n_samples) draws from neg. bin. obs model",
+        ylabel="Observed cases"
     )
 
     ax21 = Axis(fig[2, 1];
-        xticks = 0:14,
-        xlabel = "Days",
-        title = "Continuous and discrete generation intervals"
+        xticks=0:14,
+        xlabel="Days",
+        title="Continuous and discrete generation intervals"
     )
 
     ax22 = Axis(fig[2, 2];
-        ylabel = "Daily cases",
-        xticks = (ts[1:14:end], t_ticks[1:14:end]),
-        title = "Posterior predictive: Cases"
+        ylabel="Daily cases",
+        xticks=(ts[1:14:end], t_ticks[1:14:end]),
+        title="Posterior predictive: Cases"
     )
     ax23 = Axis(fig[2, 3];
-        yscale = log10,
-        title = "Prediction: Reproductive number",
-        xticks = (ts[1:14:end], t_ticks[1:14:end])
+        yscale=log10,
+        title="Prediction: Reproductive number",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
     )
 
     ar_sample_plot!(ax11, ar_mdl; n_samples)
@@ -800,7 +798,6 @@ figure2 = let
 
     fig
 end
-
 
 figure2
 ```
@@ -819,15 +816,15 @@ EpiNow2 is built around three core modeling components that work together to rec
 
 3.  **Temporal modifiers to observation**: Case counts are modeled using a (default) negative binomial distribution to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects to account for systematic biases in reporting patterns.
 
-We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**.
+We recreate the core EpiNow2 functionality by **reusing model components from @sec-example1** and **composing them with new delay and temporal effect components**.
 This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
 We will reuse the renewal-based epidemiological model and ARIMA(2,1,1) latent process from @sec-dsl, whilst introducing new observation model components to handle reporting delays and day-of-week effects.
 
 ### Model
 
 Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, whilst building a complex observation model that accounts for reporting delays and day-of-week effects.
-Unlike Example 1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
-The observation model layers three effects: negative binomial observation noise (reused from Example 1), day-of-week temporal modifiers, and reporting delays via convolution.
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+The observation model layers three effects: negative binomial observation noise (reused from @sec-example1), day-of-week temporal modifiers, and reporting delays via convolution.
 
 Mathematically, we represent the complete model as:
 
@@ -859,15 +856,14 @@ Prior predictive samples (Figure @fig-posterior-preds-CS2, top left panel) show 
 
 ```{julia}
 #| echo: false
-
 arima_mdl = generate_latent(arima211, 50)
 
-function arima_sample_plot!(ax, arima_mdl; n_samples = 100)
+function arima_sample_plot!(ax, arima_mdl; n_samples=100)
     arima_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         arima_mdl() .|> exp
     end
     for col in eachcol(arima_mdl_samples)
-        lines!(ax, col, color = (:grey, 0.1))
+        lines!(ax, col, color=(:grey, 0.1))
     end
     return nothing
 end
@@ -876,10 +872,10 @@ end
 #### Infection Generating Process
 
 The renewal equation requires a discrete generation time pmf $g_t$.
-Unlike Example 1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
 
-We use a $\text{Gamma}(6.5, 0.62)$ generation time distribution (matching the serial interval from Example 1 for comparison purposes, though in practice these would differ).
+We use a $\text{Gamma}(6.5, 0.62)$ generation time distribution (matching the serial interval from @sec-example1 for comparison purposes, though in practice these would differ).
 
 ```{julia}
 gen_time_dist = Gamma(6.5, 0.62)
@@ -887,7 +883,7 @@ epinow2_data = EpiData(gen_distribution = gen_time_dist)
 display(epinow2_data.gen_int)
 ```
 
-We reuse the `renewal` structure from Example 1, updating it to use the generation time distribution rather than the serial interval.
+We reuse the `renewal` structure from @sec-example1, updating it to use the generation time distribution rather than the serial interval.
 
 ```{julia}
 renewal_gt = @set renewal.data = epinow2_data
@@ -907,7 +903,7 @@ end
 
 #### Observation Model
 
-We build the observation model through **composition** of modular components reusing the negative binomial link observation model (`negbin`) from Example 1, and then layer additional modelling components on top.
+We build the observation model through **composition** of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
 
 ```{julia}
 dayofweek_negbin = ascertainment_dayofweek(negbin;
@@ -944,7 +940,7 @@ delay_dayofweek_negbin = LatentDelay(dayofweek_negbin, delay_distribution)
 display(delay_dayofweek_negbin)
 ```
 
-This code demonstrates component reuse (base `negbin` from Example 1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding reporting delays via `LatentDelay`).
+This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding reporting delays via `LatentDelay`).
 Figure @fig-posterior-preds-CS2 (top right panel) demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
@@ -977,7 +973,7 @@ display(epinow2)
 ```
 
 This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`).
-The observation model reuses `negbin` from Example 1, layering on delays and day-of-week effects.
+The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
 We need to account for the extended time window required to handle reporting delays:
 
@@ -989,13 +985,13 @@ longer_south_korea_data = (
 ```
 
 We construct a Turing model using `generate_epiaware`.
-Unlike Example 1, we let the cluster factor parameter $\phi$ of the negative binomial distribution be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach.
+Unlike @sec-example1, we let the cluster factor parameter $\phi$ of the negative binomial distribution be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach.
 
 ```{julia}
 epinow2_mdl = generate_epiaware(epinow2, longer_south_korea_data)
 ```
 
-We reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions.
+We reuse the same `inference_method` defined in @sec-example1, showcasing how our inference setup can be applied across different model compositions.
 
 ```{julia}
 epinow2_results = apply_method(epinow2_mdl,
@@ -1009,7 +1005,7 @@ summarystats(epinow2_results.samples)
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-CS2
-#| fig-cap: (Top row) Prior predictive visualisation for the three submodels of case study 2. (Top Left) Samples from the ARIMA(2,1,1) log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory. (Top Right) Samples from the delay and day-of-week observation submodel around a latent infection curve. (Bottom row) Component using composed full generative model. (Bottom Left) Comparison of continuous delay distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
+#| fig-cap: (Top row) Prior predictive visualisation for the three submodels of @sec-example2. (Top Left) Samples from the ARIMA(2,1,1) log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory. (Top Right) Samples from the delay and day-of-week observation submodel around a latent infection curve. (Bottom row) Component using composed full generative model. (Bottom Left) Comparison of continuous delay distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
