@@ -447,17 +447,12 @@ end
 
 #### Infection Generating Process
 
-The renewal equation is defined in daily time increments, but delay distributions are commonly estimated and reported as continuous.
-Our prototype provides a convenience constructor that converts continuous distributions into the discrete pmf $g_t$ required for the renewal model.
+The renewal equation requires a discrete generation time pmf $g_t$.
+Our prototype provides a constructor that converts continuous distributions into the required discrete pmf using double interval censoring @charniga2024best.
 _Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
 
 ```{julia}
 truth_SI = Gamma(6.5, 0.62)
-```
-
-Our prototype epidemiological system offers a convenience constructor which converts this continuous distribution into the discrete pmf $g_t$ for the generative model using double interval censoring @charniga2024best.
-
-```{julia}
 model_data = EpiData(gen_distribution = truth_SI)
 display(model_data.gen_int)
 ```
@@ -480,8 +475,8 @@ function discretised_gen_plot!(ax, model_data, truth_SI)
 end
 ```
 
-We use a lognormal prior for the initial latent infections $I_0 \sim LogNormal(0., 1.0)$, as defined above the other necessary initial conditions are defined in combination with the initial sampled reproductive number $I_1$.
-The `model_data` object composes with the initial latent infections prior to construct a full renewal model,
+We use a lognormal prior for the initial latent infections.
+The `Renewal` model requires the discretized generation time (from `model_data`) and the initialisation prior,
 
 ```{julia}
 log_I0_prior = Normal(log(1.0), 1.0)
@@ -489,8 +484,7 @@ epi = Renewal(model_data; initialisation_prior = log_I0_prior)
 display(epi)
 ```
 
-The `epi` model object defines the sampling distribution for $I_t$ defined in the [generative model](#case-study-1-generative-model1) section, conditional on the time-varying reproductive number process $R_t$.
-We can concretise the sampling behavious of $I_t$ by supplying the model object and a specific $R_t$ trajectory to the `generate_latent_infs` method. Here we choose an example where $R_t$ decreases from $R_t = 3$ to $R_t = 0.5$ over the course of 50 days.
+To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
 
 ```{julia}
 R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
