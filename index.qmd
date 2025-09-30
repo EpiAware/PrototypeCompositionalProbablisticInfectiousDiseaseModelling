@@ -125,16 +125,18 @@ To demonstrate the structure and use of `AbstractLatentModels`, we start with an
 
 $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
 
-In our prototype DSL, this is defined using the `AR` struct:
+In our prototype DSL, this is defined using the `AR` struct.
+We use priors based on @mishra which we will reuse in case study 1.
 
 ```{julia}
 using EpiAware, Distributions
-ar_model = AR(;
-    damp_priors=[truncated(Normal(0.5, 0.1), 0, 1),
+ar2 = AR(;
+    damp_priors=[truncated(Normal(0.8, 0.1), 0, 1),
                  truncated(Normal(0.1, 0.05), 0, 1)],
-    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)]
+    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
 )
-display(ar_model)
+display(ar2)
 ```
 
 Another common latent model is the moving average model
@@ -144,7 +146,7 @@ $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(
 The `MA` struct encapsulates this:
 
 ```{julia}
-ma_model = MA(;
+ma1 = MA(;
     θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
 )
@@ -159,8 +161,8 @@ In our DSL this can be represented as a composition of the AR and MA structs by 
 
 ```{julia}
 using Accessors
-arma_model = @set ar_model.ϵ_t = ma_model
-display(arma_model)
+arma21 = @set ar2.ϵ_t = ma1
+display(arma21)
 ```
 
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
@@ -170,8 +172,8 @@ $$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \the
 We compose the ARMA model with a differencing operation using the `DiffLatentModel` wrapper:
 
 ```{julia}
-arima_model = DiffLatentModel(arma_model, Normal(); d=1)
-display(arima_model)
+arima211 = DiffLatentModel(arma21, Normal(); d=1)
+display(arima211)
 ```
 
 Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
@@ -205,7 +207,7 @@ Returning to our example from the DSL section, the autoregressive process can be
 
 ```{julia}
 using CodeTracking, Revise
-print(@code_string EpiAwareBase.generate_latent(ar_model, 50))
+print(@code_string EpiAwareBase.generate_latent(ar2, 50))
 ```
 
 The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state:
@@ -222,7 +224,7 @@ This design means we only need to write the single-step operation without worryi
 The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach:
 
 ```{julia}
-print(@code_string generate_latent(arima_model, 50))
+print(@code_string generate_latent(arima211, 50))
 ```
 
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
@@ -246,7 +248,7 @@ We can then generate synthetic data with fixed parameters which we sample from t
 
 ```{julia}
 n_timesteps = 20
-gen_model = arima_with_obs(arima_model, n_timesteps)
+gen_model = arima_with_obs(arima211, n_timesteps)
 ```
 
 Then sample from it,
@@ -423,29 +425,13 @@ The sampling distribution for these parameters defines a generative model for th
 
 #### Latent Model
 
-The priors for the latent AR(2) process we use, based on _Mishra et al_, are,
+We reuse the AR(2) model `ar2` defined in @sec-dsl, which has the appropriate priors from _Mishra et al_.
 
-$$
-\begin{aligned}
-\rho_1 & \sim \text{Normal}(0.8, 0.1) \mid \{0 \geq \rho_1 \geq 1 \},\\
-\rho_1 & \sim \text{Normal}(0.1, 0.05) \mid \{0 \geq \rho_1 \geq 1 \},\\
-Z_0 & \sim \text{Normal}(-1.0, 0.1) ,\\
-Z_{-1} & \sim \text{Normal}(-1.0, 0.5),\\
-\sigma & \sim \text{HalfNormal}(0.5).
-\end{aligned}
-$$
-
-The ARMA(2,1) model defined above already has these priors for the damping parameters and initial conditions.
-Therefore, we reuse the ARMA(2,1) model from above by reseting its noise model to independent normal with a hyperprior for $\sigma \sim \text{HalfNormal}(0.5)$.
-This transforms the ARMA(2,1) model into the AR(2) model we desire, whilst maintaining code reusability, 
- 
 ```{julia}
-using Accessors
-ar = @set arma_model.ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.5))
-display(ar) # FIX: Currently gives incorrect display but inspection returns correct strucutual transformation
+ar = ar2
 ```
 
-The `ar` model object defines the full sampling distribution, both for hyperparameters and trajectory, for $Z_t$ defined in the [generative model](#generative-model-for-case-study-1) section.
+The `ar` model object defines the full sampling distribution, both for hyperparameters and trajectory, for $Z_t$.
 To do prior predictive modelling on $Z_t$ we define the associated Turing model to `ar`, concretising its sampling period to 50 days using the `generate_latent` method from our prototype system.
 
 ```{julia}
