@@ -618,6 +618,7 @@ mishra_results = apply_method(mishra_mdl,
     inference_method,
     training_data
 )
+summaystats(mishra_results)
 ```
 
 ```{julia}
@@ -867,41 +868,89 @@ EpiNow2 is built around three core modeling components that work together to rec
 
 We recreate the core EpiNow2 functionality by **reusing model components from Example 1** and **composing them with new delay and temporal effect components**.
 This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
-We will reuse the renewal-based epidemiological model and AR latent process from Example 1, while introducing new observation model components to handle reporting delays and day-of-week effects.
+We will reuse the renewal-based epidemiological model and ARIMA(2,1,1) latent process from @sec-dsl, whilst introducing new observation model components to handle reporting delays and day-of-week effects.
 
-### Reporting delays, incubation period and generation time
+### Model
 
-Delayed reporting of cases is a critical consideration in epidemiological modelling because it can substantially distort the apparent trajectory of an outbreak.
-When cases are reported with a delay, the most recent data will systematically underestimate the true number of infections, leading to biased estimates of key epidemiological parameters such as the reproduction number ($R_t$) and growth rates.
-Accurately accounting for reporting delays allows models to reconstruct the true epidemic curve, improve nowcasting, and provide more reliable situational awareness for public health decision-making.
-Ignoring these delays can result in misleading trends, delayed detection of changes in transmission, and suboptimal intervention strategies.
-
+Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, whilst building a complex observation model that accounts for reporting delays and day-of-week effects.
 Unlike Example 1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
-Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
-EpiNow2's use of the generation time distribution is therefore preferable when such estimates are available.
+The observation model layers three effects: negative binomial observation noise (reused from Example 1), day-of-week temporal modifiers, and reporting delays via convolution.
 
-Mathematically, we represent delays by modelling the expected number of cases observed on each day as being a weighted sum on recent latent infections:
+Mathematically, we represent the complete model as:
 
 $$
 \begin{aligned}
+Z_t & = \log R_t, \\
+\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma_Z, \sigma_\omega, \phi &\sim \pi(\cdot), \\
+\epsilon_t & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall t, \\
+Z_t - Z_{t-1} &= \rho_1 (Z_{t-1} - Z_{t-2}) + \rho_2 (Z_{t-2} - Z_{t-3}) + \epsilon_t,~~ t = 1, 2, 3, \dots\\
+I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
 D_t &= \sum_{s\geq1} I_{t-s} \xi_s,~~ \text{Delayed latent infections}\\
 \tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
 \omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
-C_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
+y_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
 \end{aligned}
 $$ {#eq-epinow2-model}
 
-Where $D_t$ is a "naive" direct convolution on the latent infection time series that maps infections from *before* day $t$ into observations *on* day $t$.
-$\overline{C}(t)$ is the expected cases observed on day $t$ after further modification by a day of the week effect @abbott-epinow2-wellcomeopenres.
-Equation @eq-epinow2-model is represented in code as three operations: the convolution represents delaying possible observation of latent infections $I_t$ by a random duration with pmf $\xi_t$ .
-The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effect of the day of week on the delayed observation (e.g. reporting might be suppressed on typical Sundays).
-The final equation defines a negative binomial link to data, which we can reuse from example 1.
+Where $\pi$ represents prior distributions for model hyperparameters.
+$g_t$ is the generation time distribution pmf and $\xi_t$ is the reporting delay distribution pmf (both obtained by double-censoring continuous distributions).
+$D_t$ is a convolution on the latent infection time series that maps infections from *before* day $t$ into delayed observations *on* day $t$.
+The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on reporting.
 
-In `EpiAware`, we recreate this complex observation process through **composition** of modular components.
-We **reuse the underlying negative binomial link observation model (`negbin`) from Example 1**, demonstrating the modularity of our approach.
-We then layer additional modeling components on top.
+#### Latent Model
 
-Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `negbin` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
+We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl.
+In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
+In analogy, `arima211` applies the ARMA(2,1) model to the increments $R_{t} - R_{t-1}$.
+Prior predictive samples (Figure @fig-posterior-preds-CS2, top left panel) show the behaviour of this differenced process.
+
+```{julia}
+#| echo: false
+
+arima_mdl = generate_latent(arima211, 50)
+
+function arima_sample_plot!(ax, arima_mdl; n_samples = 100)
+    arima_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        arima_mdl() .|> exp
+    end
+    for col in eachcol(arima_mdl_samples)
+        lines!(ax, col, color = (:grey, 0.1))
+    end
+    return nothing
+end
+```
+
+#### Infection Generating Process
+
+The renewal equation requires a discrete generation time pmf $g_t$.
+Unlike Example 1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
+
+We use a $\text{Gamma}(6.5, 0.62)$ generation time distribution (matching the serial interval from Example 1 for comparison purposes, though in practice these would differ).
+
+```{julia}
+gen_time_dist = Gamma(6.5, 0.62)
+epinow2_data = EpiData(gen_distribution = gen_time_dist)
+display(epinow2_data.gen_int)
+```
+
+We reuse the `renewal` model from Example 1.
+Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the renewal process with a fixed $R_t$ trajectory.
+
+```{julia}
+#| echo: false
+
+renewal_mdl = let
+    rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
+    epinow2_data_samples = (gen_int = epinow2_data.gen_int, )
+    _renewal_mdl = generate_infections(renewal, rt_process, epinow2_data_samples)
+end
+```
+
+#### Observation Model
+
+We build the observation model through **composition** of modular components, demonstrating how complex observation processes emerge from simple building blocks.
+We **reuse the negative binomial link observation model (`negbin`) from Example 1**, then layer additional modelling components on top.
 
 ```{julia}
 dayofweek_negbin = ascertainment_dayofweek(negbin;
@@ -937,70 +986,28 @@ delay_dayofweek_negbin = LatentDelay(dayofweek_negbin, delay_distribution)
 display(delay_dayofweek_negbin)
 ```
 
-This code demonstrates three key aspects of our compositional approach:
-
-1.  **Component reuse**: The base observation model `negbin` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
-
-2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers.
-    At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
-
-3.  **Sequential composition**: We then add reporting delays through `LatentDelay()`, which wraps the day-of-week modified model with a convolution delay operation.
-    The delay is specified with a continuous delay distribution which is converted by double-censoring on a daily scale into the discrete pmf $\xi_t$.
-    For this example, we choose a median of 5 days between latent infection and observation.
-
-### Demonstrating the delay and day-of-week effects
-
-The resulting `delay_dayofweek_negbin` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process.
-The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
-
-To illustrate how these effects work together, let's examine how they transform a simple oscillating latent infection signal:
+This code demonstrates component reuse (base `negbin` from Example 1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding reporting delays via `LatentDelay`).
+Figure @fig-posterior-preds-CS2 (top right panel) demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
-#| output: true
 #| echo: false
-#| label: fig-delay-with-dow-effect
 
-log_scale_dow_effect = [1.0; zeros(6)]
-plt_delayed_obs = let
-    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
-    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) | 
-        (var"DayofWeek.ϵ_t" = log_scale_dow_effect,)
-    n_samples = 100
+function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples = 100)
     obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+        obs_mdl()
     end
-    fig = Figure()
-    ax = Axis(fig[1, 1];
-        title = "$(n_samples) draws from delay model with day-of-week effect",
-        ylabel = "Observed cases"
-    )
     for col in eachcol(obs_mdl_samples)
-        scatter!(ax, col;
-            color = (:grey, 0.2)
-        )
+        scatter!(ax, col; color = (:grey, 0.2))
     end
-    lines!(ax, latent_infections;
-        color = :red,
-        linewidth = 3,
-        label = "Latent infections"
-    )
+    lines!(ax, latent_infections; color = :red, linewidth = 3, label = "Latent infections")
     axislegend(ax)
-    fig
+    return nothing
 end
 ```
 
-Compared to an oscillating latent infection signal, we can see that the generated data exhibits two key features: the observations are **delayed** (the peak observations occur after the true latent signal peaks) and can have **systematically higher observations on specific days of the week** (here, the first day of the week shows enhanced reporting).
+### Fitting to Data
 
-### Building the complete EpiNow2-style model
-
-Now we compose this new observation model with the epidemiological and latent components from Example 1.
-This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
-
-In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
-In analogy, we reuse the `arima211` from @sec-dsl.
-This composes the AR(2) and MA(1) processes from example 1 with the `DiffLatentModel` modifier, applying the ARMA(2,1) model to the increments $R_{t} - R_{t-1}$.
-
-As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
+We compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
 cutout = length(delay_dayofweek_negbin.rev_pmf)
@@ -1009,12 +1016,11 @@ epinow2 = EpiProblem(epi_model = renewal,
     latent_model = arima211,
     observation_model = delay_dayofweek_negbin,
     tspan = (45-cutout, 80))
+display(epinow2)
 ```
 
-This `EpiProblem` reuses the core epidemiological component from Example 1 (`renewal`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`), which itself composes the `ar2` and `ma1` processes.
-The observation model reuses `negbin` from Example 1, layering on delays and day-of-week effects in the correct EpiNow2 ordering.
-
-### Preparing data and model for inference
+This `EpiProblem` reuses the core epidemiological component from Example 1 (`renewal`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`).
+The observation model reuses `negbin` from Example 1, layering on delays and day-of-week effects.
 
 We need to account for the extended time window required to handle reporting delays:
 
@@ -1025,97 +1031,103 @@ longer_south_korea_data = (
     )
 ```
 
-As mentioned in [example 1](#inference-and-analysis), adding delay effects helps disentangle reporting variance from changes in the reproductive number.
-This makes the cluster factor parameter $\phi$ of the negative binomial distribution identifiable.
-Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
+We construct a Turing model using `generate_epiaware`.
+Unlike Example 1, we let the cluster factor parameter $\phi$ of the negative binomial distribution be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach.
 
 ```{julia}
 epinow2_mdl = generate_epiaware(epinow2, longer_south_korea_data)
 ```
 
-We can reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions:
+We reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions.
 
 ```{julia}
 epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     longer_south_korea_data
 )
+summarystats(epinow2_results)
 ```
-
-### Analysis of results
-
-The EpiNow2-style model with delays and day-of-week effects provides several advantages over the simpler model in Example 1.
-Most importantly, the explicit modeling of reporting delays helps disentangle true changes in transmission dynamics from observation artifacts, leading to more reliable $R_t$ estimates.
-
-#### Posterior predictive checking
-
-Let's examine how well our model captures the observed data patterns:
 
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-posterior-preds-example2
-plot_post_pred(longer_south_korea_data, epinow2_results;
-        epi_prob = epinow2
+#| label: fig-posterior-preds-CS2
+#| fig-cap: (Top row) Prior predictive visualisation for the three submodels of case study 2. (Top Left) Samples from the ARIMA(2,1,1) log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory. (Top Right) Samples from the delay and day-of-week observation submodel around a latent infection curve. (Bottom row) Component using composed full generative model. (Bottom Left) Comparison of continuous delay distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
+figure3 = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    t_ticks = @chain longer_south_korea_data begin
+            _.dates
+            string.(_)
+        end
+    ts = dates_to_times(longer_south_korea_data.dates)
+
+    posterior_gens = posterior_gens_for_plot(epinow2_results, length(longer_south_korea_data.y_t);
+            epi_prob = epinow2,
+            fixed_cluster_factor = nothing,
+            threshold = 3.0)
+
+    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
+    log_scale_dow_effect = [1.0; zeros(6)]
+    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
+        (var"DayofWeek.ϵ_t" = log_scale_dow_effect,)
+
+    fig = Figure(size = (1200, 1000))
+    ax11 = Axis(fig[1, 1];
+        yscale = log10,
+        ylabel = "Time varying Rₜ",
+        title = "$(n_samples) draws from the prior ARIMA(2,1,1) model"
+    )
+    ax12 = Axis(fig[1, 2];
+            title = "$(n_samples) draws from renewal model with chosen Rt",
+            ylabel = "Latent infections"
         )
+
+    ax13 = Axis(fig[1, 3];
+        title = "$(n_samples) draws from delay + day-of-week obs model",
+        ylabel = "Observed cases"
+    )
+
+    ax21 = Axis(fig[2, 1];
+        xticks = 0:5:20,
+        xlabel = "Days",
+        title = "Continuous and discrete delay distributions"
+    )
+
+    ax22 = Axis(fig[2, 2];
+        ylabel = "Daily cases",
+        xticks = (ts[1:14:end], t_ticks[1:14:end]),
+        title = "Posterior predictive: Cases"
+    )
+    ax23 = Axis(fig[2, 3];
+        yscale = log10,
+        title = "Prediction: Reproductive number",
+        xticks = (ts[1:14:end], t_ticks[1:14:end])
+    )
+
+    arima_sample_plot!(ax11, arima_mdl; n_samples)
+    plot_latent_infections!(ax12, renewal_mdl; n_samples)
+    delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
+
+    delay_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
+    barplot!(ax21, 0:(length(delay_pmf)-1), delay_pmf; label = "Discretized delay pmf")
+    lines!(ax21, 0:0.1:20, x -> pdf(delay_distribution, x);
+        color = :blue, linewidth = 2, label = "Continuous delay dist")
+    axislegend(ax21)
+
+    post_predictive_yt!(ax22, longer_south_korea_data, posterior_gens; qs)
+    post_predictive_Rt!(ax23, longer_south_korea_data, posterior_gens; qs)
+
+    fig
+end
+
+
+figure3
 ```
 
-The posterior predictive plots show that the model successfully captures both the overall epidemic trajectory and the day-to-day variation in case counts.
-The inclusion of delay and day-of-week effects allows the model to account for reporting irregularities that would otherwise be attributed to changes in transmission.
-
-#### Latent process parameters
-
-The AR(2) latent process parameters remain well-identified even with the more complex observation model:
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-pairwise-example-2-latent-parameters
-
-parameters_to_plot = ["latent.ar_init[1]", 
-                            "latent.ar_init[2]", 
-                            "latent.damp_AR[1]",
-                            "latent.damp_AR[2]",
-                            "latent.std",
-                            "init_incidence"]
-
-priors_to_plot = [
-    ar2.init_prior.v[1],
-    ar2.init_prior.v[2],
-    ar2.damp_prior.v[1],
-    ar2.damp_prior.v[2],
-    ar2.ϵ_t.std_prior,
-    renewal.initialisation_prior,
-]
-
-fig = pairplot(inference_results_with_delay.samples[parameters_to_plot])
-
-fig
-```
-
-#### Observation model parameters
-
-The newly introduced observation model components are also well-identified:
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-pairwise-example-2-obs-parameters
-
-parameters_to_plot = ["obs.DayofWeek.std",
-                            "obs.DayofWeek.ϵ_t[7]",
-                            "obs.cluster_factor"]
-
-priors_to_plot = [
-    delay_dayofweek_negbin.model.latent_model.model.model.model.std_prior,
-    nothing,
-    delay_dayofweek_negbin.model.model.cluster_factor_prior,
-]
-
-fig = pairplot(epinow2_results.samples[parameters_to_plot])
-
-fig
-```
+Figure @fig-posterior-preds-CS2 shows that the compositional model defined using our prototype system successfully captures the EpiNow2 functionality.
+The model recovers similar $R_t$ dynamics to Example 1, whilst explicitly accounting for reporting delays and day-of-week effects that were implicit in the simpler model.
+The posterior predictive checks demonstrate that the model captures both the overall epidemic trajectory and the day-to-day variation in case counts, with the delay and day-of-week components helping to disentangle true transmission changes from reporting artifacts.
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
