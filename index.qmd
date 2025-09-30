@@ -53,7 +53,7 @@ Our approach enables "LEGO-like" model decisions through standardised interfaces
 The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
 We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
-Through three case studies using the prototype, we show how components can be reused across different models: the first replicates @mishra2020covid; the second reuses components from the first, along with new elements, to replicate @epinow2; the third implements @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
+Through three case studies using the prototype, we show how components can be reused across different models: the first is inspired by @mishra2020covid; the second reuses components from the first, along with new elements, inspired by @epinow2; the third is inspired by @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
 Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
 
 # Prototype Implementation {#sec-approach}
@@ -320,7 +320,7 @@ All code and data for reproducing the analyses in this paper are available at: h
 
 Each case study follows this standardised structure to ensure consistency and clarity:
 
-A concise paragraph explaining: - The original paper and its contribution - Why we selected this study for replication - Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors)
+A concise paragraph explaining: - The original paper and its contribution - Why we selected this study as inspiration - Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors) - How our implementation differs from the original where relevant
 
 ### Data
 
