@@ -421,27 +421,17 @@ G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
 $$
 
 This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
-The sampling distribution for these parameters defines a generative model for the daily case data $y_t$ through solution of the renewal equation for latent infections $I_t$, therefore, this model can be used for Bayesian inference by conditioning on the observed case data.
 
 #### Latent Model
 
 We reuse the AR(2) model `ar2` defined in @sec-dsl, which has the appropriate priors from _Mishra et al_.
 
 ```{julia}
-ar = ar2
-```
-
-The `ar` model object defines the full sampling distribution, both for hyperparameters and trajectory, for $Z_t$.
-To do prior predictive modelling on $Z_t$ we define the associated Turing model to `ar`, concretising its sampling period to 50 days using the `generate_latent` method from our prototype system.
-
-```{julia}
-ar_mdl = generate_latent(ar, 50)
-```
-
-```{julia}
 #| echo: false
 using CairoMakie, Random
 Random.seed!(1234)
+
+ar_mdl = generate_latent(ar2, 50)
 
 function ar_sample_plot!(ax, ar_mdl; n_samples = 100)
     ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -586,7 +576,7 @@ We compose the three model components into an `EpiProblem`, which defines the co
 ```{julia}
 tspan = (45, 80)
 epi_prob = EpiProblem(epi_model = epi,
-    latent_model = ar,
+    latent_model = ar2,
     observation_model = obs,
     tspan = tspan)
 display(epi_prob)
@@ -1044,7 +1034,7 @@ In analogy, we compose the latent AR(2) process used in example 1 with the modif
 This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
 
 ```{julia}
-diff_ar = DiffLatentModel(ar, Normal(); d = 1) # Normal prior for initial value of process
+diff_ar = DiffLatentModel(ar2, Normal(); d = 1) # Normal prior for initial value of process
 ```
 
 As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
@@ -1058,7 +1048,7 @@ epi_prob_with_delay = EpiProblem(epi_model = epi,          # Reused from Example
     tspan = (45-cutout, 80))                               # Longer time span because of delay
 ```
 
-This `EpiProblem` reuses all three core components from Example 1: - **`epi`**: The renewal-based epidemiological model with generation time distribution - **`ar`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
+This `EpiProblem` reuses all three core components from Example 1: - **`epi`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
 
 While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
 
@@ -1128,11 +1118,11 @@ parameters_to_plot = ["latent.ar_init[1]",
                             "init_incidence"]
 
 priors_to_plot = [
-    ar.init_prior.v[1],
-    ar.init_prior.v[2],
-    ar.damp_prior.v[1],
-    ar.damp_prior.v[2],
-    ar.ϵ_t.std_prior,
+    ar2.init_prior.v[1],
+    ar2.init_prior.v[2],
+    ar2.damp_prior.v[1],
+    ar2.damp_prior.v[2],
+    ar2.ϵ_t.std_prior,
     epi.initialisation_prior,
 ]
 
