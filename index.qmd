@@ -314,58 +314,11 @@ plot_fit_with_truth(
 
 # Case Studies {#sec-case-studies}
 
+We demonstrate how our prototype compositional modelling system can recreate and extend existing epidemiological models.
+Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
+The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
+
 All code and data for reproducing the analyses in this paper are available at: https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling.
-
-## Standard Case Study Format
-
-Each case study follows this standardised structure to ensure consistency and clarity:
-
-A concise paragraph explaining: - The original paper and its contribution - Why we selected this study as inspiration - Key features of our compositional prototype demonstrated (e.g., model modularity, component reusability, transparent priors) - How our implementation differs from the original where relevant
-
-### Data
-
-Brief description of the dataset with a single code block loading the data.
-
-### Model
-
-Compositional model specification with subsections.
-Give a high level overview of the model in text, then present the complete probabilistic model with full mathematical formulation showing all components and their relationships.
-
-#### Latent Model (if applicable)
-
--   Code implementation using latent process types (e.g., AR, RandomWalk)
--   Component-specific mathematical details as needed
--   Prior predictive checking
-
-#### Infection Generating Process
-
--   Code implementation using `AbstractEpiModel` types (e.g., Renewal, DirectInfections)
--   Component-specific mathematical details as needed
--   Prior predictive checking
-
-#### Observation Model
-
--   Code implementation using `ObservationModel` types (e.g., NegativeBinomialError, PoissonError)
--   Component-specific mathematical details as needed
--   Prior predictive checking
-
-### Fitting to Data
-
--   Training data preparation
--   Model composition into `EpiProblem` (combining latent model, infection generating process, and observation model)
--   Inference configuration
--   Posterior sampling
--   Posterior predictive checking
-
-Panel figure combining all visualisations: - Prior predictive plots for each model component - Posterior predictive plots showing model fit - Parameter inference summaries
-
-### **Code Organisation Principles**
-
--   Dependencies imported when first needed, not in large blocks
--   Each code statement in separate block with explanatory text before and after
--   Minimal, clear code focused on demonstrating compositional concepts
--   Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
--   Complete mathematical model presented upfront in Model section, before component implementations
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
@@ -954,8 +907,7 @@ end
 
 #### Observation Model
 
-We build the observation model through **composition** of modular components, demonstrating how complex observation processes emerge from simple building blocks.
-We **reuse the negative binomial link observation model (`negbin`) from Example 1**, then layer additional modelling components on top.
+We build the observation model through **composition** of modular components reusing the negative binomial link observation model (`negbin`) from Example 1, and then layer additional modelling components on top.
 
 ```{julia}
 dayofweek_negbin = ascertainment_dayofweek(negbin;
@@ -1129,9 +1081,7 @@ end
 figure3
 ```
 
-Figure @fig-posterior-preds-CS2 shows that the compositional model defined using our prototype system successfully captures the EpiNow2 functionality.
-The model recovers similar $R_t$ dynamics to Example 1, whilst explicitly accounting for reporting delays and day-of-week effects that were implicit in the simpler model.
-The posterior predictive checks demonstrate that the model captures both the overall epidemic trajectory and the day-to-day variation in case counts, with the delay and day-of-week components helping to disentangle true transmission changes from reporting artifacts.
+Figure @fig-posterior-preds-CS2 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1, whilst explicitly accounting for reporting delays and day-of-week effects.
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
@@ -1147,7 +1097,7 @@ In this vignette, we'll demonstrate how to use `EpiAware` in conjunction with [S
 This paper has demonstrated that compositional approaches can address key barriers in epidemiological modelling.
 We presented a prototype that enables "LEGO-like" model construction through standardised interfaces, maintaining the statistical rigour of joint models whilst providing the flexibility of pipeline approaches.
 The autoregressive model example illustrated how complex models emerge from simple component combinations using the struct-in-struct pattern.
-Our three case studies replicated previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrating model composability for a range of problems and using different underlying methods.
+Our three case studies, which were based on previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrate model composability for a range of problems and using different underlying methods.
 
 <!-- Strengths and weaknesses interwoven -->
 
