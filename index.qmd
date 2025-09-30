@@ -904,7 +904,7 @@ We then layer additional modeling components on top.
 Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `negbin` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
 
 ```{julia}
-dayofweek = ascertainment_dayofweek(negbin;
+dayofweek_negbin = ascertainment_dayofweek(negbin;
     latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
     )
 ```
@@ -921,7 +921,7 @@ Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to disp
 And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
 
 ```{julia}
-print(@code_string ascertainment_dayofweek(NegativeBinomialError()))
+print(@code_string dayofweek_negbin)
 ```
 
 For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
@@ -933,8 +933,8 @@ delay_distribution = LogNormal(log(5), 0.2)
 The `LatentDelay` struct uses double interval censoring to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
 
 ```{julia}
-delayed_obs = LatentDelay(dayofweek, delay_distribution)
-display(delayed_obs)
+delay_dayofweek_negbin = LatentDelay(dayofweek_negbin, delay_distribution)
+display(delay_dayofweek_negbin)
 ```
 
 This code demonstrates three key aspects of our compositional approach:
@@ -950,7 +950,7 @@ This code demonstrates three key aspects of our compositional approach:
 
 ### Demonstrating the delay and day-of-week effects
 
-The resulting `delayed_obs` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process.
+The resulting `delay_dayofweek_negbin` model combines negative binomial observation noise, day-of-week effects, and reporting delays into a single coherent observation process.
 The conversion from the continuous `delay_distribution` to a discrete (daily) probability mass function happens automatically, as described in the [renewal model section](#the-renewal-model-as-an-abstractepimodel-type).
 
 To illustrate how these effects work together, let's examine how they transform a simple oscillating latent infection signal:
@@ -963,7 +963,7 @@ To illustrate how these effects work together, let's examine how they transform 
 log_scale_dow_effect = [1.0; zeros(6)]
 plt_delayed_obs = let
     latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
-    obs_mdl = generate_observations(delayed_obs, missing, latent_infections) | 
+    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) | 
         (var"DayofWeek.ϵ_t" = log_scale_dow_effect,)
     n_samples = 100
     obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -1003,11 +1003,11 @@ This composes the AR(2) and MA(1) processes from example 1 with the `DiffLatentM
 As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
-cutout = length(delayed_obs.rev_pmf)
+cutout = length(delay_dayofweek_negbin.rev_pmf)
 
 epinow2 = EpiProblem(epi_model = renewal,
     latent_model = arima211,
-    observation_model = delayed_obs,
+    observation_model = delay_dayofweek_negbin,
     tspan = (45-cutout, 80))
 ```
 
@@ -1107,12 +1107,12 @@ parameters_to_plot = ["obs.DayofWeek.std",
                             "obs.cluster_factor"]
 
 priors_to_plot = [
-    delayed_obs.model.latent_model.model.model.model.std_prior,
+    delay_dayofweek_negbin.model.latent_model.model.model.model.std_prior,
     nothing,
-    delayed_obs.model.model.cluster_factor_prior,
+    delay_dayofweek_negbin.model.model.cluster_factor_prior,
 ]
 
-fig = pairplot(inference_results_with_delay.samples[parameters_to_plot])
+fig = pairplot(epinow2_results.samples[parameters_to_plot])
 
 fig
 ```
