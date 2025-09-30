@@ -974,6 +974,11 @@ Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to disp
 
 And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
 
+```{julia}
+I_t_demo = [1000.0 for _ in 1:30]
+print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
+```
+
 For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
 
 ```{julia}
