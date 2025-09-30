@@ -394,7 +394,7 @@ end
 Using the decomposed models we have rapidly visualised that *a priori* the _Mishra et al_ example assigned a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded by our priors.
 
 The renewal equation above is defined in daily time increments, but its is common to estimate and report underlying delay distributions as continuous.
-In our prototype system we give a convenience constructor for the data required to solve the renewal model that convert generation interval distributions into the generation interval pmf $g_t$ required for this model.
+In our prototype, we give a convenience constructor for the data required to solve the renewal model that convert generation interval distributions into the generation interval pmf $g_t$ required for this model.
 In _Mishra et al_, the serial interval distribution is used in place of the generation interval distribution, which can be problematic @park2023inferring, but is common in practice especially early in an outbreak @zhao2020preliminary.
 The specific continuous serial interval distribution used was $\text{Gamma}(6.5, 0.62)$,
 
