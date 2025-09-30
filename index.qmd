@@ -941,11 +941,11 @@ renewal_gt = @set renewal.data = epinow2_data
 display(renewal_gt)
 ```
 
-Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the renewal process with a fixed $R_t$ trajectory.
+To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
+Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the renewal process conditional on this $R_t$ trajectory.
 
 ```{julia}
 #| echo: false
-
 renewal_mdl = let
     rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
     _renewal_mdl = generate_latent_infs(renewal_gt, log.(rt_process))
