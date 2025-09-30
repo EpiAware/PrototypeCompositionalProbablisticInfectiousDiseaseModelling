@@ -18,14 +18,35 @@ using Pkg; Pkg.activate("."); Pkg.instantiate()
 # Render the main research document
 quarto render
 
+# Preview document with live reload
+quarto preview
+
 # Run Julia tests (in Julia REPL)
 using TestItemRunner; @testitem_run
 
 # Run tests for EpiAware package
-cd EpiAware && julia -e "using Pkg; Pkg.activate('.'); Pkg.test()"
+cd EpiAware/EpiAware && julia -e "using Pkg; Pkg.activate('.'); Pkg.test()"
 
 # Generate documentation for EpiAware
-cd EpiAware && julia --project=docs/ -e "using Pkg; Pkg.instantiate(); using Documenter; include(\"docs/make.jl\")"
+cd EpiAware/EpiAware && julia --project=docs/ -e "using Pkg; Pkg.instantiate(); using Documenter; include(\"docs/make.jl\")"
+```
+
+### Using Task (Recommended)
+```bash
+# Complete workflow (render document)
+task
+
+# Preview document with live reload
+task preview
+
+# Launch Julia REPL with project environment
+task repl
+
+# Install Quarto extensions
+task install-extensions
+
+# List all available tasks
+task --list
 ```
 
 ### Code Quality

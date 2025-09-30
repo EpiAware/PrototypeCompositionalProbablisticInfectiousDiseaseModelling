@@ -185,11 +185,22 @@ This approach enables representation of arbitrary latent processes through compo
 
 <!-- Reference to Panel D of Figure 1 -->
 
--   Compositional design translates to concrete Turing models via `generate_latent` and other generator functions (by absract model type).
--   Abstract model specifications converted to executable probabilistic programs
--   AR component implementation demonstrates multiple dispatch for seamless backend integration
--   Do not dwell on the many different generate functions as not part of an ongoing design.
--   Once a generate function has been used to create a Turing.jl model these models can be used with all the functionality that Turing supports including sampling, inference with a wide range of approaches, including gradient based approaches, model conditioning and adaption, as well as includsion in other models as submodels themselves.
+Our DSL translates to Turing models through generate functions that dispatch on abstract type hierarchies.
+Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) defines a generate function interface that concrete model types must implement.
+When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing Turing code using the `@model` macro.
+Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
+This systematic approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
+
+The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like NUTS.
+These are standard Turing models with no special constraints beyond those imposed by the Turing.jl framework itself, supporting all DynamicPPL.jl operations such as parameter fixing, model conditioning, and posterior predictive sampling.
+Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom Turing code.
+
+Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
+The `accumulate_scan` pattern implements iterative temporal processes through step functions, with examples including `ARStep`, `RWStep`, and `ConstantRenewalStep` for autoregressive models, random walks, and renewal equations.
+These step functions are structs built on the `AbstractAccumulationStep` interface that implement a callable defining the single-step update rule.
+Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
+This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
+
 Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function:
 
 ```{julia}
