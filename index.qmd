@@ -568,11 +568,11 @@ We compose the three model components into an `EpiProblem`, which defines the co
 
 ```{julia}
 tspan = (45, 80)
-epi_prob = EpiProblem(epi_model = renewal,
+mishra = EpiProblem(epi_model = renewal,
     latent_model = ar2,
     observation_model = negbin,
     tspan = tspan)
-display(epi_prob)
+display(mishra)
 ```
 
 We create training data by subsetting the full data to match `tspan`.
@@ -590,7 +590,7 @@ We condition on a fixed cluster factor value due to non-identifiability with the
 ```{julia}
 using Turing
 fixed_cluster_factor = 0.25
-mdl = generate_epiaware(epi_prob, training_data) |
+mishra_mdl = generate_epiaware(mishra, training_data) |
       (var"obs.cluster_factor" = fixed_cluster_factor,)
 ```
 
@@ -614,7 +614,7 @@ inference_method = EpiMethod(
 The `apply_method` function combines the composed epidemiological model, inference method, and training data to return samples from the posterior distribution.
 
 ```{julia}
-inference_results = apply_method(mdl,
+mishra_results = apply_method(mishra_mdl,
     inference_method,
     training_data
 )
@@ -649,14 +649,11 @@ function identify_good_chains(chn; threshold = 3.0)
     return idxs
 end
 
-function posterior_gens_for_plot(inference_results, n; fixed_cluster_factor, threshold)
-    #Case unconditional model for posterior predictive sampling
-    #Supports conditional cluster factor
+function posterior_gens_for_plot(inference_results, n; epi_prob, fixed_cluster_factor, threshold)
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
         generate_epiaware(epi_prob,(y_t = fill(missing, n),)) :
-        generate_epiaware(epi_prob, (y_t = fill(missing, n),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
-    
-    # Posterior predictive sampling
+        generate_epiaware(epi_prob, (y_t = fill(missing, n),)) | (var"obs.cluster_factor" = fixed_cluster_factor,)
+
     good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
@@ -664,10 +661,8 @@ function posterior_gens_for_plot(inference_results, n; fixed_cluster_factor, thr
 end
 
 function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
-    # Convert into numbers for xaxis flexibility
     ts = dates_to_times(inference_data.dates)
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    #Remove any predictions with missing values from beginning of generate y_t
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
     predicted_y_t = predicted_y_t[(n+1):end, :] 
 
@@ -719,36 +714,26 @@ function plot_post_pred(inference_data, inference_results; epi_prob,
     fixed_cluster_factor = nothing,
     qs = [0.025, 0.25, 0.5, 0.75, 0.975],
     threshold = 3.0)
-    # Get data
     y_t = inference_data.y_t
     dates = inference_data.dates
-    # Convert into numbers for xaxis flexibility
     ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
-    # Ticks
-    t_ticks = string.(dates) 
+    t_ticks = string.(dates)
 
-    #Case unconditional model for posterior predictive sampling
-    #Supports conditional cluster factor
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
         generate_epiaware(epi_prob,(y_t = fill(missing, length(y_t)),)) :
-        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,) 
-    
-    # Posterior predictive sampling
+        generate_epiaware(epi_prob, (y_t = fill(missing, length(y_t)),)) | (var"obs.cluster_factor" = fixed_cluster_factor,)
+
     good_chns = identify_good_chains(inference_results.samples; threshold)
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
 
 
-    #Prediction quantiles
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
     predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
         transformation = x -> exp.(x))
 
-    #There may be missings generated due to delays
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
-    predicted_y_t = predicted_y_t[(n+1):end, :] 
+    predicted_y_t = predicted_y_t[(n+1):end, :]
 
-    # ts = D[(n+1):end] .|> d -> d - minimum(D) .|> d -> d.value + 1
-    # t_ticks = string.(D[(n+1):end])
     fig = Figure()
     ax1 = Axis(fig[1, 1];
         ylabel = "Daily cases",
@@ -807,21 +792,18 @@ end
 figure2 = let 
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
-    # Get Ticks
     t_ticks = @chain training_data begin
             _.dates
             string.(_)
         end
     ts = dates_to_times(training_data.dates)
-    # Posterior generative plotting
-    posterior_gens = posterior_gens_for_plot(inference_results, length(training_data.y_t); 
+
+    posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
+            epi_prob = mishra,
             fixed_cluster_factor = fixed_cluster_factor,
             threshold = 3.0)
 
-    # Figure scene
     fig = Figure(size = (1200, 1000))
-
-    # Axis definitions
     ax11 = Axis(fig[1, 1];
         yscale = log10,
         ylabel = "Time varying Rₜ",
@@ -854,9 +836,7 @@ figure2 = let
         title = "Prediction: Reproductive number",
         xticks = (ts[1:14:end], t_ticks[1:14:end])
     )
-    # linkxaxes!(ax2, ax3)
 
-    # Plot functions into axes
     ar_sample_plot!(ax11, ar_mdl; n_samples)
     plot_latent_infections!(ax12, renewal_mdl; n_samples)
     neg_bin_obs_plot!(ax13, negbin_mdl; n_samples)
@@ -924,7 +904,7 @@ We then layer additional modeling components on top.
 Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `negbin` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
 
 ```{julia}
-dayofweek_logit_ascert = ascertainment_dayofweek(negbin;  # Reuse negbin from Example 1
+dayofweek = ascertainment_dayofweek(negbin;
     latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
     )
 ```
@@ -953,7 +933,7 @@ delay_distribution = LogNormal(log(5), 0.2)
 The `LatentDelay` struct uses double interval censoring to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
 
 ```{julia}
-delayed_obs = LatentDelay(dayofweek_logit_ascert, delay_distribution)
+delayed_obs = LatentDelay(dayofweek, delay_distribution)
 display(delayed_obs)
 ```
 
@@ -1017,27 +997,22 @@ Now we compose this new observation model with the epidemiological and latent co
 This demonstrates a key advantage of our compositional approach: we can mix and match validated components across different modeling scenarios without any reimplementation.
 
 In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
-In analogy, we compose the latent AR(2) process used in example 1 with the modifer `DiffLatentModel`.
-This reuses the latent model we had for $R_t$ in example 1 but applies it to the increments $R_{t} - R_{t-1}$.
-
-```{julia}
-diff_ar = DiffLatentModel(ar2, Normal(); d = 1) # Normal prior for initial value of process
-```
+In analogy, we reuse the `arima211` from @sec-dsl.
+This composes the AR(2) and MA(1) processes from example 1 with the `DiffLatentModel` modifier, applying the ARMA(2,1) model to the increments $R_{t} - R_{t-1}$.
 
 As in example 1 we compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
 cutout = length(delayed_obs.rev_pmf)
 
-epi_prob_with_delay = EpiProblem(epi_model = renewal,      # Reused from Example 1
-    latent_model = diff_ar,                                # modified from Example 1
-    observation_model = delayed_obs,                       # New compositional model
-    tspan = (45-cutout, 80))                               # Longer time span because of delay
+epinow2 = EpiProblem(epi_model = renewal,
+    latent_model = arima211,
+    observation_model = delayed_obs,
+    tspan = (45-cutout, 80))
 ```
 
-This `EpiProblem` reuses all three core components from Example 1: - **`renewal`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`negbin`**: The negative binomial link model to data from expected observations.
-
-While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
+This `EpiProblem` reuses the core epidemiological component from Example 1 (`renewal`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`), which itself composes the `ar2` and `ma1` processes.
+The observation model reuses `negbin` from Example 1, layering on delays and day-of-week effects in the correct EpiNow2 ordering.
 
 ### Preparing data and model for inference
 
@@ -1045,8 +1020,8 @@ We need to account for the extended time window required to handle reporting del
 
 ```{julia}
 longer_south_korea_data = (
-    y_t = south_korea_data.y_t[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
-    dates = south_korea_data.dates[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    y_t = south_korea_data.y_t[(epinow2.tspan[1]):epinow2.tspan[2]],
+    dates = south_korea_data.dates[(epinow2.tspan[1]):epinow2.tspan[2]],
     )
 ```
 
@@ -1055,13 +1030,13 @@ This makes the cluster factor parameter $\phi$ of the negative binomial distribu
 Unlike Example 1, we now let this parameter be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach:
 
 ```{julia}
-mdl_with_delay = generate_epiaware(epi_prob_with_delay, longer_south_korea_data)
+epinow2_mdl = generate_epiaware(epinow2, longer_south_korea_data)
 ```
 
 We can reuse the same `inference_method` defined in Example 1, showcasing how our inference setup can be applied across different model compositions:
 
 ```{julia}
-inference_results_with_delay = apply_method(mdl_with_delay,
+epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     longer_south_korea_data
 )
@@ -1080,8 +1055,8 @@ Let's examine how well our model captures the observed data patterns:
 #| output: true
 #| echo: false
 #| label: fig-posterior-preds-example2
-plot_post_pred(longer_south_korea_data, inference_results_with_delay; 
-        epi_prob = epi_prob_with_delay
+plot_post_pred(longer_south_korea_data, epinow2_results;
+        epi_prob = epinow2
         )
 ```
 
