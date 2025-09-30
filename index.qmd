@@ -395,10 +395,9 @@ end
 
 ### Model
 
-The generative model for case data demonstrated in _Mishra et al_ has a hierarchical structure, consisting of a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
-The latent infection process is linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
-
-The full probabilistic model we use in this case study is,
+Our model is inspired by _Mishra et al_ and uses a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
+The latent infection process is then linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
+The key difference from _Mishra et al_ is in the initialization: they seed the renewal equation with importations (independent daily effects $\mu_t \sim \text{Exponential}(0.5)$), whilst we initialize by solving for the growth rate corresponding to the initial reproduction number and extrapolating backwards without allowing for ongoing importations.
 
 $$
 \begin{aligned}
