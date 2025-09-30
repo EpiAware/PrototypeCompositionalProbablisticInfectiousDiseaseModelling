@@ -618,7 +618,7 @@ mishra_results = apply_method(mishra_mdl,
     inference_method,
     training_data
 )
-summaystats(mishra_results)
+summarystats(mishra_results.samples)
 ```
 
 ```{julia}
@@ -942,8 +942,7 @@ Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the 
 
 renewal_mdl = let
     rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
-    epinow2_data_samples = (gen_int = epinow2_data.gen_int, )
-    _renewal_mdl = generate_infections(renewal, rt_process, epinow2_data_samples)
+    _renewal_mdl = generate_latent_infs(renewal, log.(rt_process))
 end
 ```
 
@@ -968,10 +967,6 @@ print(@code_string broadcast_dayofweek(HierarchicalNormal()))
 Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
 
 And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
-
-```{julia}
-print(@code_string dayofweek_negbin)
-```
 
 For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
 
@@ -1045,7 +1040,7 @@ epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     longer_south_korea_data
 )
-summarystats(epinow2_results)
+summarystats(epinow2_results.samples)
 ```
 
 ```{julia}
