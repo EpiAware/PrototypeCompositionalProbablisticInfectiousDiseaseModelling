@@ -538,9 +538,8 @@ The full infection generating process, that is the model defined in the [generat
 #### Observation Model
 
 In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors.
-In our prototype system, we default to a prior on $\sqrt{1/\phi}$ because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
-We call this quantity the cluster factor.
-A prior for $\phi$ was not specified in *Mishra et al*, we select $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$ but we will condition a value for the cluster factor in analysis below due to non-identifiability with the variance in the innovation process of $Z_t$.
+We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
+A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
 
 ```{julia}
 obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
@@ -602,7 +601,8 @@ training_data = @chain south_korea_data begin
 end
 ```
 
-We construct a Turing model using `generate_epiaware` (introduced in @sec-backend) and condition on a fixed cluster factor value to improve identifiability.
+We construct a Turing model using `generate_epiaware` (introduced in @sec-backend).
+We condition on a fixed cluster factor value due to non-identifiability with the variance in the innovation process of $Z_t$.
 
 ```{julia}
 using Turing
