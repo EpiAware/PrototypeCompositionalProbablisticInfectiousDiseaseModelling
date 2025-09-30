@@ -269,7 +269,7 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 -   Use the same dependencies across each case study where possible i.e. chained dataframesmeta verbs, pairplot for prior and posterior output, a single plotting library, don't use package.function form unless can't be avoided.
 -   Mathematical formulation precedes code implementation for each component
 
-## Case study 1: On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
+## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
 <!-- Reference: https://arxiv.org/abs/2006.16487 -->
 
