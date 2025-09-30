@@ -525,16 +525,16 @@ We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) bec
 A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
 
 ```{julia}
-obs = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
-display(obs)
+negbin = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
+display(negbin)
 ```
 
-As with other component models, we can define a Turing model from the `obs` object conditional on a latent infection time series $I_t$ that defines the expected number of cases observed on each day.
-With an fixed latent infection times series, we use the `generate_observations` method from our prototype system,
+As with other components, we generate a Turing model conditional on a fixed latent infection trajectory.
 
 ```{julia}
+#| echo: false
 I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
-obs_mdl = generate_observations(obs, missing, I_t)
+negbin_mdl = generate_observations(negbin, missing, I_t)
 ```
 
 Turing uses `missing` arguments to indicate observed variables that are to be sampled rather than only used to accumulate log posterior density.
@@ -543,11 +543,11 @@ Prior predictive samples (Figure @fig-posterior-preds-CS1, top right panel) show
 ```{julia}
 #| echo: false
 
-function neg_bin_obs_plot!(ax, obs_mdl; n_samples)
-    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        θ = obs_mdl() #Sample unconditionally the underlying parameters of the model
+function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
+    negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = negbin_mdl() #Sample unconditionally the underlying parameters of the model
     end
-    for col in eachcol(obs_mdl_samples)
+    for col in eachcol(negbin_mdl_samples)
             scatter!(ax, col;
                 color = (:grey, 0.2)
             )
@@ -570,7 +570,7 @@ We compose the three model components into an `EpiProblem`, which defines the co
 tspan = (45, 80)
 epi_prob = EpiProblem(epi_model = renewal,
     latent_model = ar2,
-    observation_model = obs,
+    observation_model = negbin,
     tspan = tspan)
 display(epi_prob)
 ```
@@ -865,7 +865,7 @@ figure2 = let
     # Plot functions into axes
     ar_sample_plot!(ax11, ar_mdl; n_samples)
     plot_latent_infections!(ax12, renewal_mdl; n_samples)
-    neg_bin_obs_plot!(ax13, obs_mdl; n_samples)
+    neg_bin_obs_plot!(ax13, negbin_mdl; n_samples)
     discretised_gen_plot!(ax21, model_data, truth_SI)
     post_predictive_yt!(ax22, training_data, posterior_gens; qs)
     post_predictive_Rt!(ax23, training_data, posterior_gens; qs)
@@ -924,15 +924,15 @@ The random vector $\omega = [\omega_0,\dots,\omega_6]$ encodes a modifying effec
 The final equation defines a negative binomial link to data, which we can reuse from example 1.
 
 In `EpiAware`, we recreate this complex observation process through **composition** of modular components.
-We **reuse the underlying negative binomial link observation model (`obs`) from Example 1**, demonstrating the modularity of our approach.
+We **reuse the underlying negative binomial link observation model (`negbin`) from Example 1**, demonstrating the modularity of our approach.
 We then layer additional modeling components on top.
 
-Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `obs` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
+Because weekly temporal effects in ascertainment of latent infections are a common modelling pattern we create a helper function which takes in the link model `negbin` and the model for the unconstrained ascertainment effects $\tilde{\omega}$.
 
 ```{julia}
-dayofweek_logit_ascert = ascertainment_dayofweek(obs;  # Reuse obs from Example 1
+dayofweek_logit_ascert = ascertainment_dayofweek(negbin;  # Reuse negbin from Example 1
     latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
-    ) 
+    )
 ```
 
 Unpacking this helper function we have a nested stack of modelling constructions.
@@ -965,7 +965,7 @@ display(delayed_obs)
 
 This code demonstrates three key aspects of our compositional approach:
 
-1.  **Component reuse**: The base observation model `obs` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
+1.  **Component reuse**: The base observation model `negbin` from Example 1 is reused without modification, showing how components can be shared across different modeling scenarios.
 
 2.  **Layered composition**: We add day-of-week effects through `ascertainment_dayofweek()`, which wraps the base observation model with temporal modifiers.
     At this stage we add a latent model to describe the distribution of $\omega$, choosing hierarchical normal random variables with the default transformation `7 * softmax` which applies the constraints: $\omega_t \geq 0$ and $\frac{1}{7}\sum_{0}^6 \omega_t = 1$.
@@ -1041,7 +1041,7 @@ epi_prob_with_delay = EpiProblem(epi_model = renewal,      # Reused from Example
     tspan = (45-cutout, 80))                               # Longer time span because of delay
 ```
 
-This `EpiProblem` reuses all three core components from Example 1: - **`renewal`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
+This `EpiProblem` reuses all three core components from Example 1: - **`renewal`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`negbin`**: The negative binomial link model to data from expected observations.
 
 While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
 
@@ -1051,8 +1051,8 @@ We need to account for the extended time window required to handle reporting del
 
 ```{julia}
 longer_south_korea_data = (
-    y_t = data.cases_new[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
-    dates = data.date[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    y_t = south_korea_data.y_t[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
+    dates = south_korea_data.dates[(epi_prob_with_delay.tspan[1]):epi_prob_with_delay.tspan[2]],
     )
 ```
 
