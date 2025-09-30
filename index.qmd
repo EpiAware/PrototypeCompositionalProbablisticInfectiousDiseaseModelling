@@ -452,20 +452,6 @@ function ar_sample_plot!(ax, ar_mdl; n_samples = 100)
     end
     return nothing
 end
-
-
-# ar_sample_plot = let
-#     n_samples = 100
-#     fig = Figure()
-#     ax = Axis(fig[1, 1];
-#         yscale = log10,
-#         ylabel = "Time varying Rₜ",
-#         title = "$(n_samples) draws from the prior Rₜ model"
-#     )
-#     ar_sample_plot!(ax, ar_mdl; n_samples)
-#     fig
-# end
-# ar_sample_plot
 ```
 
 Prior predictive samples (Figure @fig-posterior-preds-CS1, top left panel) show that *a priori* the _Mishra et al_ priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
@@ -504,18 +490,6 @@ function discretised_gen_plot!(ax, model_data, truth_SI)
     axislegend(ax)
     return nothing
 end
-
-# discretised_gen_plot = let
-#     fig = Figure()
-#     ax = Axis(fig[1, 1];
-#         xticks = 0:14,
-#         xlabel = "Days",
-#         title = "Continuous and discrete generation intervals"
-#     )
-#     discretised_gen_plot!(ax, model_data, truth_SI)
-#     fig
-# end
-# discretised_gen_plot
 ```
 
 We use a lognormal prior for the initial latent infections $I_0 \sim LogNormal(0., 1.0)$, as defined above the other necessary initial conditions are defined in combination with the initial sampled reproductive number $I_1$.
@@ -558,23 +532,6 @@ function plot_Rt_traj!(ax, R_t_fixed)
         )
     return nothing
 end
-
-# renewal_model_plot = let
-#     n_samples = 100
-    
-#     fig = Figure()
-#     ax1 = Axis(fig[1, 1];
-#         title = "$(n_samples) draws from renewal model with chosen Rt",
-#         ylabel = "Latent infections"
-#     )
-#     ax2 = Axis(fig[2, 1];
-#         ylabel = "Rt"
-#     )
-#     plot_latent_infections!(ax1, latent_inf_mdl; n_samples)
-#     plot_Rt_traj!(ax2, R_t_fixed)
-#     fig
-# end
-# renewal_model_plot
 ```
 
 The full infection generating process, that is the model defined in the [generative model section](#case-study-1-generative-model) without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
@@ -622,18 +579,6 @@ function neg_bin_obs_plot!(ax, obs_mdl; n_samples)
     axislegend(ax)
     return nothing
 end
-# neg_bin_obs_plot = let
-#     n_samples = 100
-    
-#     fig = Figure()
-#     ax = Axis(fig[1, 1];
-#         title = "$(n_samples) draws from neg. bin. obs model",
-#         ylabel = "Observed cases"
-#     )
-#     neg_bin_obs_plot!(ax, obs_mdl; n_samples)
-#     fig
-# end
-# neg_bin_obs_plot
 ```
 
 ### Fitting to Data
