@@ -373,14 +373,13 @@ Panel figure combining all visualisations: - Prior predictive plots for each mod
 
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
 
-In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, as a renewal model with time-varying reproduction number $R_t$.
+In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, as a renewal model with time-varying reproduction number $R_t$.Renewal models use the renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (or serial interval) [@cori2013new].
 They show how solutions to the renewal equation, when combined with a negative binomial observation model, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
-We selected this study to demonstrate the three-component compositional structure central to our prototype: a latent process model (AR(2) for log $R_t$), an infection generating process (renewal equation), and an observation model (negative binomial link).
-The relative simplicity of this model makes it an ideal first case study for demonstrating component modularity, transparent prior specification, and independent prior predictive checking of each component before composition into a joint model.
+This simple three-component structure (AR(2) latent process, renewal infection model, negative binomial observation model) demonstrates component modularity and independent prior predictive checking before composition.
 
 ### Data
 
-_Mishra et al_ made inference on daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
+_Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
 This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
 
 ```{julia}
