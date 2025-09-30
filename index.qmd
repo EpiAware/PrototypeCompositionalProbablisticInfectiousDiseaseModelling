@@ -934,7 +934,13 @@ epinow2_data = EpiData(gen_distribution = gen_time_dist)
 display(epinow2_data.gen_int)
 ```
 
-We reuse the `renewal` model from Example 1.
+We reuse the `renewal` structure from Example 1, updating it to use the generation time distribution rather than the serial interval.
+
+```{julia}
+renewal_gt = @set renewal.data = epinow2_data
+display(renewal_gt)
+```
+
 Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the renewal process with a fixed $R_t$ trajectory.
 
 ```{julia}
@@ -942,7 +948,7 @@ Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the 
 
 renewal_mdl = let
     rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
-    _renewal_mdl = generate_latent_infs(renewal, log.(rt_process))
+    _renewal_mdl = generate_latent_infs(renewal_gt, log.(rt_process))
 end
 ```
 
@@ -1007,14 +1013,14 @@ We compose these modelling subcomponents into one `EpiProblem` model.
 ```{julia}
 cutout = length(delay_dayofweek_negbin.rev_pmf)
 
-epinow2 = EpiProblem(epi_model = renewal,
+epinow2 = EpiProblem(epi_model = renewal_gt,
     latent_model = arima211,
     observation_model = delay_dayofweek_negbin,
     tspan = (45-cutout, 80))
 display(epinow2)
 ```
 
-This `EpiProblem` reuses the core epidemiological component from Example 1 (`renewal`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`).
+This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`).
 The observation model reuses `negbin` from Example 1, layering on delays and day-of-week effects.
 
 We need to account for the extended time window required to handle reporting delays:
