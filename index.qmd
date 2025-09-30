@@ -480,15 +480,15 @@ The `Renewal` model requires the discretized generation time (from `model_data`)
 
 ```{julia}
 log_I0_prior = Normal(log(1.0), 1.0)
-epi = Renewal(model_data; initialisation_prior = log_I0_prior)
-display(epi)
+renewal = Renewal(model_data; initialisation_prior = log_I0_prior)
+display(renewal)
 ```
 
 To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
 
 ```{julia}
-R_t_fixed = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
-latent_inf_mdl = generate_latent_infs(epi, log.(R_t_fixed))
+Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
+renewal_mdl = generate_latent_infs(renewal, log.(Rt))
 ```
 
 The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can be sampled independently of other model components (Figure @fig-posterior-preds-CS1, top middle panel).
@@ -496,11 +496,11 @@ The implied distribution of $I_t$ trajectories conditional on this $R_t$ traject
 ```{julia}
 #| echo: false
 
-function plot_latent_infections!(ax, latent_inf_mdl; n_samples)
-    epi_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        latent_inf_mdl()
+function plot_latent_infections!(ax, renewal_mdl; n_samples)
+    renewal_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        renewal_mdl()
     end
-    for col in eachcol(epi_mdl_samples)
+    for col in eachcol(renewal_mdl_samples)
         lines!(ax, col;
             color = (:grey, 0.1)
         )
@@ -508,8 +508,8 @@ function plot_latent_infections!(ax, latent_inf_mdl; n_samples)
     return nothing
 end
 
-function plot_Rt_traj!(ax, R_t_fixed)
-    lines!(ax, R_t_fixed;
+function plot_Rt_traj!(ax, Rt)
+    lines!(ax, Rt;
             linewidth = 2
         )
     return nothing
@@ -568,7 +568,7 @@ We compose the three model components into an `EpiProblem`, which defines the co
 
 ```{julia}
 tspan = (45, 80)
-epi_prob = EpiProblem(epi_model = epi,
+epi_prob = EpiProblem(epi_model = renewal,
     latent_model = ar2,
     observation_model = obs,
     tspan = tspan)
@@ -864,7 +864,7 @@ figure2 = let
 
     # Plot functions into axes
     ar_sample_plot!(ax11, ar_mdl; n_samples)
-    plot_latent_infections!(ax12, latent_inf_mdl; n_samples)
+    plot_latent_infections!(ax12, renewal_mdl; n_samples)
     neg_bin_obs_plot!(ax13, obs_mdl; n_samples)
     discretised_gen_plot!(ax21, model_data, truth_SI)
     post_predictive_yt!(ax22, training_data, posterior_gens; qs)
@@ -1035,13 +1035,13 @@ As in example 1 we compose these modelling subcomponents into one `EpiProblem` m
 ```{julia}
 cutout = length(delayed_obs.rev_pmf)
 
-epi_prob_with_delay = EpiProblem(epi_model = epi,          # Reused from Example 1
-    latent_model = diff_ar,                                # modified from Example 1  
+epi_prob_with_delay = EpiProblem(epi_model = renewal,      # Reused from Example 1
+    latent_model = diff_ar,                                # modified from Example 1
     observation_model = delayed_obs,                       # New compositional model
     tspan = (45-cutout, 80))                               # Longer time span because of delay
 ```
 
-This `EpiProblem` reuses all three core components from Example 1: - **`epi`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
+This `EpiProblem` reuses all three core components from Example 1: - **`renewal`**: The renewal-based epidemiological model with generation time distribution - **`ar2`**: The AR(2) latent process model for time-varying transmission rates, used in `diff_ar` - **`obs`**: The negative binomial link model to data from expected observations.
 
 While introducing our new compositional observation model that combines delays and day-of-week effects in the correct EpiNow2 ordering.
 
@@ -1116,7 +1116,7 @@ priors_to_plot = [
     ar2.damp_prior.v[1],
     ar2.damp_prior.v[2],
     ar2.ϵ_t.std_prior,
-    epi.initialisation_prior,
+    renewal.initialisation_prior,
 ]
 
 fig = pairplot(inference_results_with_delay.samples[parameters_to_plot])
