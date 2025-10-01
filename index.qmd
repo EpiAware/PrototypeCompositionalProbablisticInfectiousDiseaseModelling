@@ -1025,7 +1025,7 @@ figure3 = let
 
     latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
     log_scale_dow_effect = [1.0; zeros(6)]
-    obs_mdl = generate_observations(dayofweek_negbin, missing, latent_infections) |
+    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
               (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
 
     fig = Figure(size=(1200, 1000))
