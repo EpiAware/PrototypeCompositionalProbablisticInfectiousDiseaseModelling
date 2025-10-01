@@ -992,24 +992,29 @@ end
 We compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
-cutout = length(delay_dayofweek_negbin.rev_pmf)
+delay_padding = length(delay_dayofweek_negbin.rev_pmf) + length(incubation_dayofweek_negbin.rev_pmf)
 
-epinow2 = EpiProblem(epi_model = renewal_gt,
-    latent_model = weekly_arima211,
-    observation_model = delay_dayofweek_negbin,
-    tspan = (cutout + 1, 50 + cutout))
+epinow2 = EpiProblem(epi_model=renewal_gt,
+    latent_model=weekly_arima211,
+    observation_model=delay_dayofweek_negbin,
+    tspan=(1, 50))
 display(epinow2)
 ```
 
 This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
 The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
-We create training data by subsetting the Italy data to match the extended time window required to handle reporting delays:
+We create training data by padding the start with missing observations for the delay period, using earlier dates:
 
 ```{julia}
+padded_dates = vcat(
+    [italy_data.dates[1] - Day(delay_padding - i + 1) for i in 1:delay_padding],
+    italy_data.dates[1:50]
+)
+
 italy_training_data = (
-    y_t = italy_data.y_t[1:epinow2.tspan[2]],
-    dates = italy_data.dates[1:epinow2.tspan[2]],
+    y_t = vcat(fill(missing, delay_padding), italy_data.y_t[1:50]),
+    dates = padded_dates,
     )
 ```
 
