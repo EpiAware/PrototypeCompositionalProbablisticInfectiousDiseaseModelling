@@ -378,7 +378,7 @@ This means that we determine the initial condition of the latent infecteds befor
 #### Latent Model
 
 We reuse the AR(2) model `ar2` defined in @sec-dsl, which has the appropriate priors from _Mishra et al_.
-Prior predictive samples (Figure @fig-posterior-preds-CS1, top left panel) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
+Prior predictive samples (Figure @fig-figure2, top left panel) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
 
 ```{julia}
 #| echo: false
@@ -410,7 +410,7 @@ model_data = EpiData(gen_distribution = truth_SI)
 display(model_data.gen_int)
 ```
 
-Figure @fig-posterior-preds-CS1 (bottom left panel) compares the discretized generation interval with the underlying continuous distribution.
+Figure @fig-figure2 (bottom left panel) compares the discretized generation interval with the underlying continuous distribution.
 
 ```{julia}
 #| echo: false
@@ -444,7 +444,7 @@ Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
 renewal_mdl = generate_latent_infs(renewal, log.(Rt))
 ```
 
-The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can be sampled independently of other model components (Figure @fig-posterior-preds-CS1, top middle panel).
+The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can be sampled independently of other model components (Figure @fig-figure2, top middle panel).
 
 ```{julia}
 #| echo: false
@@ -491,7 +491,7 @@ negbin_mdl = generate_observations(negbin, missing, I_t)
 ```
 
 Turing uses `missing` arguments to indicate observed variables that are to be sampled rather than only used to accumulate log posterior density.
-Prior predictive samples (Figure @fig-posterior-preds-CS1, top right panel) show the dispersion around the mean implied by our choice of prior.
+Prior predictive samples (Figure @fig-figure2, top right panel) show the dispersion around the mean implied by our choice of prior.
 
 ```{julia}
 #| echo: false
@@ -739,7 +739,7 @@ end
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-posterior-preds-CS1
+#| label: fig-figure2
 #| fig-cap: (Top row) Prior predictive visualisation for the three submodels of @sec-example1. (Top Left) Samples from the log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory from $R_t =3$ to $R_t =0.5$. (Top Right) Samples from the negative binomial observation submodel around a latent infection curve (Bottom row) Component using composed full generative model. (Bottom left) Comparison of continuous serial interval distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
 figure2 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
@@ -802,7 +802,7 @@ end
 figure2
 ```
 
-Figure @fig-posterior-preds-CS1 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak) before rapidly dropping below 1 in early March 2020.
+Figure @fig-figure2 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak) before rapidly dropping below 1 in early March 2020.
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
@@ -852,7 +852,7 @@ The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on r
 We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl.
 In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
 In analogy, `arima211` applies the ARMA(2,1) model to the increments $R_{t} - R_{t-1}$.
-Prior predictive samples (Figure @fig-posterior-preds-CS2, top left panel) show the behaviour of this differenced process.
+Prior predictive samples (Figure @fig-figure3, top left panel) show the behaviour of this differenced process.
 
 ```{julia}
 #| echo: false
@@ -891,7 +891,7 @@ display(renewal_gt)
 ```
 
 To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
-Figure @fig-posterior-preds-CS2 (top middle panel) shows prior samples from the renewal process conditional on this $R_t$ trajectory.
+Figure @fig-figure3 (top middle panel) shows prior samples from the renewal process conditional on this $R_t$ trajectory.
 
 ```{julia}
 #| echo: false
@@ -941,7 +941,7 @@ display(delay_dayofweek_negbin)
 ```
 
 This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding reporting delays via `LatentDelay`).
-Figure @fig-posterior-preds-CS2 (top right panel) demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
+Figure @fig-figure3 (top right panel) demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
 #| echo: false
@@ -1004,7 +1004,7 @@ summarystats(epinow2_results.samples)
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-posterior-preds-CS2
+#| label: fig-figure3
 #| fig-cap: (Top row) Prior predictive visualisation for the three submodels of @sec-example2. (Top Left) Samples from the ARIMA(2,1,1) log-reproductive number latent process over 50 days. (Top Middle) Samples from the renewal model with a fixed reproductive number trajectory. (Top Right) Samples from the delay and day-of-week observation submodel around a latent infection curve. (Bottom row) Component using composed full generative model. (Bottom Left) Comparison of continuous delay distribution with double censored discrete distribution used in modelling. (Bottom Middle) Posterior predictive distribution for cases from model showing posterior median per day (purple line) and credible intervals (purple ribbons). (Bottom Right) Posterior predictive distribution for time-varying reproductive number with median on each day (green line) and credible intervals (green ribbons).
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
@@ -1077,7 +1077,7 @@ end
 figure3
 ```
 
-Figure @fig-posterior-preds-CS2 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1, whilst explicitly accounting for reporting delays and day-of-week effects.
+Figure @fig-figure3 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1, whilst explicitly accounting for reporting delays and day-of-week effects.
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
