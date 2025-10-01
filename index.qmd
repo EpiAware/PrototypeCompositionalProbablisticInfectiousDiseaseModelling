@@ -740,7 +740,7 @@ end
 #| output: true
 #| echo: false
 #| label: fig-figure2
-#| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$, with median (green line) and credible intervals on a log scale."
+#| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
 figure2 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -776,6 +776,7 @@ figure2 = let
     )
     ax23 = Axis(fig[2, 3];
         yscale=log10,
+        ylabel="Time varying Rₜ",
         xticks=(ts[1:14:end], t_ticks[1:14:end])
     )
 
@@ -1005,7 +1006,7 @@ summarystats(epinow2_results.samples)
 #| output: true
 #| echo: false
 #| label: fig-figure3
-#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous reporting delay distribution (blue line) with its discretised pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$, with median (green line) and credible intervals on a log scale."
+#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous reporting delay distribution (blue line) with its discretised pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1046,6 +1047,7 @@ figure3 = let
     )
     ax23 = Axis(fig[2, 3];
         yscale=log10,
+        ylabel="Time varying Rₜ",
         xticks=(ts[1:14:end], t_ticks[1:14:end])
     )
 
