@@ -592,22 +592,12 @@ function generated_quantiles(gens, quantity, qs; transformation=x -> x)
 
 end
 
-function identify_good_chains(chn; threshold=3.0)
-    idxs = @chain chn[:lp] begin
-        mean(; dims=1)
-        vec
-        findall(maximum(_) .- _ .< threshold)
-    end
-    return idxs
-end
-
-function posterior_gens_for_plot(inference_results, n; epi_prob, fixed_cluster_factor, threshold)
+function posterior_gens_for_plot(inference_results, n; epi_prob, fixed_cluster_factor)
     mdl_unconditional = isnothing(fixed_cluster_factor) ?
                         generate_epiaware(epi_prob, (y_t=fill(missing, n),)) :
                         generate_epiaware(epi_prob, (y_t=fill(missing, n),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
 
-    good_chns = identify_good_chains(inference_results.samples; threshold)
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
 
     return posterior_gens
 end
@@ -664,8 +654,7 @@ end
 # Older plotting left temporarily so render continues (used further down)
 function plot_post_pred(inference_data, inference_results; epi_prob,
     fixed_cluster_factor=nothing,
-    qs=[0.025, 0.25, 0.5, 0.75, 0.975],
-    threshold=3.0)
+    qs=[0.025, 0.25, 0.5, 0.75, 0.975])
     y_t = inference_data.y_t
     dates = inference_data.dates
     ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
@@ -675,8 +664,7 @@ function plot_post_pred(inference_data, inference_results; epi_prob,
                         generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) :
                         generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
 
-    good_chns = identify_good_chains(inference_results.samples; threshold)
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples[:, :, good_chns])
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
 
 
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
@@ -752,8 +740,7 @@ figure2 = let
 
     posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
         epi_prob=mishra,
-        fixed_cluster_factor=fixed_cluster_factor,
-        threshold=3.0)
+        fixed_cluster_factor=fixed_cluster_factor)
 
     fig = Figure(size=(1200, 1000))
     ax11 = Axis(fig[1, 1];
@@ -904,10 +891,10 @@ epinow2_data = EpiData(gen_distribution = gen_time_dist)
 display(epinow2_data.gen_int)
 ```
 
-We reuse the `renewal` structure from @sec-example1, updating it to use the generation time distribution rather than the serial interval.
+We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
 
 ```{julia}
-renewal_gt = @set renewal.data = epinow2_data
+renewal_gt = Renewal(epinow2_data)
 display(renewal_gt)
 ```
 
@@ -998,24 +985,15 @@ epinow2 = EpiProblem(epi_model=renewal_gt,
     latent_model=weekly_arima211,
     observation_model=delay_dayofweek_negbin,
     tspan=(1, 50))
-display(epinow2)
 ```
 
 This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
 The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
-We create training data by padding the start with missing observations for the delay period, using earlier dates:
+We use all of the available data as training data.
 
 ```{julia}
-padded_dates = vcat(
-    [italy_data.dates[1] - Day(delay_padding - i + 1) for i in 1:delay_padding],
-    italy_data.dates[1:50]
-)
-
-italy_training_data = (
-    y_t = vcat(fill(missing, delay_padding), italy_data.y_t[1:50]),
-    dates = padded_dates,
-    )
+italy_training_data = italy_data
 ```
 
 We construct a Turing model using `generate_epiaware`.
@@ -1051,8 +1029,7 @@ figure3 = let
 
     posterior_gens = posterior_gens_for_plot(epinow2_results, length(italy_training_data.y_t);
         epi_prob=epinow2,
-        fixed_cluster_factor=nothing,
-        threshold=3.0)
+        fixed_cluster_factor=nothing)
 
     latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
     log_scale_dow_effect = [1.0; zeros(6)]
@@ -1101,7 +1078,7 @@ figure3 = let
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
-                                [fig[1,1], fig[1,2], fig[1,3], fig[2,1], fig[2,2], fig[2,3]])
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
         Label(layout[1, 1, TopLeft()], label,
             fontsize=18,
             font=:bold,
