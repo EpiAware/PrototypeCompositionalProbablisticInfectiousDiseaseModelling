@@ -1018,7 +1018,67 @@ end
 fig
 ```
 
+### Extending to imports
 
+
+```{julia}
+struct ConstantRenewalWithImportsStep{T} <: EpiAware.EpiInfModels.AbstractConstantRenewalStep
+    rev_gen_int::Vector{T}
+end
+
+
+function (recurrent_step::ConstantRenewalWithImportsStep)(
+        recent_incidence, Rt_and_imports)
+    Rt, import_rate = Rt_and_imports
+    new_incidence = import_rate + Rt * dot(recent_incidence, recurrent_step.rev_gen_int)
+
+    return vcat(recent_incidence[2:end], new_incidence)
+end
+
+function renewal_init_state(
+        recurrent_step::ConstantRenewalWithImportsStep, I₀, r_approx, len_gen_int)
+    [I₀ * [exp(-r_approx * t) for t in (len_gen_int - 1):-1:0], recurrent_step.pop_size]
+end
+
+function EpiAwareUtils.get_state(
+        acc_step::ConstantRenewalWithImportsStep, initial_state, state)
+    return state .|> st -> last(st[1])
+end
+
+```
+
+
+
+```{julia}
+import_rate_model = IID(Exponential(2.0))
+```
+
+```{julia}
+exp_ar = TransformLatentModel(ar, x -> exp.(x))
+combined_model = ConcatLatentModels([exp_ar, IID(Exponential(2.0))])
+function splitter(combined_latent_path)
+    eachrow(reshape(combined_latent_path, :, 2))
+end
+ar_and_import_rate = TransformLatentModel(combined_model, splitter)
+
+try_model = generate_latent(ar_and_import_rate, 10 * 2)
+X = try_model()
+```
+
+```{julia}
+# log_I0_prior = Normal(log(1.0), 1.0)
+gen_int = epi.data.gen_int
+
+renewal_with_imports = @set epi.recurrent_step = ConstantRenewalWithImportsStep(reverse(gen_int))
+renewal_with_imports = @set epi.data = EpiData(reverse(rev_gen_int), identity)
+
+```
+
+```{julia}
+mdl_with_imports = EpiAwareBase.generate_epiaware(
+        training_data.y_t, 36 * 2, renewal_with_imports;
+        latent_model = ar_and_import_rate, observation_model = obs)
+```
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
