@@ -821,9 +821,23 @@ We recreate the core EpiNow2 functionality by **reusing model components from @s
 This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
 We will reuse the renewal-based epidemiological model and ARIMA(2,1,1) latent process from @sec-dsl, whilst introducing new observation model components to handle reporting delays and day-of-week effects.
 
+### Data
+
+We use the example dataset included with the EpiNow2 R package, which contains daily confirmed COVID-19 cases from Italy during the first wave in 2020.
+This dataset spans from 22 February to 30 June 2020.
+
+```{julia}
+using Chain, CSV, DataFramesMeta, Dates
+datapath = "data/italy_data.csv"
+italy_data = @chain datapath begin
+    CSV.read(DataFrame)
+    (y_t = _.confirm, dates = Date.(_."date"))
+end
+```
+
 ### Model
 
-Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, whilst building a complex observation model that accounts for reporting delays and day-of-week effects.
+Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, making it piecewise constant by week, whilst building a complex observation model that accounts for reporting delays and day-of-week effects.
 Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 The observation model layers three effects: negative binomial observation noise (reused from @sec-example1), day-of-week temporal modifiers, and reporting delays via convolution.
 
@@ -973,19 +987,20 @@ cutout = length(delay_dayofweek_negbin.rev_pmf)
 epinow2 = EpiProblem(epi_model = renewal_gt,
     latent_model = weekly_arima211,
     observation_model = delay_dayofweek_negbin,
-    tspan = (45-cutout, 80))
+    tspan = (1, 60))
 display(epinow2)
 ```
 
 This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
 The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
+We create training data by subsetting the Italy data to match `tspan`.
 We need to account for the extended time window required to handle reporting delays:
 
 ```{julia}
-longer_south_korea_data = (
-    y_t = south_korea_data.y_t[(epinow2.tspan[1]):epinow2.tspan[2]],
-    dates = south_korea_data.dates[(epinow2.tspan[1]):epinow2.tspan[2]],
+italy_training_data = (
+    y_t = italy_data.y_t[(epinow2.tspan[1] - cutout):epinow2.tspan[2]],
+    dates = italy_data.dates[(epinow2.tspan[1] - cutout):epinow2.tspan[2]],
     )
 ```
 
@@ -993,7 +1008,7 @@ We construct a Turing model using `generate_epiaware`.
 Unlike @sec-example1, we let the cluster factor parameter $\phi$ of the negative binomial distribution be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach.
 
 ```{julia}
-epinow2_mdl = generate_epiaware(epinow2, longer_south_korea_data)
+epinow2_mdl = generate_epiaware(epinow2, italy_training_data)
 ```
 
 We reuse the same `inference_method` defined in @sec-example1, showcasing how our inference setup can be applied across different model compositions.
@@ -1001,7 +1016,7 @@ We reuse the same `inference_method` defined in @sec-example1, showcasing how ou
 ```{julia}
 epinow2_results = apply_method(epinow2_mdl,
     inference_method,
-    longer_south_korea_data
+    italy_training_data
 )
 summarystats(epinow2_results.samples)
 ```
@@ -1014,13 +1029,13 @@ summarystats(epinow2_results.samples)
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
-    t_ticks = @chain longer_south_korea_data begin
+    t_ticks = @chain italy_training_data begin
         _.dates
         string.(_)
     end
-    ts = dates_to_times(longer_south_korea_data.dates)
+    ts = dates_to_times(italy_training_data.dates)
 
-    posterior_gens = posterior_gens_for_plot(epinow2_results, length(longer_south_korea_data.y_t);
+    posterior_gens = posterior_gens_for_plot(epinow2_results, length(italy_training_data.y_t);
         epi_prob=epinow2,
         fixed_cluster_factor=nothing,
         threshold=3.0)
@@ -1065,8 +1080,8 @@ figure3 = let
         color=:blue, linewidth=2, label="Continuous delay dist")
     axislegend(ax21)
 
-    post_predictive_yt!(ax22, longer_south_korea_data, posterior_gens; qs)
-    post_predictive_Rt!(ax23, longer_south_korea_data, posterior_gens; qs)
+    post_predictive_yt!(ax22, italy_training_data, posterior_gens; qs)
+    post_predictive_Rt!(ax23, italy_training_data, posterior_gens; qs)
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
