@@ -131,10 +131,10 @@ We use priors based on @mishra which we will reuse in @sec-example1.
 ```{julia}
 using EpiAware, Distributions
 ar2 = AR(;
-    damp_priors=[truncated(Normal(0.8, 0.1), 0, 1),
-                 truncated(Normal(0.1, 0.05), 0, 1)],
+    damp_priors=[truncated(Normal(0.2, 0.2), 0, 1),
+        truncated(Normal(0.1, 0.05), 0, 1)],
     init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.025))
 )
 display(ar2)
 ```
@@ -148,7 +148,7 @@ The `MA` struct encapsulates this:
 ```{julia}
 ma1 = MA(;
     θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
-    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.5))
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.025))
 )
 ```
 
@@ -537,13 +537,10 @@ end
 ```
 
 We construct a Turing model using `generate_epiaware` (introduced in @sec-backend).
-We condition on a fixed cluster factor value due to non-identifiability with the variance in the innovation process of $Z_t$.
 
 ```{julia}
 using Turing
-fixed_cluster_factor = 0.25
-mishra_mdl = generate_epiaware(mishra, training_data) |
-      (var"obs.cluster_factor" = fixed_cluster_factor,)
+mishra_mdl = generate_epiaware(mishra, training_data)
 ```
 
 Following the same compositional pattern as our modelling DSL, we compose inference approaches using `EpiMethod`, which combines pre-sampling steps with sampling algorithms.
@@ -592,10 +589,8 @@ function generated_quantiles(gens, quantity, qs; transformation=x -> x)
 
 end
 
-function posterior_gens_for_plot(inference_results, n; epi_prob, fixed_cluster_factor)
-    mdl_unconditional = isnothing(fixed_cluster_factor) ?
-                        generate_epiaware(epi_prob, (y_t=fill(missing, n),)) :
-                        generate_epiaware(epi_prob, (y_t=fill(missing, n),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
+function posterior_gens_for_plot(inference_results, n; epi_prob)
+    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, n),))
 
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
 
@@ -653,16 +648,13 @@ end
 
 # Older plotting left temporarily so render continues (used further down)
 function plot_post_pred(inference_data, inference_results; epi_prob,
-    fixed_cluster_factor=nothing,
     qs=[0.025, 0.25, 0.5, 0.75, 0.975])
     y_t = inference_data.y_t
     dates = inference_data.dates
     ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
     t_ticks = string.(dates)
 
-    mdl_unconditional = isnothing(fixed_cluster_factor) ?
-                        generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) :
-                        generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),)) | (var"obs.cluster_factor"=fixed_cluster_factor,)
+    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),))
 
     posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
 
@@ -739,8 +731,7 @@ figure2 = let
     ts = dates_to_times(training_data.dates)
 
     posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
-        epi_prob=mishra,
-        fixed_cluster_factor=fixed_cluster_factor)
+        epi_prob=mishra)
 
     fig = Figure(size=(1200, 1000))
     ax11 = Axis(fig[1, 1];
@@ -857,7 +848,7 @@ We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl but modify it to 
 This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
 In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
 The piecewise constant weekly version is a configuration option in EpiNow2 but not the default.
-Similarly, our piecewise constant weekly model applies the ARMA(2,1) model to the increments $R_{w} - R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
+Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to the increments $R_{w} - R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
 Prior predictive samples (Figure @fig-figure3 A) show the behaviour of this piecewise constant by week process.
 
 ```{julia}
@@ -979,21 +970,23 @@ end
 We compose these modelling subcomponents into one `EpiProblem` model.
 
 ```{julia}
-delay_padding = length(delay_dayofweek_negbin.rev_pmf) + length(incubation_dayofweek_negbin.rev_pmf)
-
+tspan = (1, 60)
 epinow2 = EpiProblem(epi_model=renewal_gt,
     latent_model=weekly_arima211,
     observation_model=delay_dayofweek_negbin,
-    tspan=(1, 50))
+    tspan=tspan)
 ```
 
 This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
 The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
-We use all of the available data as training data.
+We filter the data as before to the timespan of interest.
 
 ```{julia}
-italy_training_data = italy_data
+italy_training_data = @chain italy_data begin
+    @set _.y_t = _.y_t[first(tspan):last(tspan)]
+    @set _.dates = _.dates[first(tspan):last(tspan)]
+end
 ```
 
 We construct a Turing model using `generate_epiaware`.
@@ -1028,12 +1021,11 @@ figure3 = let
     ts = dates_to_times(italy_training_data.dates)
 
     posterior_gens = posterior_gens_for_plot(epinow2_results, length(italy_training_data.y_t);
-        epi_prob=epinow2,
-        fixed_cluster_factor=nothing)
+        epi_prob=epinow2)
 
     latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
     log_scale_dow_effect = [1.0; zeros(6)]
-    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
+    obs_mdl = generate_observations(dayofweek_negbin, missing, latent_infections) |
               (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
 
     fig = Figure(size=(1200, 1000))
@@ -1065,16 +1057,32 @@ figure3 = let
     plot_latent_infections!(ax12, renewal_mdl; n_samples)
     delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
 
-    delay_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
-    barplot!(ax21, 0:(length(delay_pmf)-1), delay_pmf; label="Combined delay pmf")
+    # Extract delay PMFs
+    incubation_pmf = incubation_dayofweek_negbin.rev_pmf[end:-1:1]
+    # Create a standalone reporting delay to get its PMF
+    reporting_delay_only = LatentDelay(negbin, reporting_distribution)
+    reporting_pmf = reporting_delay_only.rev_pmf[end:-1:1]
+
+    barplot!(ax21, 0:(length(incubation_pmf)-1), incubation_pmf;
+        label="Incubation period", alpha=0.6, color=:green)
     lines!(ax21, 0:0.1:20, x -> pdf(incubation_distribution, x);
-        color=:green, linewidth=2, label="Incubation period")
+        color=:green, linewidth=2)
+    barplot!(ax21, 0:(length(reporting_pmf)-1), reporting_pmf;
+        label="Reporting delay", alpha=0.6, color=:blue)
     lines!(ax21, 0:0.1:20, x -> pdf(reporting_distribution, x);
-        color=:blue, linewidth=2, label="Reporting delay")
+        color=:blue, linewidth=2)
+    ax21.ytickformat = values -> [string(round(v, digits=4)) for v in values]
     axislegend(ax21)
 
     post_predictive_yt!(ax22, italy_training_data, posterior_gens; qs)
     post_predictive_Rt!(ax23, italy_training_data, posterior_gens; qs)
+
+    # Format y-axis labels to avoid scientific notation
+    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
