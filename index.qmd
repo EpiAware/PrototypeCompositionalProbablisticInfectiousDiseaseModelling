@@ -851,7 +851,8 @@ Z_w & = \log R_w, \\
 Z_w - Z_{w-1} &= \rho_1 (Z_{w-1} - Z_{w-2}) + \rho_2 (Z_{w-2} - Z_{w-3}) + \epsilon_w,~~ w = 1, 2, 3, \dots\\
 Z_t &= Z_{\lfloor t/7 \rfloor},~~ \text{Piecewise constant by week}\\
 I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
-D_t &= \sum_{s\geq1} I_{t-s} \xi_s,~~ \text{Delayed latent infections}\\
+S_t &= \sum_{s\geq1} I_{t-s} \eta_s,~~ \text{Incubation delay: infections to symptom onset}\\
+D_t &= \sum_{s\geq1} S_{t-s} \xi_s,~~ \text{Reporting delay: symptom onset to case reports}\\
 \tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
 \omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
 y_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
@@ -859,8 +860,8 @@ y_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to dat
 $$ {#eq-epinow2-model}
 
 Where $\pi$ represents prior distributions for model hyperparameters.
-$g_t$ is the generation time distribution pmf and $\xi_t$ is the reporting delay distribution pmf (both obtained by double interval censoring continuous distributions @charniga2024best).
-$D_t$ is a convolution on the latent infection time series that maps infections from *before* day $t$ into delayed observations *on* day $t$.
+$g_t$ is the generation time distribution pmf, $\eta_t$ is the incubation period distribution pmf, and $\xi_t$ is the reporting delay distribution pmf (all obtained by double interval censoring continuous distributions @charniga2024best).
+$S_t$ represents symptom onsets (infections convolved with incubation period) and $D_t$ represents delayed case reports (symptom onsets convolved with reporting delay).
 The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on reporting.
 
 #### Latent Model
@@ -894,10 +895,11 @@ The renewal equation requires a discrete generation time pmf $g_t$.
 Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
 
-We use a $\text{Gamma}(6.5, 0.62)$ generation time distribution (matching the serial interval from @sec-example1 for comparison purposes, though in practice these would differ).
+EpiNow2 uses a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
+Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days.
 
 ```{julia}
-gen_time_dist = Gamma(6.5, 0.62)
+gen_time_dist = Gamma(1.4, 1/0.38)
 epinow2_data = EpiData(gen_distribution = gen_time_dist)
 display(epinow2_data.gen_int)
 ```
@@ -946,20 +948,28 @@ I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
 
-For this example we choose a latent delay distribution of median 5 days with LogNormal errors,
+EpiNow2 models two sequential delays: an incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
+The incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
+The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, giving a mean of 1.99 days.
+
+Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values:
 
 ```{julia}
-delay_distribution = LogNormal(log(5), 0.2)
+incubation_distribution = LogNormal(1.6, 0.42)
+reporting_distribution = LogNormal(0.58, 0.47)
 ```
 
-The `LatentDelay` struct uses double interval censoring @charniga2024best to convert this continuous delay model into the pmf $\xi_t$ and stacks with the temporal modifier model defined above.
+The `LatentDelay` struct uses double interval censoring @charniga2024best to convert continuous delay models into pmfs and stacks with the temporal modifier model.
+We compose two delay layers sequentially:
 
 ```{julia}
-delay_dayofweek_negbin = LatentDelay(dayofweek_negbin, delay_distribution)
+incubation_dayofweek_negbin = LatentDelay(dayofweek_negbin, incubation_distribution)
+delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_distribution)
 display(delay_dayofweek_negbin)
 ```
 
-This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding reporting delays via `LatentDelay`).
+This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
+Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the strata-in-strata approach with multiple dispatch.
 Figure @fig-figure3 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
@@ -1025,7 +1035,7 @@ summarystats(epinow2_results.samples)
 #| output: true
 #| echo: false
 #| label: fig-figure3
-#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous reporting delay distribution (blue line) with its discretised pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1075,9 +1085,11 @@ figure3 = let
     delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
 
     delay_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
-    barplot!(ax21, 0:(length(delay_pmf)-1), delay_pmf; label="Discretized delay pmf")
-    lines!(ax21, 0:0.1:20, x -> pdf(delay_distribution, x);
-        color=:blue, linewidth=2, label="Continuous delay dist")
+    barplot!(ax21, 0:(length(delay_pmf)-1), delay_pmf; label="Combined delay pmf")
+    lines!(ax21, 0:0.1:20, x -> pdf(incubation_distribution, x);
+        color=:green, linewidth=2, label="Incubation period")
+    lines!(ax21, 0:0.1:20, x -> pdf(reporting_distribution, x);
+        color=:blue, linewidth=2, label="Reporting delay")
     axislegend(ax21)
 
     post_predictive_yt!(ax22, italy_training_data, posterior_gens; qs)
