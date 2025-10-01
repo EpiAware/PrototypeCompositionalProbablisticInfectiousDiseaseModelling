@@ -831,10 +831,11 @@ Mathematically, we represent the complete model as:
 
 $$
 \begin{aligned}
-Z_t & = \log R_t, \\
+Z_w & = \log R_w, \\
 \rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma_Z, \sigma_\omega, \phi &\sim \pi(\cdot), \\
-\epsilon_t & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall t, \\
-Z_t - Z_{t-1} &= \rho_1 (Z_{t-1} - Z_{t-2}) + \rho_2 (Z_{t-2} - Z_{t-3}) + \epsilon_t,~~ t = 1, 2, 3, \dots\\
+\epsilon_w & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall w, \\
+Z_w - Z_{w-1} &= \rho_1 (Z_{w-1} - Z_{w-2}) + \rho_2 (Z_{w-2} - Z_{w-3}) + \epsilon_w,~~ w = 1, 2, 3, \dots\\
+Z_t &= Z_{\lfloor t/7 \rfloor},~~ \text{Piecewise constant by week}\\
 I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
 D_t &= \sum_{s\geq1} I_{t-s} \xi_s,~~ \text{Delayed latent infections}\\
 \tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
@@ -850,14 +851,17 @@ The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on r
 
 #### Latent Model
 
-We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl.
+We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
+This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
 In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
-In analogy, `arima211` applies the ARMA(2,1) model to the increments $R_{t} - R_{t-1}$.
-Prior predictive samples (Figure @fig-figure3 A) show the behaviour of this differenced process.
+The piecewise constant weekly version is a configuration option in EpiNow2 but not the default.
+Similarly, our piecewise constant weekly model applies the ARMA(2,1) model to the increments $R_{w} - R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
+Prior predictive samples (Figure @fig-figure3 A) show the behaviour of this piecewise constant by week process.
 
 ```{julia}
 #| echo: false
-arima_mdl = generate_latent(arima211, 50)
+weekly_arima211 = broadcast_weekly(arima211)
+weekly_arima211_mdl = generate_latent(weekly_arima211, 50)
 
 function arima_sample_plot!(ax, arima_mdl; n_samples=100)
     arima_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -967,13 +971,13 @@ We compose these modelling subcomponents into one `EpiProblem` model.
 cutout = length(delay_dayofweek_negbin.rev_pmf)
 
 epinow2 = EpiProblem(epi_model = renewal_gt,
-    latent_model = arima211,
+    latent_model = weekly_arima211,
     observation_model = delay_dayofweek_negbin,
     tspan = (45-cutout, 80))
 display(epinow2)
 ```
 
-This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the ARIMA(2,1,1) latent model from @sec-dsl (`arima211`).
+This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
 The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
 
 We need to account for the extended time window required to handle reporting delays:
@@ -1006,7 +1010,7 @@ summarystats(epinow2_results.samples)
 #| output: true
 #| echo: false
 #| label: fig-figure3
-#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous reporting delay distribution (blue line) with its discretised pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous reporting delay distribution (blue line) with its discretised pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1051,7 +1055,7 @@ figure3 = let
         xticks=(ts[1:14:end], t_ticks[1:14:end])
     )
 
-    arima_sample_plot!(ax11, arima_mdl; n_samples)
+    arima_sample_plot!(ax11, weekly_arima211_mdl; n_samples)
     plot_latent_infections!(ax12, renewal_mdl; n_samples)
     delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
 
