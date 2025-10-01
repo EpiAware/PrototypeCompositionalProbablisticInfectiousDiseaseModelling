@@ -61,6 +61,9 @@ jobs:
             ${{ runner.os }}-${{ github.ref_name }}-quarto-
             ${{ runner.os }}-main-quarto-
 
+      - name: Install librsvg for SVG to PDF conversion
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
