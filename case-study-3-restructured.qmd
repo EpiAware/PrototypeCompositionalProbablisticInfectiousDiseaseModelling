@@ -1,0 +1,455 @@
+---
+title: "Contemporary Statistical Inference for Infectious Disease Models using Differential Equations"
+format: html
+---
+
+# Contemporary statistical inference for infectious disease models {#sec-example3}
+
+In _Contemporary Statistical Inference for Infectious Disease Models using Stan_ Chatzilena _et al_ @chatzilena2019contemporary showcase using the stan PPL @carpenter2017stan for infectious disease models, including differential equation based models.
+Chatzilena _et al_ use stan's in-built ordinary differential equation (ODE) solvers to infer epidemic trajectories from observed case counts under the assumption that the latent infection dynamics follow a susceptible-infected-removed (SIR) transmission model @kermack1927contribution; the prototypical compartmental model of transmission dynamics @keeling2008modeling.
+They demonstrate epidemic inference with, and without, temporal modification to the ascertainment rate of latent infecteds.
+
+We recreate the ODE based examples from Chatzilena _et al_ by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies and composing this with temporal effects on ascertainment using an autoregressive latent process.
+Unlike in stan, we had no requirement to encode a bespoke differential equation solver in our prototype - our prototype integrates with high-quality existing solver libraries from the SciML ecosystem @rackauckas2017differentialequations.
+
+## Data {#sec-data-cs3}
+
+The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
+We accessed this data using the R package `outbreaks` @jombart2020outbreaks.
+
+```{julia}
+using Chain, CSV, DataFramesMeta, Dates
+N = 763
+datapath = "data/influenza_england_1978_school.csv"
+england_data = @chain datapath begin
+    CSV.read(DataFrame)
+    @transform(:ts = :date - minimum(:date))
+    @transform(@byrow :ts = Dates.value(:ts) + 1.0)
+    (y_t = _.in_bed, dates = _.date, ts = _.ts)
+end
+```
+
+### Model
+
+Our model introduces, and composes, new models for generating infections from the solution to an ODE and autoregressive time-varying ascertainment rate of latent infections.
+We will start with a simpler observation model, and reusing the infection generating process, then move on to demonstrate time-varying ascertainment.
+
+The mathematical description of the model is:
+
+$$
+\begin{align}
+\beta, \gamma, S(0), \kappa_0, \phi, \sigma &\sim \pi(\cdot)\\
+r_{SI}(t) &= \beta S(t) \frac{I(t)}{N} , ~~ \text{(Infection rate)},\\
+r_{IR}(t) &= \gamma I(t), ~~ \text{(Recovery rate)},\\
+\frac{dS}{dt} &= -r_{SI}(t), \\
+\frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
+\frac{dR}{dt} &= r_{IR}(t),\\
+\epsilon_t &\sim \text{Normal}(0, \sigma^2),~ t= 1, 2, \dots ~~ \text{(Observation innovations)}, \\
+\kappa_{t} &= \phi \kappa_{t-1} + \epsilon_t, ~~ \text{(Ascertainment process)}, \\
+\lambda_t &= I(t)\exp(\kappa_t), ~~ \text{(Expected observations)}, \\ 
+Y_t &\sim \text{Poisson}(\lambda_t), ~~ \text{(Observation link)}.  \\
+\end{align}
+$$
+
+Here we are connecting a continous time model, where we index continuously evolving variables using **(t)**, to daily incrementing processes which we index with a subscript $t$.
+The population variables $S(t)$, $I(t)$, and $R(t)$ represent susceptible, infected, and recovered individuals at time $t$.
+The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
+The basic reproduction number $R_0 = \beta/\gamma$ characterises transmission potential, which is assumed to be constant in time in this model.
+All individuals are assumed to be either susceptible or infected the beginning of the outbreak, therefore, only $S(0)$ is needed to define the initial conditions for the outbreak.
+The log-scale ascertainment rate  is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with a damping $\phi$ parameter, initial state $\kappa_0$ and innovation standard deviation $\sigma$.
+$\pi$ represents the priors over each parameter.
+
+#### Latent Models
+
+Chatzilena _et al_ parameterise the autoregressive model for log-scale ascertainment as a time discretised Ornstein-Uhlenbeck process, which can be identified with an AR(1) process.
+Taking care to convert priors appropriately we reuse the AR(1) process **...Complete when merged into full document...**
+
+```{julia}
+using Distributions, EpiAware
+ascert_ar = AR(
+    damp_priors = [HalfNormal(0.005)],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
+)
+```
+
+The latent parameters and initial condition of the SIR process are static during the outbreak
+
+
+#### Infection Generating Process
+
+The ODE system serves as our infection generating process, implemented through an interface to the SciML ecosystem of differential equation solvers.
+The parameters of the SIR model are all scalars
+
+```{julia}
+function sir!(du, u, p, t)
+    S, I, R = u
+    β, γ = p
+    du[1] = -β * I * S
+    du[2] = β * I * S - γ * I
+    du[3] = γ * I
+    return nothing
+end
+
+# Create ODE problem with initial conditions
+sir_prob = ODEProblem(
+    sir!,
+    N .* [0.99, 0.01, 0.0],  # Initial: 99% susceptible, 1% infected, 0% recovered
+    (0.0, (Date(1978, 2, 4) - Date(1978, 1, 22)).value + 1)
+)
+```
+
+This formulation enables automatic differentiation through the ODE solution, essential for gradient-based inference methods like NUTS.
+
+#### Observation Model
+
+The observation model links latent infection dynamics to observed data. For the deterministic model, we assume observations follow a Poisson distribution with rate parameter equal to the number of infectious individuals:
+
+$$
+\begin{align}
+Y_t &\sim \text{Poisson}(\lambda_t) \\
+\lambda_t &= I(t)
+\end{align}
+$$
+
+We implement this through EpiAware's observation model framework:
+
+```{julia}
+obs = PoissonError()
+display(obs)
+```
+
+#### Latent Model
+
+For the stochastic extension, we introduce time-varying ascertainment through an autoregressive process. Following @chatzilena2019contemporary, we model log-residuals $\kappa_t = \log(\lambda_t / I(t))$ as an AR(1) process:
+
+$$
+\kappa_{t+1} | \kappa_t \sim \text{Normal}\left(\kappa_t e^{-\phi}, \frac{\sigma^2}{2\phi}(1 - e^{-2\phi})\right)
+$$
+
+This process captures additional observation variability beyond the deterministic ODE predictions:
+
+```{julia}
+# Define priors for AR(1) parameters based on Chatzilena et al.
+ϕs = rand(truncated(Normal(0, 100), lower = 0.0), 1000)
+σ²s = rand(InverseGamma(0.1, 0.1), 1000) .|> x -> 1 / x
+sampled_AR_damps = ϕs .|> ϕ -> exp(-ϕ)
+sampled_AR_stds = map(ϕs, σ²s) do ϕ, σ²
+    (1 - exp(-2 * ϕ)) * σ² / (2 * ϕ)
+end
+
+# Create AR(1) latent model
+ar = AR(
+    damp_priors = [HalfNormal(mean(sampled_AR_damps))],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(mean(sampled_AR_stds)))
+)
+```
+
+The complete stochastic observation model combines the AR(1) process with Poisson observation error:
+
+```{julia}
+varying_ascertainment = Ascertainment(
+    model = obs,
+    latent_model = ar,
+    latent_prefix = "va"
+)
+```
+
+## Fitting to Data
+
+### Deterministic Model
+
+The deterministic model uses the complete parameter specification:
+
+$$
+\begin{align}
+Y_t &\sim \text{Poisson}(\lambda_t) \\
+\lambda_t &= I(t) \\
+\beta &\sim \text{LogNormal}(0, 1) \\
+\gamma &\sim \text{Gamma}(0.004, 50) \\
+S(0)/N &\sim \text{Beta}(0.5, 0.5)
+\end{align}
+$$
+
+```{julia}
+@model function deterministic_ode_mdl(y_t, ts, obs, prob, N;
+        solver = AutoTsit5(Rosenbrock23())
+)
+    # Prior specifications
+    β ~ LogNormal(0.0, 1.0)
+    γ ~ Gamma(0.004, 1 / 0.002)
+    S₀ ~ Beta(0.5, 0.5)
+
+    # Remake ODE problem with sampled parameters
+    _prob = remake(prob; u0 = [S₀, 1 - S₀, 0.0], p = [β, γ])
+
+    # Solve ODE system
+    sol = solve(_prob, solver; saveat = ts, verbose = false)
+
+    # Apply observation model with softplus transformation for numerical stability
+    λt = log1pexp.(N * sol[2, :])
+    @submodel generated_y_t = generate_observations(obs, y_t, λt)
+
+    # Generated quantities
+    return (; sol, generated_y_t, R0 = β / γ)
+end
+
+# Create conditioned and unconditioned models
+deterministic_mdl = deterministic_ode_mdl(data.in_bed, data.ts, obs, sir_prob, N)
+deterministic_uncond_mdl = deterministic_ode_mdl(
+    fill(missing, length(data.in_bed)), data.ts, obs, sir_prob, N)
+```
+
+#### Prior Predictive Checking
+
+```{julia}
+prior_chn = sample(deterministic_uncond_mdl, Prior(), 2000)
+gens = generated_quantities(deterministic_uncond_mdl, prior_chn)
+```
+
+```{julia}
+#| echo: false
+function plot_predYt(data, gens; title::String, ylabel::String)
+    fig = Figure()
+    ga = fig[1, 1:2] = GridLayout()
+
+    ax = Axis(ga[1, 1];
+        title = title,
+        xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
+        ylabel = ylabel
+    )
+    pred_Yt = mapreduce(hcat, gens) do gen
+        gen.generated_y_t
+    end |> X -> mapreduce(vcat, eachrow(X)) do row
+        quantile(row, [0.5, 0.025, 0.975, 0.1, 0.9, 0.25, 0.75])'
+    end
+
+    lines!(ax, data.ts, pred_Yt[:, 1]; linewidth = 3, color = :green, label = "Median")
+    band!(ax, data.ts, pred_Yt[:, 2], pred_Yt[:, 3], color = (:green, 0.2), label = "95% CI")
+    band!(ax, data.ts, pred_Yt[:, 4], pred_Yt[:, 5], color = (:green, 0.4), label = "80% CI")
+    band!(ax, data.ts, pred_Yt[:, 6], pred_Yt[:, 7], color = (:green, 0.6), label = "50% CI")
+    scatter!(ax, data.in_bed, label = "data")
+    leg = Legend(ga[1, 2], ax; framevisible = false)
+    hidespines!(ax)
+
+    fig
+end
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-prior-pred-det
+
+plot_predYt(data, gens;
+    title = "Prior predictive: deterministic model",
+    ylabel = "Number of Infected students"
+)
+```
+
+#### Parameter Estimation
+
+Prior predictive analysis reveals misaligned prior beliefs, necessitating careful initialization for NUTS sampling. We locate the maximum likelihood estimate as starting point:
+
+```{julia}
+nmle_tries = 100
+
+mle_fit = map(1:nmle_tries) do _
+    fit = try
+        maximum_likelihood(deterministic_mdl)
+    catch
+        (lp = -Inf,)
+    end
+end |>
+          fits -> (findmax(fit -> fit.lp, fits)[2], fits) |>
+                  max_and_fits -> max_and_fits[2][max_and_fits[1]]
+
+mle_fit.optim_result.retcode
+```
+
+```{julia}
+chn = sample(
+    deterministic_mdl, NUTS(), MCMCThreads(), 1000, 4;
+    initial_params = fill(mle_fit.values.array, 4)
+)
+
+describe(chn)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairplot-det
+pairplot(chn)
+```
+
+#### Posterior Predictive Analysis
+
+```{julia}
+gens = generated_quantities(deterministic_uncond_mdl, chn)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-pred-det
+plot_predYt(data, gens;
+    title = "Fitted deterministic model",
+    ylabel = "Number of Infected students"
+)
+```
+
+### Stochastic Model
+
+The stochastic extension adds time-varying ascertainment to capture observation variability beyond the deterministic ODE predictions:
+
+$$
+\begin{align}
+Y_t &\sim \text{Poisson}(\lambda_t) \\
+\lambda_t &= I(t)\exp(\kappa_t) \\
+\beta &\sim \text{LogNormal}(0, 1) \\
+\gamma &\sim \text{Gamma}(0.004, 50) \\
+S(0)/N &\sim \text{Beta}(0.5, 0.5) \\
+\phi &\sim \text{HalfNormal}(0, 100) \\
+1/\sigma^2 &\sim \text{InvGamma}(0.1, 0.1)
+\end{align}
+$$
+
+```{julia}
+@model function stochastic_ode_mdl(y_t, ts, obs, prob, N;
+        solver = AutoTsit5(Rosenbrock23())
+)
+    # Prior specifications
+    β ~ LogNormal(0.0, 1.0)
+    γ ~ Gamma(0.004, 1 / 0.002)
+    S₀ ~ Beta(0.5, 0.5)
+
+    # Remake and solve ODE model
+    _prob = remake(prob; u0 = [S₀, 1 - S₀, 0.0], p = [β, γ])
+    sol = solve(_prob, solver; saveat = ts, verbose = false)
+    λt = log1pexp.(N * sol[2, :])
+
+    # Apply time-varying observation model
+    @submodel generated_y_t = generate_observations(obs, y_t, λt)
+
+    # Generated quantities
+    return (; sol, generated_y_t, R0 = β / γ)
+end
+
+stochastic_mdl = stochastic_ode_mdl(
+    data.in_bed, data.ts, varying_ascertainment, sir_prob, N)
+stochastic_uncond_mdl = stochastic_ode_mdl(
+    fill(missing, length(data.in_bed)), data.ts, varying_ascertainment, sir_prob, N)
+```
+
+#### Prior Predictive Checking for AR(1) Process
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-ar-prior-pred
+ar_prior_pred_plot = let
+    nobs = size(data, 1)
+    ar_mdl = generate_latent(ar, nobs)
+    fig = Figure()
+    ax = Axis(fig[1, 1],
+        xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
+        ylabel = "exp(κt)",
+        title = "Prior predictive sampling for relative residual in mean prediction"
+    )
+    for i in 1:500
+        lines!(ax, ar_mdl() .|> exp, color = (:grey, 0.15))
+    end
+    fig
+end
+ar_prior_pred_plot
+```
+
+#### Prior Predictive Analysis
+
+```{julia}
+prior_chn = sample(stochastic_uncond_mdl, Prior(), 2000)
+gens = generated_quantities(stochastic_uncond_mdl, prior_chn)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-prior-pred-stoch
+
+plot_predYt(data, gens;
+    title = "Prior predictive: stochastic model",
+    ylabel = "Number of Infected students"
+)
+```
+
+#### Parameter Estimation for Stochastic Model
+
+We initialize NUTS using a mixture of deterministic model posteriors and AR(1) prior means:
+
+```{julia}
+initial_guess = [[mean(chn[:β]),
+                     mean(chn[:γ]),
+                     mean(chn[:S₀]),
+                     mean(ar.init_prior)[1],
+                     mean(ar.damp_prior)[1],
+                     mean(ar.ϵ_t.std_prior)
+                 ]
+                 zeros(13)]
+
+map_fit_stoch_mdl = maximum_a_posteriori(stochastic_mdl;
+    adtype = AutoReverseDiff(),
+    initial_params = initial_guess
+)
+```
+
+```{julia}
+chn2 = sample(
+    stochastic_mdl,
+    NUTS(; adtype = AutoReverseDiff(true)),
+    MCMCThreads(), 1000, 4;
+    initial_params = fill(map_fit_stoch_mdl.values.array, 4)
+)
+
+describe(chn2)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairplot-stoch-params
+mdl_prefix = "va"
+pairplot(chn2[[:β, :γ, :S₀, Symbol(mdl_prefix * ".std"),
+    Symbol(mdl_prefix * ".ar_init[1]"), Symbol(mdl_prefix * ".damp_AR[1]")]])
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-pairplot-stoch-eps
+vars = mapreduce(vcat, 1:13) do i
+    Symbol(mdl_prefix * ".ϵ_t[$i]")
+end
+pairplot(chn2[vars])
+```
+
+#### Posterior Predictive Analysis
+
+```{julia}
+gens = generated_quantities(stochastic_uncond_mdl, chn2)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-posterior-pred-stoch
+plot_predYt(data, gens;
+    title = "Fitted stochastic model",
+    ylabel = "Number of Infected students"
+)
+```
+
+## Summary
+
+This case study demonstrates how differential equation models integrate seamlessly within our compositional framework. The deterministic model provides baseline inference capabilities, whilst the stochastic extension shows how latent processes can modify observation models to capture additional variability. Both approaches leverage the same underlying infection generating process (SIR dynamics) whilst employing different observation models, illustrating the component reusability that characterizes our framework. The integration with SciML's ODE solvers enables automatic differentiation throughout, supporting efficient gradient-based inference methods essential for complex epidemiological models.
