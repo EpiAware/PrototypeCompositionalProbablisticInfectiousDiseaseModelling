@@ -195,36 +195,6 @@ summarystats(deterministic_sir_results.samples)
 
 #### Stochastic Model
 
-```{julia}
-#| echo: false
-
-# function plot_predYt(data, gens; title::String, ylabel::String)
-#     fig = Figure()
-#     ga = fig[1, 1:2] = GridLayout()
-
-#     ax = Axis(ga[1, 1];
-#         title = title,
-#         xticks = (data.ts[1:3:end], data.date[1:3:end] .|> string),
-#         ylabel = ylabel
-#     )
-#     pred_Yt = mapreduce(hcat, gens) do gen
-#         gen.generated_y_t
-#     end |> X -> mapreduce(vcat, eachrow(X)) do row
-#         quantile(row, [0.5, 0.025, 0.975, 0.1, 0.9, 0.25, 0.75])'
-#     end
-
-#     lines!(ax, data.ts, pred_Yt[:, 1]; linewidth = 3, color = :green, label = "Median")
-#     band!(ax, data.ts, pred_Yt[:, 2], pred_Yt[:, 3], color = (:green, 0.2), label = "95% CI")
-#     band!(ax, data.ts, pred_Yt[:, 4], pred_Yt[:, 5], color = (:green, 0.4), label = "80% CI")
-#     band!(ax, data.ts, pred_Yt[:, 6], pred_Yt[:, 7], color = (:green, 0.6), label = "50% CI")
-#     scatter!(ax, data.in_bed, label = "data")
-#     leg = Legend(ga[1, 2], ax; framevisible = false)
-#     hidespines!(ax)
-
-#     fig
-# end
-```
-
 To define the full stochastic model, we reuse the `EpiProblem` from before with the time-varying ascertainment subcomponent replacing the direct Poisson link subcomponent.
 
 ```{julia}
@@ -251,6 +221,7 @@ summarystats(stochastic_sir_results.samples)
 ```{julia}
 #| echo: false
 
+# No new plotting methods
 using CairoMakie
 
 dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
