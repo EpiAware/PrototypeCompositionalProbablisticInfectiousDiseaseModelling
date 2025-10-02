@@ -18,7 +18,7 @@ In _Contemporary Statistical Inference for Infectious Disease Models using Stan_
 Chatzilena _et al_ use stan's in-built ordinary differential equation (ODE) solvers to infer epidemic trajectories from observed case counts under the assumption that the latent infection dynamics follow a susceptible-infected-removed (SIR) transmission model @kermack1927contribution; the prototypical compartmental model of transmission dynamics @keeling2008modeling.
 They demonstrate epidemic inference with, and without, temporal modification to the ascertainment rate of latent infecteds.
 
-We recreate the ODE based examples from Chatzilena _et al_ by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies and composing this with temporal effects on ascertainment using an autoregressive latent process.
+We recreate the single strain influenza examples from Chatzilena _et al_ by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies and composing this with temporal effects on ascertainment using an autoregressive latent process.
 Unlike in stan, we had no requirement to encode a bespoke differential equation solver in our prototype - our prototype integrates with high-quality existing solver libraries from the SciML ecosystem @rackauckas2017differentialequations.
 
 ## Data {#sec-data-cs3}
