@@ -172,7 +172,7 @@ $$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \the
 We compose the ARMA model with a differencing operation using the `DiffLatentModel` wrapper:
 
 ```{julia}
-arima211 = DiffLatentModel(arma21, Normal(0, 0.1); d=1)
+arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 display(arima211)
 ```
 
