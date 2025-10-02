@@ -131,10 +131,10 @@ We use priors based on @mishra which we will reuse in @sec-example1.
 ```{julia}
 using EpiAware, Distributions
 ar2 = AR(;
-    damp_priors=[truncated(Normal(0.2, 0.2), 0, 1),
+    damp_priors=[truncated(Normal(0.4, 0.2), 0, 1),
         truncated(Normal(0.1, 0.05), 0, 1)],
-    init_priors=[Normal(-1.0, 0.1), Normal(-1.0, 0.5)],
-    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.025))
+    init_priors=[Normal(0, 0.2), Normal(0, 0.2)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
 )
 display(ar2)
 ```
@@ -147,8 +147,8 @@ The `MA` struct encapsulates this:
 
 ```{julia}
 ma1 = MA(;
-    θ_priors=[truncated(Normal(0.0, 0.05), -1, 1)],
-    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.025))
+    θ_priors=[truncated(Normal(0.0, 0.2), -1, 1)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
 )
 ```
 
@@ -172,7 +172,7 @@ $$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \the
 We compose the ARMA model with a differencing operation using the `DiffLatentModel` wrapper:
 
 ```{julia}
-arima211 = DiffLatentModel(arma21, Normal(); d=1)
+arima211 = DiffLatentModel(arma21, Normal(0, 0.1); d=1)
 display(arima211)
 ```
 
@@ -414,14 +414,13 @@ Figure @fig-figure2 D compares the discretized generation interval with the unde
 
 ```{julia}
 #| echo: false
-
 function discretised_gen_plot!(ax, model_data, truth_SI)
     barplot!(ax, model_data.gen_int;
-        label = "Discretized next gen pmf"
+        label="Discretized next gen pmf"
     )
     lines!(ax, truth_SI;
-        label = "Continuous serial interval",
-        color = :green
+        label="Continuous serial interval",
+        color=:green
     )
     axislegend(ax)
     return nothing
@@ -432,8 +431,8 @@ We use a lognormal prior for the initial latent infections.
 The `Renewal` model requires the discretized generation time (from `model_data`) and the initialisation prior,
 
 ```{julia}
-log_I0_prior = Normal(log(1.0), 1.0)
-renewal = Renewal(model_data; initialisation_prior = log_I0_prior)
+log_I0_prior = Normal(log(1.0), 0.1)
+renewal = Renewal(model_data; initialisation_prior=log_I0_prior)
 display(renewal)
 ```
 
@@ -448,7 +447,6 @@ The implied distribution of $I_t$ trajectories conditional on this $R_t$ traject
 
 ```{julia}
 #| echo: false
-
 function plot_latent_infections!(ax, renewal_mdl; n_samples)
     renewal_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         renewal_mdl()
@@ -852,8 +850,11 @@ Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to
 Prior predictive samples (Figure @fig-figure3 A) show the behaviour of this piecewise constant by week process.
 
 ```{julia}
-#| echo: false
 weekly_arima211 = broadcast_weekly(arima211)
+```
+
+```{julia}
+#| echo: false
 weekly_arima211_mdl = generate_latent(weekly_arima211, 50)
 
 function arima_sample_plot!(ax, arima_mdl; n_samples=100)
@@ -885,7 +886,8 @@ display(epinow2_data.gen_int)
 We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
 
 ```{julia}
-renewal_gt = Renewal(epinow2_data)
+initialisation_prior = Normal(log(1.0), 2.0)
+renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
 display(renewal_gt)
 ```
 
@@ -967,10 +969,14 @@ end
 
 ### Fitting to Data
 
-We compose these modelling subcomponents into one `EpiProblem` model.
+We compose these modelling subcomponents into one `EpiProblem` model. The delay padding accounts for the combined length of the incubation period and reporting delay pmfs, allowing the model to properly account for infections that have occurred but not yet been observed by the end of the training period.
 
 ```{julia}
-tspan = (1, 60)
+incubation_pmf_length = length(incubation_dayofweek_negbin.rev_pmf)
+reporting_pmf_length = length(delay_dayofweek_negbin.rev_pmf)
+delay_padding = incubation_pmf_length + reporting_pmf_length
+
+tspan = (1, 40 + delay_padding)
 epinow2 = EpiProblem(epi_model=renewal_gt,
     latent_model=weekly_arima211,
     observation_model=delay_dayofweek_negbin,
@@ -989,14 +995,13 @@ italy_training_data = @chain italy_data begin
 end
 ```
 
-We construct a Turing model using `generate_epiaware`.
-Unlike @sec-example1, we let the cluster factor parameter $\phi$ of the negative binomial distribution be jointly inferred rather than conditioning on a fixed value, following EpiNow2's approach.
+We again construct a Turing model using `generate_epiaware`.
 
 ```{julia}
 epinow2_mdl = generate_epiaware(epinow2, italy_training_data)
 ```
 
-We reuse the same `inference_method` defined in @sec-example1, showcasing how our inference setup can be applied across different model compositions.
+We reuse the same `inference_method` defined in @sec-example1..
 
 ```{julia}
 epinow2_results = apply_method(epinow2_mdl,
@@ -1005,6 +1010,9 @@ epinow2_results = apply_method(epinow2_mdl,
 )
 summarystats(epinow2_results.samples)
 ```
+
+We see the model has converged and the summary statistics are similar to @sec-example1.
+Figure @fig-figure3 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (Figure @fig-figure3 F), whilst explicitly accounting for reporting delays (Figure @fig-figure3 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (Figure @fig-figure3 E).
 
 ```{julia}
 #| output: true
@@ -1099,8 +1107,6 @@ end
 
 figure3
 ```
-
-Figure @fig-figure3 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (Figure @fig-figure3 F), whilst explicitly accounting for reporting delays (Figure @fig-figure3 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (Figure @fig-figure3 E).
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
