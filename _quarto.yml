@@ -1,10 +1,12 @@
 project:
   type: manuscript
+  render:
+    - index.qmd
+
+manuscript:
   code-links:
     - binder
     - repo
-  render:
-    - index.qmd
 
 engines: ['julia']
 
@@ -17,6 +19,7 @@ format:
     theme: cosmo
     code-fold: false
     code-tools: true
+    echo: true
   pdf:
     documentclass: article
     geometry: margin=1in
@@ -26,6 +29,7 @@ format:
     number-sections: false
     colorlinks: true
     notebook-links: false
+    echo: true
   ipynb: default
 
 bibliography: references.bib
