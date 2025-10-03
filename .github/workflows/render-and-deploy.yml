@@ -83,17 +83,11 @@ jobs:
         id: check-outputs
         run: |
           outputs_exist="false"
-          if [ -f "index.pdf" ]; then
+          if [ -f "_manuscript/index.pdf" ]; then
             outputs_exist="true"
           fi
           echo "has-artifacts=$outputs_exist" >> $GITHUB_OUTPUT
           echo "Found outputs: $outputs_exist"
-
-      - name: Copy Julia environment files to _site
-        run: |
-          mkdir -p _site
-          cp Project.toml _site/ || echo "Project.toml not found"
-          cp Manifest.toml _site/ || echo "Manifest.toml not found"
 
       - name: List generated files
         run: |
@@ -108,8 +102,11 @@ jobs:
         with:
           name: quarto-outputs-${{ github.sha }}
           path: |
-            index.pdf
+            _manuscript/index.pdf
             index.ipynb
+            Project.toml
+            Manifest.toml
+            data/
             _site/
           retention-days: 30
           if-no-files-found: warn
