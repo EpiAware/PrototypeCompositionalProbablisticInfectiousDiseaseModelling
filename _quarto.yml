@@ -19,7 +19,6 @@ format:
     theme: cosmo
     code-fold: false
     code-tools: true
-    echo: true
   pdf:
     documentclass: article
     geometry: margin=1in
@@ -29,7 +28,6 @@ format:
     number-sections: false
     colorlinks: true
     notebook-links: false
-    echo: true
   ipynb: default
 
 bibliography: references.bib
@@ -40,7 +38,7 @@ execute:
   warning: false
   cache: true
   output: true
-  freeze: true
+  freeze: auto
 
 julia:
   exeflags: ["--threads=4", "-O3"]

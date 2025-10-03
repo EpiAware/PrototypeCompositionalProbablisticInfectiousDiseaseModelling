@@ -129,6 +129,7 @@ In our prototype DSL, this is defined using the `AR` struct.
 We use priors based on @mishra which we will reuse in @sec-example1.
 
 ```{julia}
+#| output: false
 using EpiAware, Distributions
 ar2 = AR(;
     damp_priors=[truncated(Normal(0.4, 0.2), 0, 1),
@@ -136,16 +137,23 @@ ar2 = AR(;
     init_priors=[Normal(0, 0.2), Normal(0, 0.2)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
 )
-display(ar2)
+```
+
+This constructor has created the following struct definition.
+
+```{julia}
+#| output: true
+ar2
 ```
 
 Another common latent model is the moving average model
 
 $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
 
-The `MA` struct encapsulates this:
+The `MA` struct defines this in the same way that the `AR` did for the AR process.
 
 ```{julia}
+#| output: false
 ma1 = MA(;
     θ_priors=[truncated(Normal(0.0, 0.2), -1, 1)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
@@ -160,9 +168,16 @@ $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
 In our DSL this can be represented as a composition of the AR and MA structs by updating the AR error term:
 
 ```{julia}
+#| output: false
 using Accessors
 arma21 = @set ar2.ϵ_t = ma1
-display(arma21)
+```
+
+The result of this step has been to update the `ar2` struct so that the definition of the moving average model is nested inside it. 
+
+```{julia}
+#| output: true
+arma21
 ```
 
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
@@ -172,8 +187,8 @@ $$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \the
 We compose the ARMA model with a differencing operation using the `DiffLatentModel` wrapper:
 
 ```{julia}
+#| output: false
 arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
-display(arima211)
 ```
 
 Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
@@ -203,16 +218,17 @@ These step functions are structs built on the `AbstractAccumulationStep` interfa
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
 This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
 
-Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function:
+Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following Turing code:
 
 ```{julia}
+#| echo: false
 using CodeTracking, Revise
 print(@code_string EpiAwareBase.generate_latent(ar2, 50))
 ```
 
-The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state:
-
+The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state.
 ```{julia}
+#| echo: false
 print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
 ```
 
@@ -221,32 +237,35 @@ The MA model has a similar structure with its own internal step function.
 The `accumulate_scan` pattern enables composable iteration steps, allowing complex processes like renewal models with susceptible depletion to be built by composing simple step operations.
 This design means we only need to write the single-step operation without worrying about the iteration process, making components more modular and reusable.
 
-The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach:
+The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach, producing the following Turing code.
 
 ```{julia}
+#| echo: false
 print(@code_string generate_latent(arima211, 50))
 ```
 
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
-This recursive delegation through `@submodel` enables arbitrary depth composition while maintaining clean separation between components.
+This recursive delegation through `@submodel` enables arbitrary depth composition while maintaining separation between components.
 
-The generated models are standard Turing models supporting all DynamicPPL.jl functionality.
+The generated models are standard Turing models supporting all `DynamicPPL.jl` functionality.
 To demonstrate we create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
 
 ```{julia}
+#| output: false
 using DynamicPPL, Turing, LinearAlgebra
 
 @model function arima_with_obs(arima_spec, n_timesteps)
     @submodel Z_t = generate_latent(arima_spec, n_timesteps)
     σ_obs ~ truncated(Normal(0.0, 0.01), 0, Inf)
     y_obs ~ MvNormal(Z_t, σ_obs * I)
-    return y_obs;
+    return y_obs
 end
 ```
 
 We can then generate synthetic data with fixed parameters which we sample from the prior distribution using the `rand`, and `fix` functions and calling the model to simulate the observations. We first define the model.
 
 ```{julia}
+#| output: false
 n_timesteps = 20
 gen_model = arima_with_obs(arima211, n_timesteps)
 ```
@@ -254,12 +273,14 @@ gen_model = arima_with_obs(arima211, n_timesteps)
 Then sample from it,
 
 ```{julia}
+#| output: false
 simulated_params = rand(gen_model)
 ```
 
 Now we have parameters we can simulated some data using the generative model by fixing the random variables using the sampled parameters and the `fix` function. We can then call it, like any normal function, to get simulated observations for `y`.
 
 ```{julia}
+#| output: false
 fixed_model = fix(gen_model, simulated_params)
 y_observed = fixed_model()
 ```
@@ -267,6 +288,7 @@ y_observed = fixed_model()
 For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-turn sampler (a popular variant of MCMC).
 
 ```{julia}
+#| output: false
 conditioned_model = gen_model | (; y_obs = y_observed)
 chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
@@ -274,8 +296,7 @@ chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl`.
 
 ```{julia}
-#| output: true
-#| label: fig-ar-pp
+#| output: false
 #| echo: false
 using PairPlots, CairoMakie
 params = [:damp_AR, :ar_init, :θ]
@@ -308,8 +329,8 @@ plot_fit_with_truth(
 ```
 
 **Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
-*Panel B*: ARIMA composition example demonstrating component stacking with struct definitions.
-*Panel C*: Prior predictive checks demonstrating model behavior before data conditioning.
+*Panel B*: Posterior density plot with true values (i.e. pairs plot)
+*Panel C*: Posterior predictive vs the sampled data.
 *Panel D*: Backend abstraction architecture with Turing as current implementation and potential for ODE, agent-based, and other computational backends.
 
 # Case Studies {#sec-case-studies}
@@ -330,7 +351,6 @@ In _On the derivation of the renewal equation from an age-dependent branching pr
 Renewal models use the renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (or serial interval) [@cori2013new].
 This is analogous to an autoregressive process where the weights have epidemiological meaning rather than being estimated parameters.
 They show how solutions to the renewal equation, when combined with a negative binomial observation model, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
-This simple three-component structure (AR(2) latent process, renewal infection model, negative binomial observation model) demonstrates component modularity and independent prior predictive checking before composition.
 
 ### Data
 
@@ -338,6 +358,7 @@ _Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Kor
 This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
 
 ```{julia}
+#| output: false
 using Chain, CSV, DataFramesMeta, Dates
 datapath = "data/south_korea_data.csv"
 south_korea_data = @chain datapath begin
@@ -350,7 +371,8 @@ end
 
 Our model is inspired by _Mishra et al_ and uses a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
 The latent infection process is then linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
-The key difference from _Mishra et al_ is in the initialization: they seed the renewal equation with importations (independent daily effects $\mu_t \sim \text{Exponential}(0.5)$), whilst we initialize by solving for the growth rate corresponding to the initial reproduction number and extrapolating backwards without allowing for ongoing importations.
+The key difference from _Mishra et al_ is in the initialization.
+They seed the renewal equation with importations (independent daily effects $\mu_t \sim \text{Exponential}(0.5)$), whilst we initialize by solving for the growth rate corresponding to the initial reproduction number and extrapolating backwards without allowing for ongoing importations.
 
 $$
 \begin{aligned}
@@ -402,15 +424,16 @@ end
 
 The renewal equation requires a discrete generation time pmf $g_t$.
 Our prototype provides a constructor that converts continuous distributions into the required discrete pmf using double interval censoring @charniga2024best.
+This is called inside the `EpiData` struct which we use to define the expected model specific input data.
 _Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
 
 ```{julia}
 truth_SI = Gamma(6.5, 0.62)
 model_data = EpiData(gen_distribution = truth_SI)
-display(model_data.gen_int)
 ```
 
 Figure @fig-figure2 D compares the discretized generation interval with the underlying continuous distribution.
+As expected the observed discrete generation interval differs from the underlying continuous distrbution due to the double censoring process.
 
 ```{julia}
 #| echo: false
@@ -427,23 +450,31 @@ function discretised_gen_plot!(ax, model_data, truth_SI)
 end
 ```
 
-We use a lognormal prior for the initial latent infections.
-The `Renewal` model requires the discretized generation time (from `model_data`) and the initialisation prior,
+As in the earlier example, we define our renewal model using a specialised struct, `Renewal`.
+This requires the discretized generation time (from `model_data`) and an initialisation prior.
+We use a lognormal prior for the initial latent infections as it has a skewed right tail allow some weight on large initial values.
 
 ```{julia}
+#| output: false
 log_I0_prior = Normal(log(1.0), 0.1)
 renewal = Renewal(model_data; initialisation_prior=log_I0_prior)
-display(renewal)
 ```
 
-To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
+This results in the following model structure.
 
 ```{julia}
+renewal
+```
+
+To demonstrate the infection model independently, we define a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days and pass this to the `generate_latent_infs` function which, like the `generate_latent` function, relies on multiple dispatch to contruct the model that the struct it is passed defines.
+
+```{julia}
+#| output: false
 Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
 renewal_mdl = generate_latent_infs(renewal, log.(Rt))
 ```
 
-The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can be sampled independently of other model components (Figure @fig-figure2 B).
+The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can then be sampled independently of other model components (Figure @fig-figure2 B). As expected this gives us a "classical" outbreak like dynamic with infection incidence initially increasing exponentially, the rate of growth slowing over time, and then finally the infection incidence "turning over".
 
 ```{julia}
 #| echo: false
@@ -476,11 +507,12 @@ We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) bec
 A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
 
 ```{julia}
-negbin = NegativeBinomialError(cluster_factor_prior = HalfNormal(0.1))
-display(negbin)
+#| echo: false
+negbin = NegativeBinomialError(cluster_factor_prior=HalfNormal(0.1))
 ```
 
-As with other components, we generate a Turing model conditional on a fixed latent infection trajectory.
+As with the latent model, we can generate a `Turing.jl` model conditional on a fixed latent infection trajectory.
+Here we simulated this to look like an outbreak with a symmetrical growth and decay phase.
 
 ```{julia}
 #| echo: false
@@ -488,14 +520,14 @@ I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
 negbin_mdl = generate_observations(negbin, missing, I_t)
 ```
 
-Turing uses `missing` arguments to indicate observed variables that are to be sampled rather than only used to accumulate log posterior density.
+Here we use a `missing` argument to indicate observed variables that are to be sampled rather than to be used to accumulate log posterior density.
 Prior predictive samples (Figure @fig-figure2 C) show the dispersion around the mean implied by our choice of prior.
 
 ```{julia}
 #| echo: false
 function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
     negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        θ = negbin_mdl() #Sample unconditionally the underlying parameters of the model
+        θ = negbin_mdl()
     end
     for col in eachcol(negbin_mdl_samples)
         scatter!(ax, col;
@@ -514,58 +546,68 @@ end
 
 ### Fitting to Data
 
-We compose the three model components into an `EpiProblem`, which defines the complete generative model for the time range `tspan`.
+We now compose the three model components into an `EpiProblem`, which defines the complete generative model for the time range `tspan`.
 
 ```{julia}
+#| output: false
 tspan = (45, 80)
 mishra = EpiProblem(epi_model = renewal,
     latent_model = ar2,
     observation_model = negbin,
     tspan = tspan)
-display(mishra)
 ```
 
 We create training data by subsetting the full data to match `tspan`.
 
 ```{julia}
+#| output: false
 training_data = @chain south_korea_data begin
     @set _.y_t = _.y_t[first(tspan):last(tspan)]
     @set _.dates = _.dates[first(tspan):last(tspan)]
 end
 ```
 
-We construct a Turing model using `generate_epiaware` (introduced in @sec-backend).
+As a last step before fitting the model, we generate a new `Turing.jl` model using `generate_epiaware`, the `EpiProblem` we just defined, and our training data.
 
 ```{julia}
+#| output: false
 using Turing
 mishra_mdl = generate_epiaware(mishra, training_data)
 ```
 
-Following the same compositional pattern as our modelling DSL, we compose inference approaches using `EpiMethod`, which combines pre-sampling steps with sampling algorithms.
-We use the No U-Turns (NUTS) sampler with a pre-sampling step of `ManyPathfinder`, a batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound.
+Following the same compositional pattern as our modelling DSL, we also support composing inference approaches using `EpiMethod`, which, for example, can combine pre-sampling steps with sampling algorithms.
+We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound to estimate the intialise the sampler.
 
 ```{julia}
+#| output: false
 using ReverseDiff
 inference_method = EpiMethod(
-    pre_sampler_steps = [ManyPathfinder(nruns = 5, maxiters = 100)],
-    sampler = NUTSampler(
-        target_acceptance = 0.9,
-        adtype = AutoReverseDiff(compile = true),
-        ndraws = 1000,
-        nchains = 4,
-        mcmc_parallel = MCMCThreads(),
-        nadapts = 1000)
+    pre_sampler_steps=[ManyPathfinder(nruns=5, maxiters=100)],
+    sampler=NUTSampler(
+        target_acceptance=0.9,
+        adtype=AutoReverseDiff(compile=true),
+        ndraws=1000,
+        nchains=4,
+        mcmc_parallel=MCMCThreads(),
+        nadapts=1000)
 )
 ```
 
-The `apply_method` function combines the composed epidemiological model, inference method, and training data to return samples from the posterior distribution.
+We now need to combine our inference approach with our generated model.
+We can do this using the `apply_method`.
 
 ```{julia}
+#| output: false
 mishra_results = apply_method(mishra_mdl,
     inference_method,
     training_data
 )
-summarystats(mishra_results.samples)
+```
+
+This gives the following posterior estimates for our model parameters.
+
+```{julia}
+summarystats(mishra_results.samples)[1:7, :]
 ```
 
 ```{julia}
@@ -642,75 +684,6 @@ function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
         label="95%"
     )
     axislegend(ax)
-end
-
-# Older plotting left temporarily so render continues (used further down)
-function plot_post_pred(inference_data, inference_results; epi_prob,
-    qs=[0.025, 0.25, 0.5, 0.75, 0.975])
-    y_t = inference_data.y_t
-    dates = inference_data.dates
-    ts = dates .|> d -> d - minimum(dates) .|> d -> d.value + 1
-    t_ticks = string.(dates)
-
-    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, length(y_t)),))
-
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
-
-
-    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-        transformation=x -> exp.(x))
-
-    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
-    predicted_y_t = predicted_y_t[(n+1):end, :]
-
-    fig = Figure()
-    ax1 = Axis(fig[1, 1];
-        ylabel="Daily cases",
-        xticks=(ts[1:14:end], t_ticks[1:14:end]),
-        title="Posterior predictive: Cases"
-    )
-    ax2 = Axis(fig[2, 1];
-        yscale=log10,
-        title="Prediction: Reproduction number",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
-    )
-    linkxaxes!(ax1, ax2)
-
-    lines!(ax1, ts[(n+1):end], predicted_y_t[:, 3];
-        color=:purple,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax1, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color=(:purple, 0.4),
-        label="50%"
-    )
-    band!(ax1, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color=(:purple, 0.2),
-        label="95%"
-    )
-    scatter!(ax1, ts, y_t;
-        color=:black,
-        label="Actual cases")
-    axislegend(ax1)
-
-    lines!(ax2, ts, predicted_R_t[:, 3];
-        color=:green,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax2, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
-        color=(:green, 0.4),
-        label="50%"
-    )
-    band!(ax2, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
-        color=(:green, 0.2),
-        label="95%"
-    )
-    axislegend(ax2)
-
-    return fig
 end
 ```
 
@@ -790,19 +763,9 @@ Figure @fig-figure2 shows that the compositional model defined using our prototy
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
-In this case study we replicate a common `EpiNow2` configuration using our prototype framework.
+In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
 EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
-EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations:
-
-1.  **Renewal-based transmission modeling**: EpiNow2 uses the discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain).
-
-2.  **Delayed observation processes**: The framework explicitly accounts for the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags.
-
-3.  **Temporal modifiers to observation**: Case counts are modeled using a (default) negative binomial distribution to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects to account for systematic biases in reporting patterns.
-
-We recreate the core EpiNow2 functionality by **reusing model components from @sec-example1** and **composing them with new delay and temporal effect components**.
-This showcases the flexibility and modularity of our approach - rather than implementing everything from scratch, we build upon previously defined components in a principled way.
-We will reuse the renewal-based epidemiological model and ARIMA(2,1,1) latent process from @sec-dsl, whilst introducing new observation model components to handle reporting delays and day-of-week effects.
+EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for systematic biases in reporting patterns. We recreate the core EpiNow2 functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
 
 ### Data
 
@@ -810,6 +773,7 @@ We use the example dataset included with the EpiNow2 R package, which contains d
 This dataset spans from 22 February to 30 June 2020.
 
 ```{julia}
+#| output: false
 using Chain, CSV, DataFramesMeta, Dates
 datapath = "data/italy_data.csv"
 italy_data = @chain datapath begin
@@ -887,7 +851,6 @@ Since our prototype does not yet support uncertain delay distributions, we use t
 ```{julia}
 gen_time_dist = Gamma(1.4, 1/0.38)
 epinow2_data = EpiData(gen_distribution = gen_time_dist)
-display(epinow2_data.gen_int)
 ```
 
 We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
@@ -895,7 +858,6 @@ We  use a similar `renewal` structure as we did in @sec-example1, updating it to
 ```{julia}
 initialisation_prior = Normal(log(1.0), 2.0)
 renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
-display(renewal_gt)
 ```
 
 To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
@@ -919,18 +881,20 @@ dayofweek_negbin = ascertainment_dayofweek(negbin;
     )
 ```
 
-Unpacking this helper function we have a nested stack of modelling constructions.
-First on the transformation and broadcasting,
+Unpacking this helper function reveals a nested stack of modelling constructions.
+First, the transformation and broadcasting generates:
 
 ```{julia}
+#| echo: false
 print(@code_string broadcast_dayofweek(HierarchicalNormal()))
 ```
 
 Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
 
-And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing.
+And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing, which produces:
 
 ```{julia}
+#| echo: false
 I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
@@ -952,7 +916,6 @@ We compose two delay layers sequentially:
 ```{julia}
 incubation_dayofweek_negbin = LatentDelay(dayofweek_negbin, incubation_distribution)
 delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_distribution)
-display(delay_dayofweek_negbin)
 ```
 
 This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
@@ -979,6 +942,7 @@ end
 We compose these modelling subcomponents into one `EpiProblem` model. The delay padding accounts for the combined length of the incubation period and reporting delay pmfs, allowing the model to properly account for infections that have occurred but not yet been observed by the end of the training period.
 
 ```{julia}
+#| output: false
 incubation_pmf_length = length(incubation_dayofweek_negbin.rev_pmf)
 reporting_pmf_length = length(delay_dayofweek_negbin.rev_pmf)
 delay_padding = incubation_pmf_length + reporting_pmf_length
@@ -996,6 +960,7 @@ The observation model reuses `negbin` from @sec-example1, layering on delays and
 We filter the data as before to the timespan of interest.
 
 ```{julia}
+#| output: false
 italy_training_data = @chain italy_data begin
     @set _.y_t = _.y_t[first(tspan):last(tspan)]
     @set _.dates = _.dates[first(tspan):last(tspan)]
@@ -1005,17 +970,24 @@ end
 We again construct a Turing model using `generate_epiaware`.
 
 ```{julia}
+#| output: false
 epinow2_mdl = generate_epiaware(epinow2, italy_training_data)
 ```
 
 We reuse the same `inference_method` defined in @sec-example1..
 
 ```{julia}
+#| output: false
 epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     italy_training_data
 )
-summarystats(epinow2_results.samples)
+```
+
+Here is the summarised posterior:
+
+```{julia}
+summarystats(epinow2_results.samples)[1:7, :]
 ```
 
 We see the model has converged and the summary statistics are similar to @sec-example1.
