@@ -89,13 +89,6 @@ jobs:
           echo "has-artifacts=$outputs_exist" >> $GITHUB_OUTPUT
           echo "Found outputs: $outputs_exist"
 
-      - name: List generated files
-        run: |
-          echo "Generated files:"
-          find . -name "*.html" -o -name "*.pdf" -o -name "*.ipynb" | head -20
-          echo "Contents of _site:"
-          ls -la _site/
-
       - name: Copy artifacts to _site for GitHub Pages
         run: |
           mkdir -p _site

@@ -764,13 +764,12 @@ Figure @fig-figure2 shows that the compositional model defined using our prototy
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
 In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
-EpiNow2 [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
-EpiNow2 is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for systematic biases in reporting patterns. We recreate the core EpiNow2 functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
+`EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
+`EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for systematic biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
 
 ### Data
 
-We use the example dataset included with the EpiNow2 R package, which contains daily confirmed COVID-19 cases from Italy during the first wave in 2020.
-This dataset spans from 22 February to 30 June 2020.
+We use the example dataset included with the `EpiNow2` R package, which contains daily confirmed COVID-19 cases from Italy during the first wave in 2020, from 22nd February to 30th June.
 
 ```{julia}
 #| output: false
@@ -784,10 +783,8 @@ end
 
 ### Model
 
-Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, making it piecewise constant by week, whilst building a complex observation model that accounts for reporting delays and day-of-week effects.
-Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
-The observation model layers three effects: negative binomial observation noise (reused from @sec-example1), day-of-week temporal modifiers, and reporting delays via convolution.
-
+Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, making it piecewise constant by week, whilst building an observation model that accounts for reporting delays and day-of-week effects using discrete convolutions and a partially pooled day of the week effect.
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 Mathematically, we represent the complete model as:
 
 $$
@@ -814,15 +811,16 @@ The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on r
 #### Latent Model
 
 We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
-This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
-In EpiNow2, although stationary processes representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is the default $R_t$ process is stationary only on its increments.
-The piecewise constant weekly version is a configuration option in EpiNow2 but not the default.
-Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to the increments $R_{w} - R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
-Prior predictive samples (Figure @fig-figure3 A) show the behaviour of this piecewise constant by week process.
-
 ```{julia}
+#| output: false
 weekly_arima211 = broadcast_weekly(arima211)
 ```
+
+This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
+In `EpiNow2`, although stationary process representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
+Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to the increments $\log R_{w} - \log R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
+The weekly piecewise constant formulation we use is an option in the `EpiNow2` package but not part of the default model.
+Prior predictive samples (Figure @fig-figure3 A) show the behaviour of the piecewise constant by week process.
 
 ```{julia}
 #| echo: false
@@ -841,30 +839,32 @@ end
 
 #### Infection Generating Process
 
-The renewal equation requires a discrete generation time pmf $g_t$.
-Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), EpiNow2 uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
 
-EpiNow2 uses a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
+Here we follow the `EpiNow2` getting started vignette to parameterise our model, this has a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
 Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days.
 
 ```{julia}
-gen_time_dist = Gamma(1.4, 1/0.38)
-epinow2_data = EpiData(gen_distribution = gen_time_dist)
+#| output: false
+gen_time_dist = Gamma(1.4, 1 / 0.38)
+epinow2_data = EpiData(gen_distribution=gen_time_dist)
 ```
 
 We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
 
 ```{julia}
+#| output: false
 initialisation_prior = Normal(log(1.0), 2.0)
 renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
 ```
 
-To demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
+As before, to demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
 Figure @fig-figure3 B shows prior samples from the renewal process conditional on this $R_t$ trajectory.
 
 ```{julia}
 #| echo: false
+#| output: false
 renewal_mdl = let
     rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
     _renewal_mdl = generate_latent_infs(renewal_gt, log.(rt_process))
@@ -873,25 +873,27 @@ end
 
 #### Observation Model
 
-We build the observation model through **composition** of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
+We build the observation model through the composition of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
+We start by adding a day of the week ascertainment model using the `ascertainment_dayofweek` helper function.
 
 ```{julia}
+#| output: false
 dayofweek_negbin = ascertainment_dayofweek(negbin;
-    latent_model = HierarchicalNormal(std_prior = HalfNormal(1.0))
-    )
+    latent_model=HierarchicalNormal(std_prior=HalfNormal(1.0))
+)
 ```
 
 Unpacking this helper function reveals a nested stack of modelling constructions.
-First, the transformation and broadcasting generates:
+First, transformation and broadcasting
 
 ```{julia}
 #| echo: false
 print(@code_string broadcast_dayofweek(HierarchicalNormal()))
 ```
 
-Which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
+which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
 
-And second on the action of ascertainment as a multiplier on the time series of latent infections along with the probabilistic model for $\tilde{\omega}$ and variable prefixing, which produces:
+Second is the linkage of the day of week model to the latent infections time series as a multiplicative ascertainment process, which produces
 
 ```{julia}
 #| echo: false
@@ -899,8 +901,8 @@ I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
 
-EpiNow2 models two sequential delays: an incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
-The incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
+In addition to ascertainment, we also need to model the incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
+Again following the `EpiNow2` getting started vignette, the incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
 The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, giving a mean of 1.99 days.
 
 Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values:
