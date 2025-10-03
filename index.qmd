@@ -763,6 +763,13 @@ figure2 = let
     post_predictive_yt!(ax22, training_data, posterior_gens; qs)
     post_predictive_Rt!(ax23, training_data, posterior_gens; qs)
 
+    # Format y-axis labels to avoid scientific notation
+    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
                                 [fig[1,1], fig[1,2], fig[1,3], fig[2,1], fig[2,2], fig[2,3]])
