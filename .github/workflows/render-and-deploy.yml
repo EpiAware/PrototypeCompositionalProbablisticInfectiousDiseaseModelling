@@ -103,7 +103,7 @@ jobs:
           name: quarto-outputs-${{ github.sha }}
           path: |
             _manuscript/index.pdf
-            index.ipynb
+            _manuscript/index.ipynb
             Project.toml
             Manifest.toml
             data/
