@@ -99,8 +99,7 @@ jobs:
       - name: Copy artifacts to _site for GitHub Pages
         run: |
           mkdir -p _site
-          cp _manuscript/index.pdf _site/ || echo "PDF not found"
-          cp _manuscript/index.ipynb _site/ || echo "Notebook not found"
+          cp -r _manuscript/* _site/ 2>/dev/null || echo "Manuscript files not found"
           cp Project.toml _site/ || echo "Project.toml not found"
           cp Manifest.toml _site/ || echo "Manifest.toml not found"
           cp -r data _site/ || echo "Data folder not found"
