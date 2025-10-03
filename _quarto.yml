@@ -1,5 +1,8 @@
 project:
   type: manuscript
+  code-links:
+    - binder
+    - repo
   render:
     - index.qmd
 
@@ -22,6 +25,7 @@ format:
     keep-tex: false
     number-sections: false
     colorlinks: true
+    notebook-links: false
   ipynb: default
 
 bibliography: references.bib
