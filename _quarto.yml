@@ -34,10 +34,8 @@ bibliography: references.bib
 csl: https://www.zotero.org/styles/plos-computational-biology
 
 execute:
-  echo: true
   warning: false
   cache: true
-  output: true
   freeze: auto
 
 julia:

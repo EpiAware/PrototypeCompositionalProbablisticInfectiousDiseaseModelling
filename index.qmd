@@ -619,7 +619,7 @@ mishra_results = apply_method(mishra_mdl,
 This gives the following posterior estimates for our model parameters.
 
 ```{julia}
-summarystats(mishra_results.samples)[1:7, :]
+summarystats(mishra_results.samples)
 ```
 
 ```{julia}
@@ -1006,7 +1006,7 @@ epinow2_results = apply_method(epinow2_mdl,
 Here is the summarised posterior:
 
 ```{julia}
-summarystats(epinow2_results.samples)[1:7, :]
+summarystats(epinow2_results.samples)
 ```
 
 We see the model has converged and the summary statistics are similar to @sec-example1.
