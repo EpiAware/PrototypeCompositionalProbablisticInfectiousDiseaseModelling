@@ -439,6 +439,7 @@ As expected the observed discrete generation interval differs from the underlyin
 
 ```{julia}
 #| echo: false
+#| output: false
 function discretised_gen_plot!(ax, model_data, truth_SI)
     barplot!(ax, model_data.gen_int;
         label="Discretized next gen pmf"
@@ -480,13 +481,14 @@ The implied distribution of $I_t$ trajectories conditional on this $R_t$ traject
 
 ```{julia}
 #| echo: false
+#| output: false
 function plot_latent_infections!(ax, renewal_mdl; n_samples)
     renewal_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         renewal_mdl()
     end
     for col in eachcol(renewal_mdl_samples)
         lines!(ax, col;
-            color = (:grey, 0.1)
+            color=(:grey, 0.1)
         )
     end
     return nothing
@@ -494,8 +496,8 @@ end
 
 function plot_Rt_traj!(ax, Rt)
     lines!(ax, Rt;
-            linewidth = 2
-        )
+        linewidth=2
+    )
     return nothing
 end
 ```
@@ -509,7 +511,7 @@ We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) bec
 A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
 
 ```{julia}
-#| echo: false
+#| output: false
 negbin = NegativeBinomialError(cluster_factor_prior=HalfNormal(0.1))
 ```
 
@@ -517,7 +519,7 @@ As with the latent model, we can generate a `Turing.jl` model conditional on a f
 Here we simulated this to look like an outbreak with a symmetrical growth and decay phase.
 
 ```{julia}
-#| echo: false
+#| output: false
 I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
 negbin_mdl = generate_observations(negbin, missing, I_t)
 ```
@@ -527,6 +529,7 @@ Prior predictive samples (Figure @fig-figure2 C) show the dispersion around the 
 
 ```{julia}
 #| echo: false
+#| output: false
 function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
     negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         θ = negbin_mdl()
@@ -614,6 +617,7 @@ summarystats(mishra_results.samples)[1:7, :]
 
 ```{julia}
 #| echo: false
+#| output: false
 dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
 
 function generated_quantiles(gens, quantity, qs; transformation=x -> x)
@@ -826,6 +830,7 @@ Prior predictive samples (Figure @fig-figure3 A) show the behaviour of the piece
 
 ```{julia}
 #| echo: false
+#| output: false
 weekly_arima211_mdl = generate_latent(weekly_arima211, 50)
 
 function arima_sample_plot!(ax, arima_mdl; n_samples=100)
@@ -910,6 +915,7 @@ The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, givin
 Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values:
 
 ```{julia}
+#| output: false
 incubation_distribution = LogNormal(1.6, 0.42)
 reporting_distribution = LogNormal(0.58, 0.47)
 ```
@@ -918,6 +924,7 @@ The `LatentDelay` struct uses double interval censoring @charniga2024best to con
 We compose two delay layers sequentially:
 
 ```{julia}
+#| output: false
 incubation_dayofweek_negbin = LatentDelay(dayofweek_negbin, incubation_distribution)
 delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_distribution)
 ```
@@ -928,6 +935,7 @@ Figure @fig-figure3 C demonstrates how these delay and day-of-week effects work 
 
 ```{julia}
 #| echo: false
+#| output: false
 function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
     obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         obs_mdl()
@@ -1109,23 +1117,33 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 
 <!-- Strengths and weaknesses interwoven -->
 
--   Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
--   Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
--   Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
--   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns.
--   Standardised interfaces enable large language models to compose models programmatically whilst validation methods ensure statistical rigour.
--   High-level component interfaces reduce context requirements for language models, enabling deployment of smaller or less advanced models on local compute in resource-constrained settings.
--   Current struct manipulation xannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention. Either have to avoid this pattern or solve.
- - The Turing PPL DSL is not fully stable and since developing this prototype the submodel macro has changed syntax and had breaking changes in how it handles prefixes.
-   The new version introduces automatic prefix generation and enforces that all variables in a model must be returned, meaning our current prototype implementation is not compatible with the latest Turing.jl release.
- - However, these changes allow for more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
- - Other recent changes in Turing.jl such as the primary workflow being conditioning an fixing with no argument for observations impact how data is conditioned on the model. This would mean not having to pass observations through layers of the model and so would make building composable models much easier.
- - In the current version there is limited support for conditioning on data i.e no helper functions whicyh in some settings like when latent delays are added can be an issue as the data that is simulated by the model will be truncated by the length of the maximum delay
- - `Turing.jl` has limited handling of numerical instability and so things like large counts being simulated can cause errors which makes evaluating and developing models frustrating
- - Struct interface adds overhead and ineffeciencies to the model. Not clear on the impact of this or how to improve. There are profiling tools in Julia but unclear how to use them wiuth Turing models.
- - We only partially implemented support for automated mappings between latent and observed states. Doing this well is tricky. 
- - Similarly we only added partial support for partial pooling approaches etc again hard. 
- - Ignores category theory.
+A key strength of our prototype approach is its modular design, which enables rapid model development and component reuse, whilst also facilitating systematic comparison of modelling assumptions without large reimplementation efforts.
+The approach reduces implementation barriers for methodological advances and enables researchers to embed novel components within existing models more easily.
+Standardised interfaces should also allow large language models to compose models programmatically with validation methods ensuring correctness.
+However, a clear limitation is that this is just a prototype and not designed for ongoing use or adoption.
+For example, we only partially implemented support for automated mappings between latent and observed states, which remains challenging to do well.
+Similarly we only added partial support for partial pooling approaches with no infrastructure in place to support users in using this functionality in our DSL layer.
+The current component library also remains limited to basic epidemiological patterns.
+Finally, the current struct manipulation tooling cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention, requiring either avoiding this pattern or developing additional solutions.
+Whilst the prototype implementation has limitations, the three real-world case studies presented here establish the viability of compositional approaches for practical epidemiological problems.
+On top of this, we have layed the ground work for future work and given clear requirements that future composable frameworks should seek to meet in order to meet the needs of applied infectious disease modelling.
+Another key limitation is the learning curve required for researchers familiar with monolithic approaches to adopt this compositional paradigm.
+However, as they can embed elements of our system within their existing models and as they can implement their own compositional elements with minimal understanding of the overall architecture these barriers to use should be mitigated. 
+Computational overhead from abstraction layers is also a concern, the impact of this overhead and potential optimisations remain unclear.
+However, Turing.jl and Julia are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could substantially reduce computational costs in future implementations.
+Similarly, ongoing work in the Turing.jl ecosystem should be able to identify and resolve any bottlenecks in performance that do emerge.
+A strength of the Julia ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces, enabling innovation across projects.
+However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
+Users may not know whether problems originate in `Turing.jl`, our prototype DSL, or elsewhere in the ecosystem and even once located it can be difficult to determine who is responsible for resolving them.
+There are also additional technical barriers within the Turing.jl ecosystem.
+The Turing PPL DSL is not fully stable and since developing this prototype the `@submodel` macro has changed syntax and become a function with breaking changes in how it handles prefixes and in how it manages variables within a submodel, meaning our current prototype implementation is not compatible with the latest `Turing.jl` release.
+However, some of these changes do allow for potentially more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
+Other recent changes in Turing.jl such as the primary workflow for observed data being to condition and fix with no argument for observations impact how data is conditioned on the model, which would mean not having to pass observations through layers of the model and so would make building composable models much easier.
+Turing.jl also has limited handling of numerical instability and so things like large counts being simulated can cause errors, which makes evaluating and developing models frustrating.
+A key advantage of the Julia ecosystem for a composable modelling tool built on top of a PPL is the access to the full features of a programming language.
+However, in practice some of these utilities, such as profiling tools can be frustrating and difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystem because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks in model components.
+The ecosystem needs further development in areas such as debugging tools that can trace through model execution whilst preserving the semantic structure of probabilistic models, better error messages that relate numerical issues to model specification rather than low-level implementation details, and standardised approaches for model validation and testing.
+The `EpiMethod` approach for chaining inference (combining pre-sampling like Pathfinder with sampling like NUTS) shows promise but should be a `Turing.jl` general solution rather than epi-specific because many domains face similar challenges of difficult posterior geometries where adaptive warmup strategies could improve both efficiency and reliability of inference across the broader probabilistic programming ecosystem.
  
 <!-- Comparison to literature - Algebraic Julia -->
 
