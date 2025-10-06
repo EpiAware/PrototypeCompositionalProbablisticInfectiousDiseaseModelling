@@ -20,7 +20,7 @@ affiliations:
     name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine"
 date: today
 abstract: |
-  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and Turing.jl. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. Across all case studies, the same core components combine differently to address distinct epidemiological questions. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, and integrate bridges to existing epidemiological software ecosystems.
+  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and Turing.jl. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. Across all case studies, the same core components combine differently to address distinct epidemiological questions. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
 ---
 
 # Introduction {#sec-introduction}
@@ -40,6 +40,7 @@ To adapt or extend such models, analysts need to fully comprehend all parts of t
 Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
 This prevents effective integration of expertise across disciplines.
 Transfer of methodology between outbreak events has proven difficult, with each posing unanticipated challenges that existing tools cannot accommodate.
+Whilst large language models offer potential to assist with model construction, current monolithic approaches lack the structured component interfaces and validation frameworks needed for such systems to compose models reliably.
 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour that could address these limitations.
 Advances in Turing.jl have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
@@ -73,6 +74,7 @@ This means supporting abstract back-ends that seamlessly switch between inferenc
 
 We also need to have model components that encapsulate both structure and prior distributions so that domain experts can contribute specialised knowledge: a virologist's understanding of within-host dynamics, an epidemiologist's of contact patterns, a clinician's of disease progression insights without reviewing the entire modelling framework.
 Standardised interfaces between components are needed to allow individual components to work together, to support handling of multiple strata, and to allow for proper uncertainty propagation.
+Such interfaces also enable large language models to serve as model construction agents, systematically composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
 As there are a range of different potential ways to express infectious disease models including ordinary differential equations, agent-based models, network models, stochastic processes, and discrete time models these all need to be supported both independently and in combination.
 Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches.
@@ -1110,11 +1112,19 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 -   Modular design enables rapid model development and component reuse, though requires learning curve for researchers familiar with monolithic approaches
 -   Systematic comparison of modelling assumptions without large reimplementation, but computational overhead from abstraction layers
 -   Transparent specification through explicit component interfaces improves reproducibility, yet interface standardisation may constrain some specialised approaches
--   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns
--   Current struct manipulation approaches require users to understand the complete nested structure when modifying deeply embedded model components, and cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention
+-   Reduces implementation barriers for methodological advances, however current component library remains limited to basic epidemiological patterns.
+-   Standardised interfaces enable large language models to compose models programmatically whilst validation methods ensure statistical rigour.
+-   High-level component interfaces reduce context requirements for language models, enabling deployment of smaller or less advanced models on local compute in resource-constrained settings.
+-   Current struct manipulation xannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention. Either have to avoid this pattern or solve.
  - The Turing PPL DSL is not fully stable and since developing this prototype the submodel macro has changed syntax and had breaking changes in how it handles prefixes.
    The new version introduces automatic prefix generation and enforces that all variables in a model must be returned, meaning our current prototype implementation is not compatible with the latest Turing.jl release.
  - However, these changes allow for more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
+ - Other recent changes in Turing.jl such as the primary workflow being conditioning an fixing with no argument for observations impact how data is conditioned on the model. This would mean not having to pass observations through layers of the model and so would make building composable models much easier.
+ - In the current version there is limited support for conditioning on data i.e no helper functions whicyh in some settings like when latent delays are added can be an issue as the data that is simulated by the model will be truncated by the length of the maximum delay
+ - `Turing.jl` has limited handling of numerical instability and so things like large counts being simulated can cause errors which makes evaluating and developing models frustrating
+ - Struct interface adds overhead and ineffeciencies to the model. Not clear on the impact of this or how to improve. There are profiling tools in Julia but unclear how to use them wiuth Turing models.
+ - We only partially implemented support for automated mappings between latent and observed states. Doing this well is tricky. 
+ - Similarly we only added partial support for partial pooling approaches etc again hard. 
  - Ignores category theory.
  
 <!-- Comparison to literature - Algebraic Julia -->
@@ -1129,6 +1139,7 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 -   Comparison to modular frameworks in other scientific domains
 -   Relationship to probabilistic programming languages and compositional features
 -   Gen.jl and Genify (https://ztangent.github.io/assets/pdf/2021-genify.pdf)
+-   Other PPLs or languages that could support a similar approach i.e JAX and front ends for JAX such as `numpyro`.
 
 <!-- Future work -->
 
@@ -1140,11 +1151,16 @@ Symbolic-numeric frameworks like ModelingToolkit.jl [@modelingtoolkit2021] offer
 However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both essential for infectious disease modelling applications.
 An alternative potential abstraction approach would be to build the domain-specific language on Distributions.jl rather than Turing.jl, which would enable compatibility with multiple probabilistic programming languages like JuliaBUGS whilst trading off the expressiveness of Turing's submodel interface.
 Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
+The compositional framework creates opportunities for large language model integration.
+Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
+The explicit structure and validation tools of a composable framework should enable language models to reason about model design and propose structural adaptations more easily and with less room for error.
+Another advantage of our approach for large language model assisted model construction is that the high-level component interface reduces context and reasoning requirements, enabling deployment of smaller models on local compute in resource-constrained settings.
 
 <!-- Conclusions -->
 
 A fully featured implementation of the prototype we present here has the potential to transform real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
 This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing key limitations of both pipeline and joint modelling approaches.
+Compositional frameworks of the kind we outline here are also likely key to enabling, and increasing the robustness of, large language model assisted model construction approaches, especially in resource-constrained settings where such capabilities could prove most valuable.
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
 
 ## Acknowledgements
