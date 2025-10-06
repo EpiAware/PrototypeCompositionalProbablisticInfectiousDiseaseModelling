@@ -223,8 +223,13 @@ This separation enables a package extension pattern where standard Julia package
 Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following Turing code:
 
 ```{julia}
+#| output: false
 #| echo: false
 using CodeTracking, Revise
+```
+
+```{julia}
+#| echo: false
 print(@code_string EpiAwareBase.generate_latent(ar2, 50))
 ```
 
@@ -406,17 +411,18 @@ Prior predictive samples (Figure @fig-figure2 A) show that *a priori* these prio
 
 ```{julia}
 #| echo: false
+#| output: false
 using CairoMakie, Random
 Random.seed!(1234)
 
 ar_mdl = generate_latent(ar2, 50)
 
-function ar_sample_plot!(ax, ar_mdl; n_samples = 100)
+function ar_sample_plot!(ax, ar_mdl; n_samples=100)
     ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
         ar_mdl() .|> exp
     end
     for col in eachcol(ar_mdl_samples)
-        lines!(ax, col, color = (:grey, 0.1))
+        lines!(ax, col, color=(:grey, 0.1))
     end
     return nothing
 end
@@ -430,8 +436,9 @@ This is called inside the `EpiData` struct which we use to define the expected m
 _Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
 
 ```{julia}
+#| output: false
 truth_SI = Gamma(6.5, 0.62)
-model_data = EpiData(gen_distribution = truth_SI)
+model_data = EpiData(gen_distribution=truth_SI)
 ```
 
 Figure @fig-figure2 D compares the discretized generation interval with the underlying continuous distribution.
