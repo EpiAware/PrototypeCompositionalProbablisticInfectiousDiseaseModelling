@@ -49,6 +49,14 @@ The algebraic Julia ecosystem has applied these theoretical foundations to scien
 SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
 The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
 
+Figure @fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
+Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
+The schematic also highlights two examples of component reuse.
+The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
+This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
+
+![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
+
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
 The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
@@ -115,7 +123,7 @@ An observation model can contain a latent process as a field to represent time-v
 This cross-hierarchy composition extends the building block analogy to include more complex models.
 For instance, we can construct a delay convolution observation model, `LatentDelay`, using an underlying observation model and a delay distribution model.
 
-The `EpiProblem` structure serves as the top-level container assembling these components into a complete epidemiological model.
+The `EpiProblem` structure is a top-level container assembling these components into a complete epidemiological model.
 It holds an infection process (`epi_model`), a latent process (`latent_model`), an observation process (`observation_model`), and a time span for inference or simulation.
 Structures can be modified in place using tools like Accessors.jl, enabling both rapid model iteration and complex patterns such as partially pooled models that dynamically update low-level priors based on grouping structures.
 The abstract type system enables shared methods across all model components, such as print methods (shown below) for displaying model specifications or functions for visualising model directed acyclic graphs.
@@ -300,7 +308,8 @@ conditioned_model = gen_model | (; y_obs = y_observed)
 chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
-We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl`.
+We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl` (Figure @fig-arima-demo).
+The posterior distributions successfully recover the simulated parameter values, demonstrating that our compositional approach can perform inference on this model.
 
 ```{julia}
 #| output: false
@@ -327,18 +336,18 @@ function plot_fit_with_truth(chain, truth, params)
     )
     return f
 end
+```
 
+```{julia}
+#| echo: false
+#| label: fig-arima-demo
+#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions successfully recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
 plot_fit_with_truth(
     chains,
     simulated_params,
     params
 )
 ```
-
-**Figure 1**: Compositional Modelling Architecture *Panel A*: Generic composition pattern showing struct-in-struct hierarchy with recursive dispatch through abstract type system.
-*Panel B*: Posterior density plot with true values (i.e. pairs plot)
-*Panel C*: Posterior predictive vs the sampled data.
-*Panel D*: Backend abstraction architecture with Turing as current implementation and potential for ODE, agent-based, and other computational backends.
 
 # Case Studies {#sec-case-studies}
 
@@ -407,7 +416,7 @@ This means that we determine the initial condition of the latent infecteds befor
 #### Latent Model
 
 We reuse the AR(2) model `ar2` defined in @sec-dsl, which has the appropriate priors from _Mishra et al_.
-Prior predictive samples (Figure @fig-figure2 A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
+Prior predictive samples (Figure @fig-figure3 A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
 
 ```{julia}
 #| echo: false
@@ -441,7 +450,7 @@ truth_SI = Gamma(6.5, 0.62)
 model_data = EpiData(gen_distribution=truth_SI)
 ```
 
-Figure @fig-figure2 D compares the discretized generation interval with the underlying continuous distribution.
+Figure @fig-figure3 D compares the discretized generation interval with the underlying continuous distribution.
 As expected the observed discrete generation interval differs from the underlying continuous distrbution due to the double censoring process.
 
 ```{julia}
@@ -484,7 +493,7 @@ Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
 renewal_mdl = generate_latent_infs(renewal, log.(Rt))
 ```
 
-The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can then be sampled independently of other model components (Figure @fig-figure2 B). As expected this gives us a "classical" outbreak like dynamic with infection incidence initially increasing exponentially, the rate of growth slowing over time, and then finally the infection incidence "turning over".
+The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can then be sampled independently of other model components (Figure @fig-figure3 B). As expected this gives us a "classical" outbreak like dynamic with infection incidence initially increasing exponentially, the rate of growth slowing over time, and then finally the infection incidence "turning over".
 
 ```{julia}
 #| echo: false
@@ -532,7 +541,7 @@ negbin_mdl = generate_observations(negbin, missing, I_t)
 ```
 
 Here we use a `missing` argument to indicate observed variables that are to be sampled rather than to be used to accumulate log posterior density.
-Prior predictive samples (Figure @fig-figure2 C) show the dispersion around the mean implied by our choice of prior.
+Prior predictive samples (Figure @fig-figure3 C) show the dispersion around the mean implied by our choice of prior.
 
 ```{julia}
 #| echo: false
@@ -703,9 +712,9 @@ end
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-figure2
+#| label: fig-figure3
 #| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-figure2 = let
+figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
     t_ticks = @chain training_data begin
@@ -769,10 +778,10 @@ figure2 = let
     fig
 end
 
-figure2
+figure3
 ```
 
-Figure @fig-figure2 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, Figure @fig-figure2 F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (Figure @fig-figure2 E).
+Figure @fig-figure3 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, Figure @fig-figure3 F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (Figure @fig-figure3 E).
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
@@ -833,7 +842,7 @@ This approach models the log reproduction number as constant within each week wh
 In `EpiNow2`, although stationary process representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
 Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to the increments $\log R_{w} - \log R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
 The weekly piecewise constant formulation we use is an option in the `EpiNow2` package but not part of the default model.
-Prior predictive samples (Figure @fig-figure3 A) show the behaviour of the piecewise constant by week process.
+Prior predictive samples (Figure @fig-figure4 A) show the behaviour of the piecewise constant by week process.
 
 ```{julia}
 #| echo: false
@@ -874,7 +883,7 @@ renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
 ```
 
 As before, to demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
-Figure @fig-figure3 B shows prior samples from the renewal process conditional on this $R_t$ trajectory.
+Figure @fig-figure4 B shows prior samples from the renewal process conditional on this $R_t$ trajectory.
 
 ```{julia}
 #| echo: false
@@ -938,7 +947,7 @@ delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_dist
 
 This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
 Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the strata-in-strata approach with multiple dispatch.
-Figure @fig-figure3 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
+Figure @fig-figure4 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
 #| echo: false
@@ -1010,14 +1019,14 @@ summarystats(epinow2_results.samples)
 ```
 
 We see the model has converged and the summary statistics are similar to @sec-example1.
-Figure @fig-figure3 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (Figure @fig-figure3 F), whilst explicitly accounting for reporting delays (Figure @fig-figure3 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (Figure @fig-figure3 E).
+Figure @fig-figure4 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (Figure @fig-figure4 F), whilst explicitly accounting for reporting delays (Figure @fig-figure4 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (Figure @fig-figure4 E).
 
 ```{julia}
 #| output: true
 #| echo: false
-#| label: fig-figure3
+#| label: fig-figure4
 #| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-figure3 = let
+figure4 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
     t_ticks = @chain italy_training_data begin
@@ -1103,7 +1112,7 @@ figure3 = let
     fig
 end
 
-figure3
+figure4
 ```
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
@@ -1189,6 +1198,8 @@ Compositional frameworks of the kind we outline here are also likely key to enab
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
 
 ## Acknowledgements
+
+Poppy the dog for growling at the right times.
 
 # References {.unnumbered}
 
