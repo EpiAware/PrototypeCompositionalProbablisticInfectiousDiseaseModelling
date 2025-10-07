@@ -1,12 +1,7 @@
 project:
-  type: manuscript
+  type: default
   render:
     - index.qmd
-
-manuscript:
-  code-links:
-    - binder
-    - repo
 
 engines: ['julia']
 
@@ -25,9 +20,11 @@ format:
     fontsize: 11pt
     linestretch: 1.5
     keep-tex: false
-    number-sections: false
+    number-sections: true
     colorlinks: true
     notebook-links: false
+    echo: true
+    output: true
   ipynb: default
 
 bibliography: references.bib
