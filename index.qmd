@@ -64,7 +64,7 @@ This highlights how components developed for one application could be incorporat
 ![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
 
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
-Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
+Our approach enables "LEGO-like" model decisions through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
 The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
 We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
@@ -1191,8 +1191,8 @@ The `EpiMethod` approach for chaining inference (combining pre-sampling like Pat
 -   Contrast with pipeline approaches (separate models passing information)
 -   Comparison to modular frameworks in other scientific domains
 -   Relationship to probabilistic programming languages and compositional features
--   `Gen.jl` and Genify (https://ztangent.github.io/assets/pdf/2021-genify.pdf)
--   Other PPLs or languages that could support a similar approach i.e JAX and front ends for JAX such as `numpyro`.
+-   `Gen.jl` [@cusumanotowner2019gen] and Genify [@tan2021genify]
+-   Other PPLs or languages that could support a similar approach such as JAX [@jax2018github] and front ends for JAX such as NumPyro [@phan2019composable].
 
 <!-- Future work -->
 
