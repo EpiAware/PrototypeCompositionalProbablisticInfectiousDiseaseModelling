@@ -271,8 +271,7 @@ using DynamicPPL, Turing, LinearAlgebra
 
 @model function arima_with_obs(arima_spec, n_timesteps)
     @submodel Z_t = generate_latent(arima_spec, n_timesteps)
-    σ_obs ~ truncated(Normal(0.0, 0.01), 0, Inf)
-    y_obs ~ MvNormal(Z_t, σ_obs * I)
+    y_obs ~ Fixed(Z_t)
     return y_obs
 end
 ```
