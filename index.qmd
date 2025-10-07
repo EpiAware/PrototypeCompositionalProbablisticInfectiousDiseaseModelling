@@ -232,7 +232,7 @@ These are standard Turing models with no special constraints beyond those impose
 Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom Turing code.
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
-The `accumulate_scan` pattern implements iterative temporal processes through step functions, with examples including `ARStep`, `RWStep`, and `ConstantRenewalStep` for autoregressive models, random walks, and renewal equations.
+For example, we use a common pattern, `accumulate_scan`, which builds on the base accumulate function to model iterative temporal processes through step functions.
 These step functions are structs built on the `AbstractAccumulationStep` interface that implement a callable defining the single-step update rule.
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
 This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
