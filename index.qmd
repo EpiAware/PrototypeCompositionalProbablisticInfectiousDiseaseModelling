@@ -53,7 +53,7 @@ Advances in `Turing.jl` have introduced submodel interfaces that enable composab
 Category theory provides the underlying mathematical frameworks for this composability through operadic composition in hierarchical model construction [@libkind2022algebraic].
 The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with `HydroModels.jl` and `ModelingToolkit.jl` demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
 `SpeedyWeather.jl` uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
-The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
+The key insight underlying these approaches is the separation of structural syntax, which defines valid compositions, from computational semantics, enabling modularity and independence of components whilst maintaining mathematical rigour.
 
 @fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
 Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
@@ -104,8 +104,7 @@ Additional benefits of Julia include eliminating the two-language problem, lever
 Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using `Turing.jl` (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
-The backend layer handles the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
-Alternative approaches using category theory or symbolic-numeric frameworks remain accessible through Julia's interoperability and could be made parts of future backends [@libkind2022algebraic; @modelingtoolkit2021].
+The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
@@ -131,7 +130,7 @@ For instance, we can construct a delay convolution observation model, `LatentDel
 
 The `EpiProblem` structure is a top-level container assembling these components into a complete epidemiological model.
 It holds an infection process (`epi_model`), a latent process (`latent_model`), an observation process (`observation_model`), and a time span for inference or simulation.
-Structures can be modified in place using tools like `Accessors.jl`, enabling both rapid model iteration and complex patterns such as partially pooled models that dynamically update low-level priors based on grouping structures.
+Structures can be modified in place using tools like `Accessors.jl`, enabling both model iteration and patterns such as partially pooled models that update low-level priors based on grouping structures.
 The abstract type system enables shared methods across all model components, such as print methods (shown below) for displaying model specifications or functions for visualising model directed acyclic graphs.
 This approach also allows for the creation of mappings between submodels such as one to one, one to many, and many to many mappings so that, for example, a single infection process can be linked to multiple observations models by specifying a mapping model.
 
@@ -196,7 +195,11 @@ The result of this step has been to update the `ar2` struct so that the definiti
 arma21
 ```
 
-Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing for non-stationary series:
+Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing operations that transform the series
+
+$$\Delta Z_t = Z_{t} - Z_{t-1}$$
+
+So that the ARIMA(2,1,1) model is defined as an ARMA(2,1) model for the first order differences:
 
 $$\Delta Z_t = \rho_1 \Delta Z_{t-1} + \rho_2 \Delta Z_{t-2} + \epsilon_t + \theta \epsilon_{t-1}$$
 
@@ -219,7 +222,7 @@ This approach enables representation of arbitrary latent processes through compo
 <!-- Reference to Panel D of Figure 1 -->
 
 Our DSL translates to Turing models through generate functions that dispatch on abstract type hierarchies.
-Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) defines a generate function interface that concrete model types must implement.
+Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) has a generate function interface that concrete model types must implement a method to dispatch upon.
 When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing Turing code using the `@model` macro.
 Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
 This systematic approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
@@ -360,7 +363,7 @@ plot_fit_with_truth(
 
 # Case Studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling system can recreate and extend existing epidemiological models.
+We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 
@@ -374,7 +377,7 @@ All code and data for reproducing the analyses in this paper are available at: h
 
 In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, as a renewal model with time-varying reproduction number $R_t$.
 Renewal models use the renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (or serial interval) [@cori2013new].
-This is analogous to an autoregressive process where the weights have epidemiological meaning rather than being estimated parameters.
+This is analogous to an autoregressive process where the autoregressive coefficients have epidemiological meaning rather than being estimated parameters.
 They show how solutions to the renewal equation, when combined with a negative binomial observation model, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
 
 ### Data
@@ -412,7 +415,7 @@ y_t & \sim \text{NegBin}(I_t, \phi), ~~ t = 1, 2, 3, \dots.
 \end{aligned}
 $$
 
-Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the damping parameters $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
+Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the autoregressive coefficients $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
 $g_t$ is the generation distribution probability mass function (pmf).
 $r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation.
 
@@ -739,6 +742,7 @@ figure3 = let
         epi_prob=mishra)
 
     fig = Figure(size=(1200, 1000))
+
     ax11 = Axis(fig[1, 1];
         yscale=log10,
         ylabel="Time varying Rₜ"
@@ -779,7 +783,7 @@ figure3 = let
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
-                                [fig[1,1], fig[1,2], fig[1,3], fig[2,1], fig[2,2], fig[2,3]])
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
         Label(layout[1, 1, TopLeft()], label,
             fontsize=18,
             font=:bold,
@@ -823,11 +827,10 @@ Mathematically, we represent the complete model as:
 
 $$
 \begin{aligned}
-Z_w & = \log R_w, \\
 \rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma_Z, \sigma_\omega, \phi &\sim \pi(\cdot), \\
 \epsilon_w & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall w, \\
 Z_w - Z_{w-1} &= \rho_1 (Z_{w-1} - Z_{w-2}) + \rho_2 (Z_{w-2} - Z_{w-3}) + \epsilon_w,~~ w = 1, 2, 3, \dots\\
-Z_t &= Z_{\lfloor t/7 \rfloor},~~ \text{Piecewise constant by week}\\
+R_t &= \exp\left(Z_{\lfloor t/7 \rfloor}\right),~~ \text{Piecewise } R_t \text{ constant by week}\\
 I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
 S_t &= \sum_{s\geq1} I_{t-s} \eta_s,~~ \text{Incubation delay: infections to symptom onset}\\
 D_t &= \sum_{s\geq1} S_{t-s} \xi_s,~~ \text{Reporting delay: symptom onset to case reports}\\
@@ -851,8 +854,8 @@ weekly_arima211 = broadcast_weekly(arima211)
 ```
 
 This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
-In `EpiNow2`, although stationary process representations $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
-Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to the increments $\log R_{w} - \log R_{w-1}$ at the weekly scale, then broadcasts this to daily values.
+In `EpiNow2`, although stationary process representations of $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
+Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to $\log R_{w}$ at the weekly scale, then broadcasts this to daily values.
 The weekly piecewise constant formulation we use is an option in the `EpiNow2` package but not part of the default model.
 Prior predictive samples (@fig-figure4 A) show the behaviour of the piecewise constant by week process.
 
@@ -878,7 +881,7 @@ Unlike @sec-example1 where the serial interval distribution was used (as in _Mis
 Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
 
 Here we follow the `EpiNow2` getting started vignette to parameterise our model, this has a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
-Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days.
+Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days
 
 ```{julia}
 #| output: false
@@ -1059,6 +1062,7 @@ figure4 = let
               (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
 
     fig = Figure(size=(1200, 1000))
+
     ax11 = Axis(fig[1, 1];
         yscale=log10,
         ylabel="Time varying Rₜ"
