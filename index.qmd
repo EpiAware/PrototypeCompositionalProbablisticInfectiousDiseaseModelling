@@ -61,7 +61,7 @@ The schematic also highlights two examples of component reuse.
 The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
 This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
 
-![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
+![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic out-width="85%"}
 
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
@@ -351,6 +351,7 @@ end
 #| echo: false
 #| label: fig-arima-demo
 #| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions successfully recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
+#| out-width: "85%"
 plot_fit_with_truth(
     chains,
     simulated_params,
@@ -726,6 +727,7 @@ end
 #| echo: false
 #| label: fig-figure3
 #| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+#| out-width: "85%"
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1041,6 +1043,7 @@ We see the model has converged and the summary statistics are similar to @sec-ex
 #| echo: false
 #| label: fig-figure4
 #| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+#| out-width: "85%"
 figure4 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
