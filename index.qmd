@@ -223,13 +223,13 @@ This approach enables representation of arbitrary latent processes through compo
 
 Our DSL translates to Turing models through generate functions that dispatch on abstract type hierarchies.
 Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) has a generate function interface that concrete model types must implement a method to dispatch upon.
-When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing Turing code using the `@model` macro.
+When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing `Turing.jl` using the `@model` macro.
 Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
 This approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
 The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like NUTS.
 These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` operations such as parameter fixing, model conditioning, and posterior predictive sampling.
-Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom Turing code.
+Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom `Turing.jl`.
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
 For example, we use a common pattern, `accumulate_scan`, which builds on the base accumulate function to model iterative temporal processes through step functions.
@@ -237,7 +237,7 @@ These step functions are structs built on the `AbstractAccumulationStep` interfa
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
 This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
 
-Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following Turing code:
+Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following `Turing.jl`:
 
 ```{julia}
 #| output: false
@@ -261,7 +261,7 @@ The MA model has a similar structure with its own internal step function.
 The `accumulate_scan` pattern enables composable iteration steps, allowing complex processes like renewal models with susceptible depletion to be built by composing simple step operations.
 This design means we only need to write the single-step operation without worrying about the iteration process, making components more modular and reusable.
 
-The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach, producing the following Turing code.
+The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach, producing the following `Turing.jl`.
 
 ```{julia}
 #| echo: false
@@ -269,7 +269,7 @@ print(@code_string generate_latent(arima211, 50))
 ```
 
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
-This recursive delegation through `@submodel` enables arbitrary composition while maintaining separation between components.
+This recursion through `@submodel` enables arbitrary composition while maintaining separation between components.
 
 To demonstrate fitting these submodels we first create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
 
