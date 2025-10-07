@@ -25,6 +25,9 @@ format:
     notebook-links: false
     echo: true
     output: true
+    fig-width: 7
+    fig-height: 5
+    fig-dpi: 96
   ipynb: default
 
 bibliography: references.bib
