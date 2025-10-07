@@ -1,12 +1,7 @@
 project:
-  type: manuscript
+  type: default
   render:
     - index.qmd
-
-manuscript:
-  code-links:
-    - binder
-    - repo
 
 engines: ['julia']
 
