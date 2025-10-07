@@ -20,7 +20,7 @@ affiliations:
     name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine"
 date: today
 abstract: |
-  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and Turing.jl. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. Across all case studies, the same core components combine differently to address distinct epidemiological questions. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
+  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. Across all case studies, the same core components combine differently to address distinct epidemiological questions. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
 ---
 
 ```{julia}
@@ -49,10 +49,10 @@ Transfer of methodology between outbreak events has proven difficult, with each 
 Whilst large language models offer potential to assist with model construction, current monolithic approaches lack the structured component interfaces and validation frameworks needed for such systems to compose models reliably.
 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour that could address these limitations.
-Advances in Turing.jl have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
+Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
 Category theory provides the underlying mathematical frameworks for this composability through operadic composition in hierarchical model construction [@libkind2022algebraic].
-The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with HydroModels.jl and ModelingToolkit.jl demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
-SpeedyWeather.jl uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
+The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with `HydroModels.jl` and `ModelingToolkit.jl` demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
+`SpeedyWeather.jl` uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
 The key insight underlying these approaches is the separation of syntax (composition) from semantics (computation), enabling modularity and independence of components whilst maintaining mathematical rigour.
 
 @fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
@@ -61,7 +61,7 @@ The schematic also highlights two examples of component reuse.
 The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
 This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
 
-![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic out-width="85%"}
+![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
 
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces [@speedyweather2024].
@@ -98,13 +98,13 @@ Finally, we need a framework that can be composed with out of domain approaches 
 Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
 We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and crucially access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
 As far as we are aware, only probabilistic programming languages built in Julia provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
-Among Julia's options, Turing.jl best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
+Among Julia's options, `Turing.jl` best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
 Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch for clean component composition, and accessing the mature SciML ecosystem for differential equations and other scientific computing tools.
 
-Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using Turing.jl (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
+Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using `Turing.jl` (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
-The backend layer handles the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the Turing.jl and wider Julia ecosystems.
+The backend layer handles the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 Alternative approaches using category theory or symbolic-numeric frameworks remain accessible through Julia's interoperability and could be made parts of future backends [@libkind2022algebraic; @modelingtoolkit2021].
 
 ## Domain-Specific Language Structure {#sec-dsl}
@@ -131,7 +131,7 @@ For instance, we can construct a delay convolution observation model, `LatentDel
 
 The `EpiProblem` structure is a top-level container assembling these components into a complete epidemiological model.
 It holds an infection process (`epi_model`), a latent process (`latent_model`), an observation process (`observation_model`), and a time span for inference or simulation.
-Structures can be modified in place using tools like Accessors.jl, enabling both rapid model iteration and complex patterns such as partially pooled models that dynamically update low-level priors based on grouping structures.
+Structures can be modified in place using tools like `Accessors.jl`, enabling both rapid model iteration and complex patterns such as partially pooled models that dynamically update low-level priors based on grouping structures.
 The abstract type system enables shared methods across all model components, such as print methods (shown below) for displaying model specifications or functions for visualising model directed acyclic graphs.
 This approach also allows for the creation of mappings between submodels such as one to one, one to many, and many to many mappings so that, for example, a single infection process can be linked to multiple observations models by specifying a mapping model.
 
@@ -225,7 +225,7 @@ Unit tests are used to ensure concrete implementations satisfy interface require
 This systematic approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
 The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like NUTS.
-These are standard Turing models with no special constraints beyond those imposed by the Turing.jl framework itself, supporting all DynamicPPL.jl operations such as parameter fixing, model conditioning, and posterior predictive sampling.
+These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` operations such as parameter fixing, model conditioning, and posterior predictive sampling.
 Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom Turing code.
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
@@ -351,7 +351,6 @@ end
 #| echo: false
 #| label: fig-arima-demo
 #| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions successfully recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
-#| out-width: "85%"
 plot_fit_with_truth(
     chains,
     simulated_params,
@@ -727,7 +726,6 @@ end
 #| echo: false
 #| label: fig-figure3
 #| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-#| out-width: "85%"
 figure3 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1043,7 +1041,6 @@ We see the model has converged and the summary statistics are similar to @sec-ex
 #| echo: false
 #| label: fig-figure4
 #| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-#| out-width: "85%"
 figure4 = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1164,16 +1161,16 @@ On top of this, we have layed the ground work for future work and given clear re
 Another key limitation is the learning curve required for researchers familiar with monolithic approaches to adopt this compositional paradigm.
 However, as they can embed elements of our system within their existing models and as they can implement their own compositional elements with minimal understanding of the overall architecture these barriers to use should be mitigated. 
 Computational overhead from abstraction layers is also a concern, the impact of this overhead and potential optimisations remain unclear.
-However, Turing.jl and Julia are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could substantially reduce computational costs in future implementations.
-Similarly, ongoing work in the Turing.jl ecosystem should be able to identify and resolve any bottlenecks in performance that do emerge.
+However, `Turing.jl` and Julia are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could substantially reduce computational costs in future implementations.
+Similarly, ongoing work in the `Turing.jl` ecosystem should be able to identify and resolve any bottlenecks in performance that do emerge.
 A strength of the Julia ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces, enabling innovation across projects.
 However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
 Users may not know whether problems originate in `Turing.jl`, our prototype DSL, or elsewhere in the ecosystem and even once located it can be difficult to determine who is responsible for resolving them.
-There are also additional technical barriers within the Turing.jl ecosystem.
+There are also additional technical barriers within the `Turing.jl` ecosystem.
 The Turing PPL DSL is not fully stable and since developing this prototype the `@submodel` macro has changed syntax and become a function with breaking changes in how it handles prefixes and in how it manages variables within a submodel, meaning our current prototype implementation is not compatible with the latest `Turing.jl` release.
 However, some of these changes do allow for potentially more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
-Other recent changes in Turing.jl such as the primary workflow for observed data being to condition and fix with no argument for observations impact how data is conditioned on the model, which would mean not having to pass observations through layers of the model and so would make building composable models much easier.
-Turing.jl also has limited handling of numerical instability and so things like large counts being simulated can cause errors, which makes evaluating and developing models frustrating.
+Other recent changes in `Turing.jl` such as the primary workflow for observed data being to condition and fix with no argument for observations impact how data is conditioned on the model, which would mean not having to pass observations through layers of the model and so would make building composable models much easier.
+`Turing.jl` also has limited handling of numerical instability and so things like large counts being simulated can cause errors, which makes evaluating and developing models frustrating.
 A key advantage of the Julia ecosystem for a composable modelling tool built on top of a PPL is the access to the full features of a programming language.
 However, in practice some of these utilities, such as profiling tools can be frustrating and difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystem because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks in model components.
 The ecosystem needs further development in areas such as debugging tools that can trace through model execution whilst preserving the semantic structure of probabilistic models, better error messages that relate numerical issues to model specification rather than low-level implementation details, and standardised approaches for model validation and testing.
@@ -1181,7 +1178,7 @@ The `EpiMethod` approach for chaining inference (combining pre-sampling like Pat
  
 <!-- Comparison to literature - Algebraic Julia -->
 
--   Builds on algebraic Julia ecosystem (DifferentialEquations.jl, etc.)
+-   Builds on algebraic Julia ecosystem (`DifferentialEquations.jl`, etc.)
 -   Extends scientific machine learning to epidemiological contexts
 -   Utilises Julia's multiple dispatch for component composition
 
@@ -1190,7 +1187,7 @@ The `EpiMethod` approach for chaining inference (combining pre-sampling like Pat
 -   Contrast with pipeline approaches (separate models passing information)
 -   Comparison to modular frameworks in other scientific domains
 -   Relationship to probabilistic programming languages and compositional features
--   Gen.jl and Genify (https://ztangent.github.io/assets/pdf/2021-genify.pdf)
+-   `Gen.jl` and Genify (https://ztangent.github.io/assets/pdf/2021-genify.pdf)
 -   Other PPLs or languages that could support a similar approach i.e JAX and front ends for JAX such as `numpyro`.
 
 <!-- Future work -->
@@ -1198,10 +1195,10 @@ The `EpiMethod` approach for chaining inference (combining pre-sampling like Pat
 Areas for future work include expanding the component library to address epidemiological applications across multiple scales and data types.
 More work is also needed to allow for modifying deeply nested model specifications without the user needing to be aware of the structure of the nested model.
 Methodological advances are also needed including for the joint estimation of interdependent epidemiological parameters, and then seamless integration of individual and population-level observations.
-Alternative approaches also need to investigated, particularly more formal category theory based methods that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in AlgebraicPetri.jl and AlgebraicDynamics.jl [@libkind2022algebraic].
-Symbolic-numeric frameworks like ModelingToolkit.jl [@modelingtoolkit2021] offer potential performance improvements through automatic optimisation and code generation.
+Alternative approaches also need to investigated, particularly more formal category theory based methods that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in `AlgebraicPetri.jl` and `AlgebraicDynamics.jl` [@libkind2022algebraic].
+Symbolic-numeric frameworks like `ModelingToolkit.jl` [@modelingtoolkit2021] offer potential performance improvements through automatic optimisation and code generation.
 However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both essential for infectious disease modelling applications.
-An alternative potential abstraction approach would be to build the domain-specific language on Distributions.jl rather than Turing.jl, which would enable compatibility with multiple probabilistic programming languages like JuliaBUGS whilst trading off the expressiveness of Turing's submodel interface.
+An alternative potential abstraction approach would be to build the domain-specific language on `Distributions.jl` rather than `Turing.jl`, which would enable compatibility with multiple probabilistic programming languages like `JuliaBUGS` whilst trading off the expressiveness of Turing's submodel interface.
 Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
 The compositional framework creates opportunities for large language model integration.
 Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
