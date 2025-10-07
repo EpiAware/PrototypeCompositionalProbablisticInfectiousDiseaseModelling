@@ -124,7 +124,7 @@ These structures are data-agnostic, specifying what to do when they encounter da
 Each hierarchy supports multiple concrete implementations that can be swapped to compare modelling assumptions whilst keeping other components fixed.
 
 Models can compose across these hierarchies rather than being restricted to combining components within a single type.
-An observation model can contain a latent process as a field to represent time-varying ascertainment, or wrap another observation model to add reporting delays.
+For example, an observation model can contain a latent process as a field to represent time-varying ascertainment, or wrap another observation model to add reporting delays.
 This cross-hierarchy composition extends the building block analogy to include more complex models.
 For instance, we can construct a delay convolution observation model, `LatentDelay`, using an underlying observation model and a delay distribution model.
 
