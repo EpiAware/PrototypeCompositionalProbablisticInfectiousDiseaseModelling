@@ -28,6 +28,14 @@ format:
     number-sections: true
     colorlinks: true
     notebook-links: false
+    include-in-header:
+      text: |
+        \usepackage{graphicx}
+        \setkeys{Gin}{width=0.8\textwidth,height=!,keepaspectratio}
+        \makeatletter
+        \let\oldincludegraphics\includegraphics
+        \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=1.0\textwidth,keepaspectratio]{#2}}
+        \makeatother
   ipynb: default
 
 bibliography: references.bib
