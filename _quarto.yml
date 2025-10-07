@@ -27,7 +27,16 @@ format:
     output: true
     fig-width: 7
     fig-height: 5
-    fig-dpi: 96
+    fig-format: pdf
+    fig-dpi: 300
+    include-in-header:
+      text: |
+        \usepackage{graphicx}
+        \setkeys{Gin}{width=0.8\textwidth,height=!,keepaspectratio}
+        \makeatletter
+        \let\oldincludegraphics\includegraphics
+        \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=1.0\textwidth,keepaspectratio]{#2}}
+        \makeatother
   ipynb: default
 
 bibliography: references.bib

@@ -341,8 +341,7 @@ function plot_fit_with_truth(chain, truth, params)
         PairPlots.Truth(
             filtered_truth,
             label="True Values"
-        );
-        figure=(; size=(600, 400))
+        )
     )
     return f
 end
@@ -739,7 +738,7 @@ figure3 = let
     posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
         epi_prob=mishra)
 
-    fig = Figure(size=(600, 400))
+    fig = Figure(size=(1200, 1000))
     ax11 = Axis(fig[1, 1];
         yscale=log10,
         ylabel="Time varying Rₜ"
@@ -1059,7 +1058,7 @@ figure4 = let
     obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
               (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
 
-    fig = Figure(size=(600, 400))
+    fig = Figure(size=(1200, 1000))
     ax11 = Axis(fig[1, 1];
         yscale=log10,
         ylabel="Time varying Rₜ"
