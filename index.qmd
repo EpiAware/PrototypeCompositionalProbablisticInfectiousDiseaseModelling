@@ -269,10 +269,9 @@ print(@code_string generate_latent(arima211, 50))
 ```
 
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
-This recursive delegation through `@submodel` enables arbitrary depth composition while maintaining separation between components.
+This recursive delegation through `@submodel` enables arbitrary composition while maintaining separation between components.
 
-The generated models are standard Turing models supporting all `DynamicPPL.jl` functionality.
-To demonstrate we create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
+To demonstrate fitting these submodels we first create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
 
 ```{julia}
 #| output: false
