@@ -51,7 +51,7 @@ Whilst large language models offer potential to assist with model construction, 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour that could address these limitations.
 Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
 Category theory provides the underlying mathematical frameworks for this composability through operadic composition in hierarchical model construction [@libkind2022algebraic].
-The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with `HydroModels.jl` and `ModelingToolkit.jl` demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces [@modelingtoolkit2021].
+The algebraic Julia ecosystem has applied these theoretical foundations to scientific computing, with `HydroModels.jl` [@jing2025hydromodels] and `ModelingToolkit.jl` [@modelingtoolkit2021] demonstrating how abstract backends can support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces.
 `SpeedyWeather.jl` uses an alternative approach, demonstrating "LEGO-like" atmospheric modelling with interactive domain-specific languages that enable modular component assembly [@speedyweather2024].
 The key insight underlying these approaches is the separation of structural syntax, which defines valid compositions, from computational semantics, enabling modularity and independence of components whilst maintaining mathematical rigour.
 
@@ -97,8 +97,8 @@ Finally, we need a framework that can be composed with out of domain approaches 
 
 Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
 We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
-As far as we are aware, only probabilistic programming languages built in Julia provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
-Among Julia's options, `Turing.jl` best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
+As far as we are aware, only probabilistic programming languages built in Julia [@Julia-2017] provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
+Among Julia's options, `Turing.jl` [@fjelde2025turin] best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
 Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch for clean component composition, and accessing the mature SciML ecosystem for differential equations and other scientific computing tools.
 
 Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using `Turing.jl` (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
@@ -142,6 +142,7 @@ $$Z_t = \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t, \quad \epsilon_t \sim \tex
 
 In our prototype DSL, this is defined using the `AR` struct.
 We use priors based on @mishra which we will reuse in @sec-example1.
+Prior distributions are specified using `Distributions.jl` [@JSSv098i16], the standard probability distributions package in the Julia ecosystem, which provides a unified interface for probability distributions that is interoperable with both our framework and `Turing.jl`.
 
 ```{julia}
 #| output: false
@@ -223,11 +224,11 @@ This approach enables representation of arbitrary latent processes through compo
 
 Our DSL translates to Turing models through generate functions that dispatch on abstract type hierarchies.
 Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) has a generate function interface that concrete model types must implement a method to dispatch upon.
-When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing `Turing.jl` using the `@model` macro.
+When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing `Turing.jl` [@fjelde2025turin] code using the `@model` macro.
 Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
 This approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
-The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like NUTS.
+The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like the No U-Turn Sampler (NUTS) [@hoffman2014nuts].
 These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` operations such as parameter fixing, model conditioning, and posterior predictive sampling.
 Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom `Turing.jl`.
 
@@ -319,7 +320,7 @@ conditioned_model = gen_model | (; y_obs = y_observed)
 chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
-We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl` (@fig-arima-demo).
+We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairPlots.jl` [@PairPlots.jl] with the `CairoMakie.jl` [@DanischKrumbiegel2021] backend for visualisation (@fig-arima-demo).
 The posterior distributions recover the simulated parameter values.
 
 ```{julia}
@@ -1164,9 +1165,9 @@ On top of this, we have layed the ground work for future work and given clear re
 Another limitation is the learning curve required for researchers familiar with monolithic approaches to adopt this compositional paradigm.
 However, as they can embed elements of our system within their existing models and as they can implement their own compositional elements with minimal understanding of the overall architecture these barriers to use should be mitigated. 
 Computational overhead from abstraction layers is also a concern, the impact of this overhead and potential optimisations remain unclear.
-However, `Turing.jl` and Julia are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could reduce computational costs in future implementations.
+However, `Turing.jl` [@fjelde2025turin] and Julia [@Julia-2017] are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could reduce computational costs in future implementations.
 Similarly, ongoing work in the `Turing.jl` ecosystem should be able to identify and resolve any bottlenecks in performance that do emerge.
-A strength of the Julia ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces, enabling innovation across projects.
+A strength of the Julia [@Julia-2017] ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces, enabling innovation across projects.
 However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
 Users may not know whether problems originate in `Turing.jl`, our prototype DSL, or elsewhere in the ecosystem and even once located it can be difficult to determine who is responsible for resolving them.
 There are also additional technical barriers within the `Turing.jl` ecosystem.
@@ -1174,10 +1175,10 @@ The Turing PPL DSL is not fully stable and since developing this prototype the `
 However, some of these changes do allow for potentially more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
 Other recent changes in `Turing.jl` such as the primary workflow for observed data being to condition and fix with no argument for observations impact how data is conditioned on the model, which would mean not having to pass observations through layers of the model and so would make building composable models much easier.
 `Turing.jl` also has limited handling of numerical instability and so things like large counts being simulated can cause errors, which makes evaluating and developing models frustrating.
-An advantage of the Julia ecosystem for a composable modelling tool built on top of a PPL is the access to the full features of a programming language.
+An advantage of the Julia [@Julia-2017] ecosystem for a composable modelling tool built on top of a PPL is the access to the full features of a programming language.
 However, in practice some of these utilities, such as profiling tools can be frustrating and difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystem because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks in model components.
 The ecosystem needs further development in areas such as debugging tools that can trace through model execution whilst preserving the semantic structure of probabilistic models, better error messages that relate numerical issues to model specification rather than low-level implementation details, and standardised approaches for model validation and testing.
-The `EpiMethod` approach for chaining inference (combining pre-sampling like Pathfinder with sampling like NUTS) shows promise but should be a `Turing.jl` general solution rather than epi-specific because many domains face similar challenges of difficult posterior geometries where adaptive warmup strategies could improve both efficiency and reliability of inference across the broader probabilistic programming ecosystem.
+The `EpiMethod` approach for chaining inference (combining pre-sampling like Pathfinder [@zhang2022pathfinder] with sampling like the No U-Turn Sampler (NUTS) [@hoffman2014nuts]) shows promise but should be a `Turing.jl` general solution rather than epi-specific because many domains face similar challenges of difficult posterior geometries where adaptive warmup strategies could improve both efficiency and reliability of inference across the broader probabilistic programming ecosystem.
  
 <!-- Comparison to literature - Algebraic Julia -->
 
