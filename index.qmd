@@ -320,7 +320,7 @@ chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
 We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl` (@fig-arima-demo).
-The posterior distributions recover the simulated parameter values, demonstrating that our compositional approach can perform inference on this model.
+The posterior distributions recover the simulated parameter values.
 
 ```{julia}
 #| output: false
@@ -352,7 +352,7 @@ end
 ```{julia}
 #| echo: false
 #| label: fig-arima-demo
-#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
+#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (blue) used to generate the synthetic data. The posterior distributions recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
 plot_fit_with_truth(
     chains,
     simulated_params,
@@ -366,7 +366,7 @@ We demonstrate how our prototype compositional modelling DSL can recreate and ex
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 
-All code and data for reproducing the analyses in this paper are available at: https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling.
+All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
