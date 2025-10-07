@@ -33,15 +33,15 @@ import QuartoTools
 
 Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making [@whitty2015what].
 Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
-Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture these multifaceted transmission processes, yet current modelling frameworks create barriers to this essential integration.
+Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture these multifaceted transmission processes, yet current modelling frameworks create barriers to this integration.
 Individual-level data such as viral loads, biomarkers, genomic sequences, and clinical observations are routinely ignored or aggregated when informing population-level models, losing information that could improve decisions.
 These barriers have prevented advances in settings where models could have provided actionable insights such as early outbreak analysis, wastewater surveillance, phylodynamics, clinical biomarkers, pooled testing, and large-scale clinical datasets.
 The next infectious disease threat is unpredictable and may be exacerbated by climate change [@Tsui2024-gy], requiring adaptable response capabilities that can rapidly incorporate diverse data sources and domain expertise.
 
 Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach, e.g., [@huisman2022]), or representing a single model tuned to the specific scenario (the joint model approach, e.g., [@birrell2024; @Watson2024-vj]).
-Both approaches have significant downsides.
+Both approaches have downsides.
 Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour [@lison2024].
-Joint approaches use single monolithic models that, whilst powerful in their ability to systematically integrate multiple processes and data streams, are too complex to enable transfer to other settings or extension with additional model components.
+Joint approaches use single monolithic models that, whilst powerful in their ability to integrate multiple processes and data streams, are too complex to enable transfer to other settings or extension with additional model components.
 To adapt or extend such models, analysts need to fully comprehend all parts of the corresponding model and code, creating barriers to sharing methodology and leading to inefficient re-implementation when parts of a model could, in principle, be re-used.
 Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
 This prevents effective integration of expertise across disciplines.
@@ -88,7 +88,7 @@ This means supporting abstract back-ends that seamlessly switch between inferenc
 
 We also need to have model components that encapsulate both structure and prior distributions so that domain experts can contribute specialised knowledge: a virologist's understanding of within-host dynamics, an epidemiologist's of contact patterns, a clinician's of disease progression insights without reviewing the entire modelling framework.
 Standardised interfaces between components are needed to allow individual components to work together, to support handling of multiple strata, and to allow for proper uncertainty propagation.
-Such interfaces also enable large language models to serve as model construction agents, systematically composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
+Such interfaces also enable large language models to serve as model construction agents, composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
 As there are a range of different potential ways to express infectious disease models including ordinary differential equations, agent-based models, network models, stochastic processes, and discrete time models these all need to be supported both independently and in combination.
 Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches.
@@ -96,7 +96,7 @@ Finally, we need a framework that can be composed with out of domain approaches 
 ## Our approach {#sec-design}
 
 Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
-We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and crucially access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
+We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
 As far as we are aware, only probabilistic programming languages built in Julia provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
 Among Julia's options, `Turing.jl` best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
 Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch for clean component composition, and accessing the mature SciML ecosystem for differential equations and other scientific computing tools.
@@ -225,7 +225,7 @@ Our DSL translates to Turing models through generate functions that dispatch on 
 Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) has a generate function interface that concrete model types must implement a method to dispatch upon.
 When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing Turing code using the `@model` macro.
 Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
-This systematic approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
+This approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
 The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like NUTS.
 These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` operations such as parameter fixing, model conditioning, and posterior predictive sampling.
@@ -321,7 +321,7 @@ chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
 We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairsPlots.jl` (@fig-arima-demo).
-The posterior distributions successfully recover the simulated parameter values, demonstrating that our compositional approach can perform inference on this model.
+The posterior distributions recover the simulated parameter values, demonstrating that our compositional approach can perform inference on this model.
 
 ```{julia}
 #| output: false
@@ -353,7 +353,7 @@ end
 ```{julia}
 #| echo: false
 #| label: fig-arima-demo
-#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions successfully recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
+#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (orange) used to generate the synthetic data. The posterior distributions recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
 plot_fit_with_truth(
     chains,
     simulated_params,
@@ -803,7 +803,7 @@ figure3
 
 In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
-`EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for systematic biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
+`EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
 
 ### Data
 
@@ -1152,7 +1152,7 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 
 <!-- Strengths and weaknesses interwoven -->
 
-A key strength of our prototype approach is its modular design, which enables rapid model development and component reuse, whilst also facilitating systematic comparison of modelling assumptions without large reimplementation efforts.
+A key strength of our prototype approach is its modular design, which enables rapid model development and component reuse, whilst also facilitating comparison of modelling assumptions without large reimplementation efforts.
 The approach reduces implementation barriers for methodological advances and enables researchers to embed novel components within existing models more easily.
 Standardised interfaces should also allow large language models to compose models programmatically with validation methods ensuring correctness.
 However, a clear limitation is that this is just a prototype and not designed for ongoing use or adoption.
@@ -1201,9 +1201,9 @@ More work is also needed to allow for modifying deeply nested model specificatio
 Methodological advances are also needed including for the joint estimation of interdependent epidemiological parameters, and then seamless integration of individual and population-level observations.
 Alternative approaches also need to investigated, particularly more formal category theory based methods that use operadic composition for mathematically rigorous hierarchical model construction, as demonstrated in `AlgebraicPetri.jl` and `AlgebraicDynamics.jl` [@libkind2022algebraic].
 Symbolic-numeric frameworks like `ModelingToolkit.jl` [@modelingtoolkit2021] offer potential performance improvements through automatic optimisation and code generation.
-However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both essential for infectious disease modelling applications.
+However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both needed for infectious disease modelling applications.
 An alternative potential abstraction approach would be to build the domain-specific language on `Distributions.jl` rather than `Turing.jl`, which would enable compatibility with multiple probabilistic programming languages like `JuliaBUGS` whilst trading off the expressiveness of Turing's submodel interface.
-Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be essential for practical adoption.
+Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be needed for practical adoption.
 The compositional framework creates opportunities for large language model integration.
 Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
 The explicit structure and validation tools of a composable framework should enable language models to reason about model design and propose structural adaptations more easily and with less room for error.
@@ -1214,7 +1214,7 @@ Another advantage of our approach for large language model assisted model constr
 A fully featured implementation of the prototype we present here has the potential to transform real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components through standardised interfaces.
 This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing key limitations of both pipeline and joint modelling approaches.
 Compositional frameworks of the kind we outline here are also likely key to enabling, and increasing the robustness of, large language model assisted model construction approaches, especially in resource-constrained settings where such capabilities could prove most valuable.
-Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are essential for future public health decision making.
+Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can rapidly incorporate diverse data sources and domain expertise are needed for future public health decision making.
 
 ## Acknowledgements
 
