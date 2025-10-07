@@ -20,7 +20,7 @@ format:
     fontsize: 11pt
     linestretch: 1.5
     keep-tex: false
-    number-sections: false
+    number-sections: true
     colorlinks: true
     notebook-links: false
     echo: true
