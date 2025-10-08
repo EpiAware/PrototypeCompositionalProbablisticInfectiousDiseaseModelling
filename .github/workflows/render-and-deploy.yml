@@ -83,7 +83,7 @@ jobs:
         id: check-outputs
         run: |
           outputs_exist="false"
-          if [ -f "_manuscript/index.pdf" ]; then
+          if [ -f "index.pdf" ]; then
             outputs_exist="true"
           fi
           echo "has-artifacts=$outputs_exist" >> $GITHUB_OUTPUT
@@ -92,7 +92,10 @@ jobs:
       - name: Copy artifacts to _site for GitHub Pages
         run: |
           mkdir -p _site
-          cp -r _manuscript/* _site/ 2>/dev/null || echo "Manuscript files not found"
+          cp index.html _site/ 2>/dev/null || echo "HTML file not found"
+          cp index.pdf _site/ 2>/dev/null || echo "PDF file not found"
+          cp index.ipynb _site/ 2>/dev/null || echo "Notebook file not found"
+          cp -r site_libs _site/ 2>/dev/null || echo "Site libs not found"
           cp Project.toml _site/ || echo "Project.toml not found"
           cp Manifest.toml _site/ || echo "Manifest.toml not found"
           cp -r data _site/ || echo "Data folder not found"
@@ -103,8 +106,8 @@ jobs:
         with:
           name: quarto-outputs-${{ github.sha }}
           path: |
-            _manuscript/index.pdf
-            _manuscript/index.ipynb
+            index.pdf
+            index.ipynb
             Project.toml
             Manifest.toml
             data/
