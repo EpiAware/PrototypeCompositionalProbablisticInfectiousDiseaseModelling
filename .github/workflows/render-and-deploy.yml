@@ -35,6 +35,9 @@ jobs:
         with:
           channel: '1.11.6'
 
+      - name: Set Julia version as default
+        run: juliaup override set 1.11.6
+
       - name: Cache Julia
         uses: julia-actions/cache@v1
         with:
