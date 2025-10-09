@@ -878,7 +878,7 @@ function arima_sample_plot!(ax, arima_mdl; n_samples=100)
         lines!(ax, col, color=(:grey, 0.1))
     end
     return nothing
-end
+?end
 ```
 
 #### Infection Generating Process
@@ -1029,7 +1029,7 @@ We reuse the same `inference_method` defined in @sec-example1..
 #| output: false
 #| julia:
 #|   cache:
-#|     enabled: true
+#|     enabled: false
 epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     italy_training_data
