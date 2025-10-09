@@ -29,6 +29,13 @@ abstract: |
 import QuartoTools
 ```
 
+```{julia}
+#| output: false
+#| echo: false
+using Random
+Random.seed!(1234)
+```
+
 # Introduction {#sec-introduction}
 
 Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making [@whitty2015what].
@@ -433,8 +440,7 @@ Prior predictive samples (@fig-figure3 A) show that *a priori* these priors assi
 ```{julia}
 #| echo: false
 #| output: false
-using CairoMakie, Random
-Random.seed!(1234)
+using CairoMakie
 
 ar_mdl = generate_latent(ar2, 50)
 
