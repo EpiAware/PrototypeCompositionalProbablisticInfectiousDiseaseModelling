@@ -878,7 +878,7 @@ function arima_sample_plot!(ax, arima_mdl; n_samples=100)
         lines!(ax, col, color=(:grey, 0.1))
     end
     return nothing
-?end
+end
 ```
 
 #### Infection Generating Process
