@@ -1099,9 +1099,7 @@ figure4 = let
 
     # Extract delay PMFs
     incubation_pmf = incubation_dayofweek_negbin.rev_pmf[end:-1:1]
-    # Create a standalone reporting delay to get its PMF
-    reporting_delay_only = LatentDelay(negbin, reporting_distribution)
-    reporting_pmf = reporting_delay_only.rev_pmf[end:-1:1]
+    reporting_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
 
     barplot!(ax21, 0:(length(incubation_pmf)-1), incubation_pmf;
         label="Incubation period", alpha=0.6, color=:green)
