@@ -49,3 +49,13 @@ _manuscript/
 .task
 .vscode
 .claude
+
+# macOS system files
+.DS_Store
+
+# Jupyter files
+.jupyter/
+index.ipynb
+
+# Quarto generated assets
+site_libs/
