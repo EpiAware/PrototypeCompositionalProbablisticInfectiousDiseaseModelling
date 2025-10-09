@@ -1193,18 +1193,25 @@ Our probabilistic programming foundation offers more direct support for statisti
 <!-- Comparison to literature - Other approaches -->
 
 Alternative probabilistic programming languages could support similar compositional approaches.
-`Gen.jl` [@cusumanotowner2019gen] focuses on programmable inference with explicit control over inference strategies, supporting composition through its combinator-based approach to building generative models.
-However, Gen operates more independently from the broader Julia ecosystem, maintaining its own distribution types rather than using `Distributions.jl` [@JSSv098i16], which negates a key strength of Julia approaches where packages interoperate through shared interfaces.
+`Gen.jl` [@cusumanotowner2019gen] focuses on trace operations of probabilistic programs defined at the level of generative (Gen) functions, with programmable inference allowing explicit control over inference strategies.
+`Gen.jl` supports composition through allowing nested Gen function calls as well as through its combinators, which compose Gen functions into more complex generative models. 
+However, `Gen.jl` operates more independently from the broader Julia ecosystem, maintaining its own distribution types rather than using `Distributions.jl` [@JSSv098i16], which negates a key strength of Julia approaches where packages interoperate through shared interfaces.
+Also, due to its focus on designing custom inference algoritm, `Gen.jl` currently lacks some standard inference algorithms such as the No U-Turns (NUTS) MCMC sampler [@hoffman2014nuts].
 Despite this, Gen-based tools demonstrate useful functionality for epidemiological modelling, such as `AutoGP.jl` [@saad2023sequential], which implements real-time inference and automated composition of Gaussian process kernels that could be useful for modelling time-varying epidemiological parameters.
 Genify [@tan2021genify] provides an approach that translates Julia code into Gen models, potentially easing adoption by allowing modellers to write in familiar Julia syntax whilst accessing Gen's programmable inference capabilities.
-Python-based probabilistic programming languages such as NumPyro [@phan2019composable] built on JAX [@jax2018github] could enable similar composability [@pyrenew2024], with potential advantages from JAX's focus on efficiency and GPU scaling.
-However, the smaller JAX-specific ecosystem compared to general Python packages, JAX's optimisation for neural network tasks, and Python PPLs' more programmer-oriented syntax that diverges from mathematical notation may create barriers for epidemiological modellers.
+Python-based probabilistic programming languages built on JAX [@jax2018github] such as NumPyro [@phan2019composable] and Oryx [@oryx2020] could enable similar composability [@pyrenew2024], with potential advantages from JAX's focus on efficiency and GPU scaling.
+Combinator approachs to probabilistic programs have also become available for NumPyro and Oryx [@coix2024].
+For a given Python PPL backend, our "struct-in-struct" composition patterns could be replicated using "class-in-class" patterns with abstract base classes.
+However, our structural syntax is largely divorced from computational implementation (except for `Distributions.jl` priors), making backend extensions to other PPLs easier since methods aren't owned by the type system.
+This separation enables extending to other computational backends beyond `Turing.jl` since new backend implementation methods can be added without modifying existing component definitions.
+Also, the smaller JAX-specific ecosystem compared to general Python packages, JAX's optimisation for neural network tasks, and Python PPLs' more programmer-oriented syntax that diverges from mathematical notation may create barriers for epidemiological modellers.
 Julia [@Julia-2017] supports GPU computing with ongoing work to expand integration into `Turing.jl` [@fjelde2025turin].
 `JuliaBUGS.jl` [@sun2024juliabugs] offers an alternative Julia-based PPL with BUGS syntax that also builds off of `Distributions.jl`.
-Unlike imperative probabilistic programming languages such as `Turing.jl`, `JuliaBUGS.jl` uses a declarative graph-based approach where users specify directed graphical models by explicitly stating conditional dependencies between variables.
+Unlike imperative probabilistic programming languages such as `Turing.jl`, `JuliaBUGS.jl` uses a declarative graph-based approach where users specify directed graphical models by explicitly stating conditional dependencies between variables, with the sequentially executable code generation abstracted away from the user.
 This graph-based representation offers several advantages including clearer understanding of dependencies, more transparent model structure and assumptions, and efficient inference through algorithms that leverage the model's graphical structure to identify conditional independence relationships.
-However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style, which allows procedural code with loops and conditionals that can be more expressive for certain complex modelling patterns.
-Building our domain-specific language on `Distributions.jl` rather than `Turing.jl` could enable compatibility with multiple PPLs including `JuliaBUGS.jl` whilst trading off `Turing.jl`'s expressive submodel interface.
+Another factor graph-based Julia PPL is `GraphPPL.jl` [@graphppl2023] that focuses on efficient inference through message passing algorithms rather than generative sampling, this underlies the reactive Bayesian inference PPL `RxInfer.jl` [@bagaev2023rxinfer].
+However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style, which allows procedural code such as accumulation iterators that can be more expressive for certain complex modelling patterns.
+Building a domain-specific backend on `Distributions.jl` rather than `Turing.jl` could enable compatibility with multiple PPLs including `JuliaBUGS.jl` whilst trading off `Turing.jl`'s expressive submodel interface.
 
 <!-- Future work -->
 
