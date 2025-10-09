@@ -1193,7 +1193,7 @@ Our probabilistic programming foundation offers more direct support for statisti
 <!-- Comparison to literature - Other approaches -->
 
 Alternative probabilistic programming languages could support similar compositional approaches.
-`Gen.jl` [@cusumanotowner2019gen] focuses lower-level implementation of probabilistic programs compared to `Turing.jl`, with composition support through nested generative function calls and combinators of generative functions.
+`Gen.jl` [@cusumanotowner2019gen] focuses on lower-level implementation of probabilistic programs compared to `Turing.jl`, with composition support through nested generative function calls and combinators of generative functions.
 However, `Gen.jl` operates more independently from the broader Julia ecosystem, maintaining its own distribution types rather than using `Distributions.jl` [@JSSv098i16], which negates a key strength of Julia approaches where packages interoperate through shared interfaces.
 Also, due to its focus on designing custom inference algoritm, `Gen.jl` currently lacks some standard inference algorithms such as the No U-Turns (NUTS) MCMC sampler [@hoffman2014nuts].
 Despite this, Gen-based tools demonstrate useful functionality for epidemiological modelling, such as `AutoGP.jl` [@saad2023sequential], which implements real-time inference and automated composition of Gaussian process kernels that could be useful for modelling time-varying epidemiological parameters.
