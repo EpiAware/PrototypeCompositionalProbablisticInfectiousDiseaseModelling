@@ -6,7 +6,7 @@ authors:
       - ref: cdc
     email: "usi1@cdc.gov"
     orcid: "0000-0003-0645-5367"
-  - name: "Samuel Abbott"
+  - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
     email: "sam.abbott@lshtm.ac.uk"
