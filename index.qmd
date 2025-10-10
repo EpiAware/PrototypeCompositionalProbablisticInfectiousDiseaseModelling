@@ -6,6 +6,11 @@ authors:
       - ref: cdc
     email: "usi1@cdc.gov"
     orcid: "0000-0003-0645-5367"
+  - name: "Sebastian Funk"
+    affiliations:
+      - ref: lshtm
+    email: "sebastian.funk@lshtm.ac.uk"
+    orcid: "0000-0002-2842-3406"
   - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
