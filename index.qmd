@@ -245,7 +245,7 @@ These step functions are structs built on the `AbstractAccumulationStep` interfa
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
 This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
 
-Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following `Turing.jl`:
+Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following `Turing.jl` model:
 
 ```{julia}
 #| output: false
@@ -269,7 +269,7 @@ The MA model has a similar structure with its own internal step function.
 The `accumulate_scan` pattern enables composable iteration steps, allowing complex processes like renewal models with susceptible depletion to be built by composing simple step operations.
 This design means we only need to write the single-step operation without worrying about the iteration process, making components more modular and reusable.
 
-The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach, producing the following `Turing.jl`.
+The full ARIMA(2,1,1) model we defined in the DSL section can then be generated using the same approach, producing the following `Turing.jl` model:
 
 ```{julia}
 #| echo: false
