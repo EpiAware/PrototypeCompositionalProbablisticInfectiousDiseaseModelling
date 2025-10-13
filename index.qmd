@@ -1184,7 +1184,7 @@ However, as they can embed elements of our system within their existing models a
 Computational overhead from abstraction layers is also a concern, the impact of this overhead and potential optimisations remain unclear.
 However, `Turing.jl` [@fjelde2025turin] and Julia [@Julia-2017] are well positioned for optimisation with new auto differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could reduce computational costs in future implementations.
 Similarly, ongoing work in the `Turing.jl` ecosystem should be able to identify and resolve any bottlenecks in performance that do emerge.
-A strength of the Julia [@Julia-2017] ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces, enabling innovation across projects.
+A strength of the Julia [@Julia-2017] ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces.
 However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
 Users may not know whether problems originate in `Turing.jl`, our prototype DSL, or elsewhere in the ecosystem and even once located it can be difficult to determine who is responsible for resolving them.
 There are also additional technical barriers within the `Turing.jl` ecosystem.
