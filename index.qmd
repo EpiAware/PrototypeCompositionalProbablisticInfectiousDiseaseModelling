@@ -1201,16 +1201,6 @@ An advantage of the Julia [@Julia-2017] ecosystem for a composable modelling too
 However, in practice some of these utilities, such as profiling tools can be frustrating and difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystem because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks in model components.
 The ecosystem needs further development in areas such as debugging tools that can trace through model execution whilst preserving the semantic structure of probabilistic models, better error messages that relate numerical issues to model specification rather than low-level implementation details, and standardised approaches for model validation and testing.
 The `EpiMethod` approach for chaining inference (combining pre-sampling like Pathfinder [@zhang2022pathfinder] with sampling like the No U-Turn Sampler (NUTS) [@hoffman2014nuts]) shows promise but should be a `Turing.jl` general solution rather than epi-specific because many domains face similar challenges of difficult posterior geometries where adaptive warmup strategies could improve both efficiency and reliability of inference across the broader probabilistic programming ecosystem.
- 
-<!-- Comparison to literature - Algebraic Julia -->
-
-Our prototype could draw more heavily on category theory [@fong2018seven], which provides formal mathematical foundations for composability through operadic structures that guarantee valid model composition whilst maintaining modularity.
-The AlgebraicJulia ecosystem demonstrates how these theoretical foundations can be operationalised into software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition through structured cospans and wiring diagrams.
-These provide explicit graphical syntax where boxes represent model components and wires represent connections between them, with the categorical structure ensuring that composed models remain mathematically valid.
-AlgebraicJulia approaches offer stronger formal guarantees about compositional correctness than our type-based interfaces, with explicit separation of structural syntax from computational semantics enabling multiple interpretations of the same compositional structure.
-The SciML ecosystem [@SciML] takes a different symbolic-numeric approach, where `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] use acausal equation-based modelling with automated symbolic transformations to support mixed equation types, achieving substantial performance improvements through automated parallelisation, sparsity detection, and equation simplification.
-However, both category theory and symbolic-numeric frameworks focus primarily on dynamical systems with no native support for probability distributions as first-class objects, requiring external tools like `Turing.jl` for Bayesian inference and additional layers to connect symbolic specifications to observational data with measurement error.
-Our probabilistic programming foundation offers more direct support for statistical inference and uncertainty quantification, supports a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory approaches and automated optimisations of symbolic-numeric frameworks.
 
 <!-- Comparison to literature - Other approaches -->
 
@@ -1225,6 +1215,21 @@ As well as imperative probabilistic programming languages (specifies how to perf
 This graph-based representation offers several advantages including clearer understanding of dependencies, more transparent model structure and assumptions, and efficient inference through algorithms that leverage the model's graphical structure to identify conditional independence relationships.
 However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style, which allows procedural code, such as a loop over recursive updates for a dynamical system, that can be more expressive for certain complex modelling patterns.
 Building a domain-specific backend on `Distributions.jl` rather than `Turing.jl` could enable compatibility with multiple PPLs including `JuliaBUGS.jl` whilst trading off `Turing.jl`'s expressive submodel interface.
+
+<!-- Comparison to literature - Algebraic Julia -->
+
+Our prototype could draw more heavily on category theory [@fong2018seven], which provides formal mathematical foundations for composability through operadic structures that guarantee valid model composition whilst maintaining modularity.
+The AlgebraicJulia ecosystem demonstrates how these theoretical foundations can be operationalised into software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition through structured cospans and wiring diagrams.
+These provide explicit graphical syntax where boxes represent model components and wires represent connections between them, with the categorical structure ensuring that composed models remain mathematically valid.
+AlgebraicJulia approaches offer stronger formal guarantees about compositional correctness than our type-based interfaces, with explicit separation of structural syntax from computational semantics enabling multiple interpretations of the same compositional structure.
+The operadic framework also enables automated model transformations, hierarchical decomposition strategies for complex systems, and rigorous type systems that prevent invalid model compositions at compile time.
+However, these category theory approaches are fundamentally designed for deterministic dynamical systems and do not naturally extend to general probabilistic programming languages, which require directed acyclic graph (DAG) representations to handle conditional dependencies and ensure well-defined probability measures.
+While AlgebraicJulia can interface with external probabilistic programming tools, this creates a separation between the compositional structure and statistical inference that limits the seamless integration we achieve through our direct `Turing.jl` foundation.
+
+
+The SciML ecosystem [@SciML] takes a different symbolic-numeric approach, where `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] use acausal equation-based modelling with automated symbolic transformations to support mixed equation types, achieving substantial performance improvements through automated parallelisation, sparsity detection, and equation simplification.
+However, both category theory and symbolic-numeric frameworks focus primarily on dynamical systems with no native support for probability distributions as first-class objects, requiring external tools like `Turing.jl` for Bayesian inference and additional layers to connect symbolic specifications to observational data with measurement error.
+Our probabilistic programming foundation offers more direct support for statistical inference and uncertainty quantification, supports a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory approaches and automated optimisations of symbolic-numeric frameworks.
 
 <!-- Future work -->
 
