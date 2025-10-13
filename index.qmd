@@ -111,10 +111,13 @@ Finally, we need a framework that can be composed with out of domain approaches 
 Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
 We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
 As far as we are aware, only probabilistic programming languages built in Julia [@Julia-2017] provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
-Among Julia's options, `Turing.jl` [@fjelde2025turin] best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and it's implementation as a light abstraction layer on top of the wider Julia ecosystem.
-Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch for clean component composition, and accessing the mature SciML ecosystem [@SciML] for differential equations and other scientific computing tools.
+Metaprogramming is the ability to write code that generates or manipulates other code, enabling the creation of custom domain-specific syntax and automated code transformations.
+Among Julia's options, `Turing.jl` [@fjelde2025turin] best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and its implementation as a light abstraction layer (a simplified interface that hides complex implementation details whilst enabling access to underlying functionality) on top of the wider Julia ecosystem.
+Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch (programming paradigm where function behaviour is determined by the types of all arguments rather than just the first, enabling automatic selection of the most specific implementation for given inputs) for clean component composition, and accessing the mature SciML ecosystem [@SciML] for differential equations and other scientific computing tools.
 
-Our approach uses a two-layer architecture with high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using `Turing.jl` (though importantly we are not locked in to this choice as the DSL is agnostic of the backed used).
+Our approach uses a two-layer architecture with a high-level domain-specific language for epidemiological modelling and a low-level implementation using `Turing.jl`.
+A domain-specific language (DSL) is a programming language tailored to a specific application domain, here epidemiological modelling, that uses terminology and concepts familiar to domain experts rather than general programming constructs.
+Though importantly we are not locked in to this choice as the DSL is agnostic of the backed used.
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
@@ -126,7 +129,7 @@ The backend layer aims to handle the automated bookkeeping of stratification, in
 Our prototype domain-specific language builds on Julia's type system to enable composable epidemiological modelling through two key design patterns.
 First, abstract types define interfaces that implementations must follow, analogous to contracts specifying what operations a model component must support rather than how it implements them.
 All model components inherit from a parent `AbstractModel` type, establishing a common foundation whilst allowing specialised behaviour through subtypes.
-Second, structures contain other structures as fields (a struct-in-struct pattern), allowing complex models to be built by nesting simpler components.
+Second, structures (data containers that group related variables and their types together) contain other structures as fields, a struct-in-struct pattern that allows complex models to be built by nesting simpler components.
 This pattern enables models to be assembled like building blocks whilst maintaining clear boundaries between different epidemiological processes.
 
 We organise model components into three abstract type hierarchies, each of which inherits from `AbstractModel`, corresponding to distinct epidemiological processes.
@@ -973,7 +976,7 @@ delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_dist
 ```
 
 This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
-Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the strata-in-strata approach with multiple dispatch.
+Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the struct-in-struct approach with multiple dispatch.
 @fig-figure4 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
 
 ```{julia}
@@ -1209,7 +1212,7 @@ Despite this, Gen-based tools demonstrate useful functionality for epidemiologic
 Genify [@tan2021genify] provides an approach that translates Julia code into Gen models, potentially easing adoption by allowing modellers to write in familiar Julia syntax whilst accessing Gen's programmable inference capabilities.
 Python-based probabilistic programming languages such as NumPyro [@phan2019composable] and Oryx [@oryx2020] built on JAX [@jax2018github] could enable similar composability [@pyrenew2024, @coix2024], with potential advantages from JAX's focus on efficiency and GPU scaling.
 However, the smaller JAX-specific ecosystem compared to general Python packages, JAX's optimisation for neural network tasks, and Python PPLs' more programmer-oriented syntax that diverges from mathematical notation may create barriers for epidemiological modellers.
-As well as imperative probabilistic programming languages such as `Turing.jl`, there are declarative graph-based approaches available such as `JuliaBUGS.jl` [@sun2024juliabugs] and `RxInfer.jl` [@bagaev2023rxinfer] where users specify directed graphical models by explicitly stating conditional dependencies between variables.
+As well as imperative probabilistic programming languages (specifies how to perform computations through explicit sequences of commands) such as `Turing.jl`, there are declarative graph-based approaches (specifies what should be computed by stating relationships and constraints) available such as `JuliaBUGS.jl` [@sun2024juliabugs] and `RxInfer.jl` [@bagaev2023rxinfer] where users specify directed graphical models by explicitly stating conditional dependencies between variables.
 This graph-based representation offers several advantages including clearer understanding of dependencies, more transparent model structure and assumptions, and efficient inference through algorithms that leverage the model's graphical structure to identify conditional independence relationships.
 However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style, which allows procedural code, such as a loop over recursive updates for a dynamical system, that can be more expressive for certain complex modelling patterns.
 Building a domain-specific backend on `Distributions.jl` rather than `Turing.jl` could enable compatibility with multiple PPLs including `JuliaBUGS.jl` whilst trading off `Turing.jl`'s expressive submodel interface.
