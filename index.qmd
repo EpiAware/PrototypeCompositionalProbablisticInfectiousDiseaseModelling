@@ -11,6 +11,10 @@ authors:
       - ref: lshtm
     email: "sebastian.funk@lshtm.ac.uk"
     orcid: "0000-0002-2842-3406"
+  - name: "Kaitlyn E. Johnson"
+    affiliations:
+      - ref: lshtm
+    email: "kaitlyn.johnson@lshtm.ac.uk"
   - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
