@@ -172,7 +172,7 @@ Prior distributions are specified using `Distributions.jl` [@JSSv098i16], the st
 #| output: false
 using EpiAware, Distributions
 ar2 = AR(;
-    damp_priors=[truncated(Normal(0.4, 0.2), 0, 1),
+    damp_priors=[truncated(Normal(0.2, 0.2), 0, 1),
         truncated(Normal(0.1, 0.05), 0, 1)],
     init_priors=[Normal(0, 0.2), Normal(0, 0.2)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
