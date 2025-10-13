@@ -1163,7 +1163,7 @@ In this vignette, we'll demonstrate how to use `EpiAware` in conjunction with th
 
 This paper has demonstrated that compositional approaches can address barriers in epidemiological modelling.
 We presented a prototype that enables "LEGO-like" model construction, maintaining the statistical rigour of joint models whilst providing the flexibility of pipeline approaches.
-The autoregressive model example illustrated how complex models emerge from simple component combinations using the struct-in-struct pattern.
+The autoregressive model example illustrated how complex models emerge from simple component combinations using the struct-in-struct pattern (where structures, data containers that group related variables and their types together, contain other structures as fields to build complex models by nesting simpler components).
 Our three case studies, which were based on previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrate model composability for a range of problems and using different underlying methods.
 
 <!-- Strengths and weaknesses interwoven -->
