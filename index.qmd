@@ -69,7 +69,7 @@ Alternative approaches to compositional modelling include the SciML ecosystem's 
 The key insight underlying these approaches is the separation of structural syntax, which defines valid compositions, from computational semantics, enabling modularity and independence of components whilst maintaining mathematical rigour.
 
 @fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
-Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
+Three example applications—wastewater surveillance, biomarker modelling, and early outbreak analysis—each compose models from components of different types.
 The schematic also highlights two examples of component reuse.
 The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
 This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
