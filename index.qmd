@@ -15,6 +15,7 @@ authors:
     affiliations:
       - ref: lshtm
     email: "kaitlyn.johnson@lshtm.ac.uk"
+    orcid: "0000-0001-8011-0012"
   - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
