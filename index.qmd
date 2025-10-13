@@ -79,7 +79,7 @@ This highlights how components developed for one application could be incorporat
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
 The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
-We implement this as a domain-specific language operating intended to be implemented as optional package extensions.
+We implement this as a domain-specific language operating intended to be implemented as optional package extensions [@juliapackageextensions].
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
 Through three case studies using the prototype, we show how components can be reused across different models: the first is inspired by @mishra2020covid; the second reuses components from the first, along with new elements, inspired by @epinow2; the third is inspired by @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
 Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
