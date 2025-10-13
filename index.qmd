@@ -1235,7 +1235,7 @@ Performance optimisation through parallelisation and approximate inference metho
 The compositional framework creates opportunities for large language model integration.
 Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
 The explicit structure and validation tools of a composable framework should enable language models to reason about model design and propose structural adaptations more easily and with less room for error.
-The high-level component interface could also reduce context and reasoning requirements by allowing language models to compose models without understanding backend details such as Turing.jl syntax, distribution parameterisations, or inference algorithm specifications, potentially enabling deployment of smaller models on local compute in resource-constrained settings.
+The high-level component interface could also reduce context and reasoning requirements by allowing language models to compose models without understanding backend details such as `Turing.jl` syntax, distribution parameterisations, or inference algorithm specifications, potentially enabling deployment of smaller models on local compute in resource-constrained settings.
 Further work is needed to realise this potential.
 
 <!-- Conclusions -->
