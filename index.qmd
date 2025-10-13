@@ -121,6 +121,7 @@ Though importantly we are not locked in to this choice as the DSL is agnostic of
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
+This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
@@ -1167,6 +1168,7 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 
 A strength of our prototype approach is its modular design, which enables faster model development and component reuse, whilst also facilitating comparison of modelling assumptions without large reimplementation efforts.
 The approach reduces implementation barriers for methodological advances and enables researchers to embed new components within existing models more easily.
+For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement the existing infection, latent, and observation models.
 Standardised interfaces should also allow large language models to compose models programmatically with validation methods ensuring correctness.
 However, a clear limitation is that this is just a prototype and not designed for ongoing use or adoption.
 For example, we only partially implemented support for automated mappings between latent and observed states, which remains challenging to do well.
