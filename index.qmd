@@ -94,6 +94,7 @@ Because diseases affect populations heterogeneously across age, location, and ri
 These stratified models must also remain data-agnostic as this allows the model to be generalised to different datasets, tested based on just its prior specification, and used for forecasting.
 Similarly, the book work of supporting multiple strata needs to be abstracted from the user to make the system easier to use but at the same time they need to be able to model relationships between strata to support partial pooling of parameters for sparse data settings.
 To allow for models to be validated, the framework must support nesting models within models and programming over model structure itself, allowing simple components to compose into sophisticated models while remaining individually interrogable for debugging, validation, and mechanistic understanding.
+Model specifications must serve dual purposes, supporting both forward simulation for prior predictive checks and forecasting, and inference when conditioned on observed data, without requiring separate implementations.
 This compositional approach requires a clear, concise modelling language so that it can be used by a wide pool of users and so that model specifications can be written quickly but with clarity.
 Supporting modern inference methods is important so that complex models can be fit and this necessitates gradient computation throughout via automatic differentiation.
 It is also important to allow for a wide range of inference methods so that the best approach for a given model/data combination can be used.
@@ -116,7 +117,7 @@ Among Julia's options, `Turing.jl` [@fjelde2025turin] best meets our requirement
 Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch (programming paradigm where function behaviour is determined by the types of all arguments rather than just the first, enabling automatic selection of the most specific implementation for given inputs) for clean component composition, and accessing the mature SciML ecosystem [@SciML] for differential equations and other scientific computing tools.
 
 Our approach uses a two-layer architecture with a high-level domain-specific language for epidemiological modelling and a low-level implementation using `Turing.jl`.
-Though importantly we are not locked in to this choice as the DSL is agnostic of the backed used.
+Though importantly we are not locked in to this choice as the DSL is agnostic of the backend used.
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the full framework.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
@@ -252,7 +253,7 @@ Generated components can be used directly as standalone models or nested within 
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
 For example, we use a common pattern, `accumulate_scan`, which builds on the base accumulate function to model iterative temporal processes through step functions.
-These step functions are structs built on the `AbstractAccumulationStep` interface that implement a callable defining the single-step update rule.
+These step functions are structs built on the `AbstractAccumulationStep` interface that implement a callable (a struct that can be invoked like a function) defining the single-step update rule.
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
 This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
 
