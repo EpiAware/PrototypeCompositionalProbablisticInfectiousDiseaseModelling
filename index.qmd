@@ -962,6 +962,8 @@ I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
 
+This day-of-week model assumes a static weekly pattern; to allow temporal evolution, the weekly pattern could be modelled by concatenating latent processes, where each day's effect becomes a time-varying process.
+
 In addition to ascertainment, we also need to model the incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
 Again following the `EpiNow2` getting started vignette, the incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
 The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, giving a mean of 1.99 days.
