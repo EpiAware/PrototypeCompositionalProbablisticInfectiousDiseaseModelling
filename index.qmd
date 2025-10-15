@@ -49,37 +49,31 @@ Random.seed!(1234)
 
 # Introduction {#sec-introduction}
 
-Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making [@whitty2015what].
-Infectious diseases spread through complex interactions between biology, human behaviour, economic factors, and environmental conditions that must all be understood to control transmission effectively.
-Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture these multifaceted transmission processes, yet current modelling frameworks create barriers to this integration.
-Individual-level data such as viral loads, biomarkers, genomic sequences, and clinical observations are routinely ignored or aggregated when informing population-level models, losing information that could improve decisions.
-These barriers have prevented advances in settings where models could have provided actionable insights such as early outbreak analysis, wastewater surveillance, phylodynamics, clinical biomarkers, pooled testing, and large-scale clinical datasets.
-The next infectious disease threat is unpredictable and may be exacerbated by climate change [@Tsui2024-gy], requiring adaptable response capabilities that can rapidly incorporate diverse data sources and domain expertise.
+Modelling infectious disease dynamics can be a valuable tool for synthesising information from diverse data sources and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
+The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance (e.g. wastewater) and by-products of clinical management (e.g. hospital admissions) to dedicated transmission studies (e.g., in households).
+However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
+This hampers transfer of learning: for example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
 
-Methods used to synthesise available data in real time broadly fall into two classes: either combining results from multiple, smaller models calibrated in isolation (the pipeline approach, e.g., [@huisman2022]), or representing a single model tuned to the specific scenario (the joint model approach, e.g., [@birrell2024; @Watson2024-vj]).
-Both approaches have downsides.
-Pipeline approaches combine results from separate models without uncertainty propagation, leading to loss of detail and statistical rigour [@lison2024].
-Joint approaches use single monolithic models that, whilst able to integrate multiple processes and data streams, are too complex to enable transfer to other settings or extension with additional model components.
-To adapt or extend such models, analysts need to fully comprehend all parts of the corresponding model and code, creating barriers to sharing methodology and leading to inefficient re-implementation when parts of a model could, in principle, be re-used.
-Attempts to include insights from environmental scientists, economists, or behavioural researchers typically result in models that are either too complex to use practically or too simplified to capture valuable expertise.
-This prevents effective integration of expertise across disciplines.
-Transfer of methodology between outbreak events has proven difficult, with each posing unanticipated challenges that existing tools cannot accommodate.
-Whilst large language models offer potential to assist with model construction, current monolithic approaches lack the structured component interfaces and validation frameworks needed for such systems to compose models reliably.
+As a consequence, modellers often have to re-implement model components for new situations even when underlying concepts (e.g. of how population-level infections manifest as pathogen concentrations in wastewater) are, in principle, the same.
+This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed.
+It also limits opportunities for collaboration and co-development of robust methods that others can re-use, and raises technical barriers to building state-of-the-art models, as individual modellers must understand and implement all parts of the relevant transmission and observation models.
+As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction].
 
-Recent developments in computational statistics and scientific computing demonstrate the potential for composable approaches where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour that could address these limitations.
-Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, providing a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
+Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [king16_statistical;fitzjohn25_monty], have transformed how infectious disease models are fitted to data.
+These tools enable statistically principled inference with probabilistic reasoning across a wide range of applications.
+However, they are designed for implementing complete models and do not provide straightforward ways to share or reuse model components.
+The practical unit of reuse therefore remains the whole model or its codebase, not the underlying epidemiological concepts or components.
+Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms such as flexible statistical models for real-time estimation [@scott2021_epidemia,@epinow2].
+Yet these efforts, too, have encountered clear limits of extensibility: extending them requries embedding new data types or processes within a single, expanding codebase, which becomes harder to maintain and adapt as complexity grows.
+To work around these constraints, some analyses have adopted multi-stage or “pipeline” approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman22].
+This allows different data sources or processes to be analysed independently but prevents proper propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
+
+Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour.
+Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, offering a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
 Category theory provides one mathematical framework for this composability through operadic composition (a mathematical framework for composing operations hierarchically where operations can have multiple inputs and be combined according to formal rules) in hierarchical model construction, as applied in the AlgebraicJulia ecosystem [@libkind2022algebraic].
 Alternative approaches to compositional modelling include the SciML ecosystem's [@SciML] symbolic-numeric framework, where `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] use acausal equation-based modelling with automated symbolic transformations to support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces.
 `HydroModels.jl` [@jing2025hydromodels] demonstrates compositional hydrological modelling with differentiable neural-enhanced components, whilst `SpeedyWeather.jl` uses an interactive domain-specific language (a programming language tailored to a specific application domain that uses terminology and concepts familiar to domain experts rather than general programming constructs) approach for "LEGO-like" atmospheric modelling with modular component assembly [@speedyweather2024].
 The key insight underlying these approaches is the separation of structural syntax, which defines valid compositions, from computational semantics, enabling modularity and independence of components whilst maintaining mathematical rigour.
-
-@fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
-Three example applications—wastewater surveillance, biomarker modelling, and early outbreak analysis—each compose models from components of different types.
-The schematic also highlights two examples of component reuse.
-The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
-This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
-
-![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
 
 This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables "LEGO-like" model decisions through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
@@ -127,6 +121,14 @@ This separation enables incremental adoption without rebuilding existing models 
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the low-level details of all framework elements.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
+
+@fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
+Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
+The schematic also highlights two examples of component reuse.
+The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
+This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
+
+![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
