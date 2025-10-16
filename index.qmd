@@ -49,7 +49,7 @@ Random.seed!(1234)
 
 # Introduction {#sec-introduction}
 
-Modelling infectious disease dynamics can be a valuable tool for synthesising information from diverse data sources and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
+Modelling infectious disease dynamics can be a valuable tool for synthesising information and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
 The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance (e.g. wastewater) and by-products of clinical management (e.g. hospital admissions) to dedicated transmission studies (e.g., in households).
 However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
 This hampers transfer of learning: for example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
