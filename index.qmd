@@ -1206,7 +1206,7 @@ The `EpiMethod` approach for chaining inference (combining pre-sampling like Pat
 
 Our prototype could draw more heavily on category theory [@fong2018seven], which provides formal mathematical foundations for composability through operadic structures.
 These operadic structures represent the algebraic framework for composing wiring diagrams [@vagner2014algebras] and guarantee valid model composition whilst maintaining modularity.
-This approach has practical benefits for an epidemiological modeller, such as local changes to a model subcomponenet creating automatic modifications to the full composed model by abstracting away low level implementation.
+This approach has practical benefits for an epidemiological modeller, such as changes to a model subcomponent creating automatic modifications to the full composed model by abstracting away low level implementation.
 The algebraic approach matches how modellers conceptualise new modelling approaches, that is typically as a kind of wiring diagram, whilst also providing automation for implementation.
 The AlgebraicJulia ecosystem demonstrates how these theoretical foundations can be operationalised into software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition through structured cospans and wiring diagrams.
 These provide multiple interchangeable representations of model components as open petri nets, with connection "ports" allowing composibility with other components via "junction" porting [@libkind2022algebraic].
