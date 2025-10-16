@@ -172,7 +172,7 @@ Prior distributions are specified using `Distributions.jl` [@JSSv098i16], the st
 #| output: false
 using EpiAware, Distributions
 ar2 = AR(;
-    damp_priors=[truncated(Normal(0.4, 0.2), 0, 1),
+    damp_priors=[truncated(Normal(0.2, 0.2), 0, 1),
         truncated(Normal(0.1, 0.05), 0, 1)],
     init_priors=[Normal(0, 0.2), Normal(0, 0.2)],
     ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
@@ -961,6 +961,8 @@ Second is the linkage of the day of week model to the latent infections time ser
 I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
+
+This day-of-week model assumes a static weekly pattern; to allow temporal evolution, the weekly pattern could be modelled by concatenating latent processes, where each day's effect becomes a time-varying process.
 
 In addition to ascertainment, we also need to model the incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
 Again following the `EpiNow2` getting started vignette, the incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
