@@ -54,8 +54,8 @@ The utility of such models lies in their ability to combine expert knowledge abo
 However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
 This hampers transfer of learning: for example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
 
-This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed.
 As a consequence, modellers often have to re-implement model components in new models that used for different situations even when underlying concepts (e.g. of how population-level infections manifest as pathogen concentrations in wastewater) are, in principle, the same.
+This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed [@whitty2015what].
 It also limits opportunities for collaboration and co-development of robust methods that others can re-use, and raises technical barriers to building state-of-the-art models, as individual modellers must understand and implement all parts of the relevant transmission and observation models.
 As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction].
 
