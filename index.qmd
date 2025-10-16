@@ -50,9 +50,10 @@ Random.seed!(1234)
 # Introduction {#sec-introduction}
 
 Modelling infectious disease dynamics can be a valuable tool for synthesising information and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
-The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance [e.g. in wastewater, @oreilly25_analysis] and by-products of clinical management [e.g., hospital admissions and bed occupancy, @davies21_associationcovidengland] to dedicated transmission studies [e.g., in households, kombe19_model].
+The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance [e.g. in wastewater, @oreilly25_analysis] and by-products of clinical management [e.g., hospital admissions and bed occupancy, @davies21_associationcovidengland] to dedicated transmission studies [e.g., in households, @kombe19_model].
 However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
-This hampers transfer of learning: for example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
+This hampers transfer of learning.
+For example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
 
 As a consequence, modellers often have to re-implement model components in new models that used for different situations even when underlying concepts (e.g. of how population-level infections manifest as pathogen concentrations in wastewater) are, in principle, the same.
 This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed [@whitty2015what].
@@ -64,7 +65,7 @@ These tools enable statistically principled inference with probabilistic reasoni
 However, they are designed for implementing complete models and do not provide straightforward ways to share or reuse model components.
 The practical unit of reuse therefore remains the whole model or its codebase, not the underlying epidemiological concepts.
 Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms such as flexible statistical models for real-time estimation [@scott2021_epidemia;@epinow2].
-Yet these efforts, too, have encountered clear limits of extensibility: extending them requries embedding new data types or processes within a single, expanding codebase, which becomes harder to maintain and adapt as complexity grows.
+Yet these efforts, too, have encountered clear limits of extensibility: extending them requires embedding new data types or processes within a single, expanding codebase, which becomes harder to maintain and adapt as complexity grows.
 To work around these constraints, some analyses have adopted multi-stage or “pipeline” approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman22].
 This allows different data sources or processes to be analysed independently but prevents proper propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
 
