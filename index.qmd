@@ -1203,7 +1203,6 @@ An advantage of the Julia [@Julia-2017] ecosystem for a composable modelling too
 However, in practice, some of these utilities, such as profiling tools, can be frustrating and difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystems because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks in model components.
 The ecosystem needs further development in areas such as debugging tools that can trace through model execution whilst preserving the semantic structure of probabilistic models, better error messages that relate numerical issues to model specification rather than low-level implementation details, and standardised approaches for model validation and testing.
 The `EpiMethod` approach for chaining inference (combining pre-sampling like Pathfinder [@zhang2022pathfinder] with sampling like the No U-Turn Sampler (NUTS) [@hoffman2014nuts]) shows promise but should be a `Turing.jl` general solution rather than epi-specific because many domains face similar challenges of difficult posterior geometries where adaptive warmup strategies could improve both efficiency and reliability of inference across the broader probabilistic programming ecosystem.
-
 <!-- Comparison to literature - Algebraic Julia -->
 
 Our prototype could draw more heavily on category theory [@fong2018seven], which provides formal mathematical foundations for composability.
