@@ -32,6 +32,8 @@ date: today
 monofont: JuliaMono
 abstract: |
   Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
+julia:
+  exeflags: ["--threads=4", "-O3"]
 ---
 
 ```{julia}
@@ -645,10 +647,13 @@ inference_method = EpiMethod(
     sampler=NUTSampler(
         target_acceptance=0.9,
         adtype=AutoReverseDiff(compile=true),
-        ndraws=1000,
+        # ndraws=1000,
+        ndraws=100,
         nchains=4,
         mcmc_parallel=MCMCThreads(),
-        nadapts=1000)
+        # nadapts=1000,
+        nadapts=250,
+        )
 )
 ```
 
@@ -1165,9 +1170,368 @@ figure4
 <!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
 <!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/chatzilena-2019/ -->
 
-In this vignette, we'll demonstrate how to use `EpiAware` in conjunction with the SciML ecosystem [@SciML] to replicate [Contemporary statistical inference for infectious disease models using Stan *Chatzilena et al. 2019*](https://www.sciencedirect.com/science/article/pii/S1755436519300325).
+In _Contemporary Statistical Inference for Infectious Disease Models using Stan_ Chatzilena _et al_ @chatzilena2019contemporary showcase using the stan PPL @carpenter2017stan for infectious disease models, including differential equation based models.
+Chatzilena _et al_ use stan's in-built ordinary differential equation (ODE) solvers to infer epidemic trajectories from observed case counts under the assumption that the latent infection dynamics follow a susceptible-infected-removed (SIR) transmission model @kermack1927contribution; the prototypical compartmental model of transmission dynamics @keeling2008modeling.
+They demonstrate epidemic inference with, and without, temporal modification to the ascertainment rate of latent infecteds.
 
-*This case study is currently being developed separately in `case-study-3.qmd` and will be integrated once it follows the standard case study format.*
+We recreate the single strain influenza examples from Chatzilena _et al_ by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies and composing this with temporal effects on ascertainment using an autoregressive latent process.
+Unlike in stan, we had no requirement to encode a bespoke differential equation solver in our prototype - our prototype integrates with high-quality existing solver libraries from the SciML ecosystem @rackauckas2017differentialequations.
+
+## Data {#sec-data-cs3}
+
+The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
+We accessed this data using the R package `outbreaks` @jombart2020outbreaks.
+
+```{julia}
+#| output: false
+N = 763
+datapath = "data/influenza_england_1978_school.csv"
+england_data = @chain datapath begin
+    CSV.read(DataFrame)
+    @transform(:ts = :date - minimum(:date))
+    @transform(@byrow :ts = Dates.value(:ts) + 1.0)
+    (y_t = _.in_bed, dates = _.date, ts = _.ts)
+end
+```
+
+### Model
+
+Our model introduces, and composes, new models for generating infections from the solution to an ODE and autoregressive time-varying ascertainment rate of latent infections.
+We will start with a simpler observation model, and reusing the infection generating process, then move on to demonstrate time-varying ascertainment.
+
+The mathematical description of the model is:
+
+$$
+\begin{aligned}
+\beta, \gamma, I(0), \kappa_0, \phi, \sigma &\sim \pi(\cdot)\\
+r_{SI}(t) &= \beta S(t) \frac{I(t)}{N} , ~~ \text{(Infection rate)},\\
+r_{IR}(t) &= \gamma I(t), ~~ \text{(Recovery rate)},\\
+\frac{dS}{dt} &= -r_{SI}(t), \\
+\frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
+\frac{dR}{dt} &= r_{IR}(t),\\
+\epsilon_t &\sim \text{Normal}(0, \sigma^2),~ t= 1, 2, \dots ~~ \text{(Observation innovations)}, \\
+\kappa_{t} &= \phi \kappa_{t-1} + \epsilon_t, ~~ \text{(Ascertainment process)}, \\
+\lambda_t &= I(t)\exp(\kappa_t), ~~ \text{(Expected observations)}, \\ 
+Y_t &\sim \text{Poisson}(\lambda_t), ~~ \text{(Observation link)}.  \\
+\end{aligned}
+$$
+
+Here we are connecting a continous time model, where we index continuously evolving variables using **(t)**, to daily incrementing processes which we index with a subscript $t$.
+The population variables $S(t)$, $I(t)$, and $R(t)$ represent susceptible, infected, and recovered individuals at time $t$.
+The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
+The basic reproduction number $R_0 = \beta/\gamma$ characterises transmission potential, which is assumed to be constant in time in this model.
+All individuals are assumed to be either susceptible or infected the beginning of the outbreak, therefore, only $I(0)$ is needed to define the initial conditions for the outbreak.
+The log-scale ascertainment rate  is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with a damping $\phi$ parameter, initial state $\kappa_0$ and innovation standard deviation $\sigma$.
+$\pi$ represents the priors over each parameter.
+
+#### Latent Models
+
+Chatzilena _et al_ parameterise the autoregressive model for log-scale ascertainment as a time discretised Ornstein-Uhlenbeck process, which can be identified with an AR(1) process.
+
+```{julia}
+#| output: false
+ascert_ar = AR(
+    damp_priors = [HalfNormal(0.005)],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
+)
+```
+
+The SIR model parameters are static during the outbreak, these are generated directly with the initial fraction of infecteds $I(0) / N$,
+
+```{julia}
+#| output: false
+sir_params = SIRParams(
+    tspan = (0., england_data.ts[end]),   # For ODEProblem constructor
+    infectiousness = LogNormal(0.0, 1.0),  # beta prior
+    recovery_rate = Gamma(0.004, 1 / 0.002), # gamma prior
+    initial_prop_infected = Beta(0.5, 0.5)  # I(0) prior
+)
+```
+
+#### Infection Generating Process
+
+We build the probabilistic SIR model as our infection generating process, by composing the probabilistic ODE model generator with solver details. 
+The SIR parameter model (`sir_params`) defines the underlying differential equation model and priors.
+The SIR model in our modelling DSL is specified in population density form, therefore, as well as specifying which solution index corresponds to the infecteds, we rescale by the population size $N$.
+We also make a `softplus` transformation which stabilises inference when sampling very low values of infected at some time point.
+
+
+```{julia}
+#| output: false
+using LogExpFunctions
+sir_process = ODEProcess(
+    params = sir_params,                                                 # Underlying ODE and priors
+    sol2infs = sol -> softplus.(N .* sol[2, :]),                         # Link model
+    solver_options = Dict(:verbose => false, :saveat => england_data.ts) # Solver options
+)
+```
+
+This specialises the standard SciML compositional approach: problem definition composed with solution method @rackauckas2017differentialequations, to randomly generated SIR models composed with their solver and a link to latent infections.
+
+#### Observation Model
+
+The observation model is built by first instantiating a Poisson link model.
+
+```{julia}
+#| output: false
+pois = PoissonError()
+```
+
+We then build on the Poisson link by layering the log-scale ascertainment process.
+
+```{julia}
+#| output: false
+varying_ascertainment = Ascertainment(
+    model = pois,               # Link model
+    latent_model = ascert_ar,   # Temporal modifier model
+)
+```
+
+The `Ascertainment` struct defines the temporal modifications to the latent infections by first applying multiplicative variation defined by the log-scale ascertainment process, and then linking to the count data.
+
+### Fitting to Data
+
+Chatzilena _et al_ use two different observation models to link the SIR model to the boarding school influenza data.
+
+1. **Deterministic model**. This uses a direct Poisson link for observations; that is defined by the `pois` object, or equivalently by conditioning on $\kappa_t = 0$ for each $t$.
+2. **Stochastic model**. This uses the full mathematical model for observations; that is defined by the `varying_ascertainment` object.
+
+#### Deterministic Model
+
+We compose the modelling subcomponents into one `EpiProblem` model
+
+```{julia}
+#| output: false
+tspan = (1, length(england_data.y_t))
+deterministic_sir = EpiProblem(epi_model=sir_process,
+    latent_model=Null(),
+    observation_model=pois,
+    tspan=tspan)
+```
+
+The `EpiProblem` uses the SIR process with straight Poisson link to the data.
+Unlike in the other examples, the SIR process does not require a latent time-varying model for parameters and so that subcomponent is left as `Null`.
+
+We construct a Turing model using `generate_epiaware`, 
+
+```{julia}
+#| output: false
+deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
+```
+
+We reuse the same `inference_method` defined in @sec-example1, showcasing how our inference setup can be applied across different model compositions.
+
+The only extra step in inference compared to previous examples is to make the `SciMLSensitivity` package available for reverse-mode automatic differentiation through the ODE solutions.
+
+```{julia}
+#| output: false
+using SciMLSensitivity
+deterministic_sir_results = apply_method(deterministic_sir_mdl,
+    inference_method,
+    england_data
+)
+```
+
+```{julia}
+summarystats(deterministic_sir_results.samples)
+```
+
+#### Stochastic Model
+
+To define the full stochastic model, we reuse the `EpiProblem` from before with the time-varying ascertainment subcomponent replacing the direct Poisson link subcomponent.
+
+```{julia}
+#| output: false
+using Accessors
+stochastic_sir = @set deterministic_sir.observation_model = varying_ascertainment
+```
+
+This in turn constructs the corresponding Turing model.
+
+```{julia}
+#| output: false
+stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
+```
+
+And we can apply the same inference method.
+
+```{julia}
+#| output: false
+stochastic_sir_results = apply_method(stochastic_sir_mdl,
+    inference_method,
+    england_data
+)
+```
+
+```{julia}
+summarystats(stochastic_sir_results.samples)
+```
+
+```{julia}
+#| echo: false
+#| output: false
+
+function posterior_R0(results)
+    vec(results.samples[:β] ./ results.samples[:γ])
+end
+
+dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
+
+function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        obs_mdl()
+    end
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col; color=(:grey, 0.2))
+    end
+    lines!(ax, latent_infections; color=:red, linewidth=3, label="Latent infections")
+    axislegend(ax)
+    return nothing
+end
+
+function generated_quantiles(gens, quantity, qs; transformation=x -> x)
+    mapreduce(hcat, gens) do gen #loop over sampled generated quantities
+        getfield(gen, quantity) |> transformation
+    end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
+        map(eachrow(mat)) do row
+            if any(ismissing, row)
+                return missing
+            else
+                quantile(row, q)
+            end
+        end
+    end
+
+end
+
+function posterior_gens_for_plot(inference_results, n; epi_prob)
+    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, n),))
+
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
+
+    return posterior_gens
+end
+
+function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
+    ts = dates_to_times(inference_data.dates)
+    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
+    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
+    predicted_y_t = predicted_y_t[(n+1):end, :]
+
+    lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
+        color=:purple,
+        linewidth=2,
+        label="Post. median"
+    )
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
+        color=(:purple, 0.4),
+        label="50%"
+    )
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
+        color=(:purple, 0.2),
+        label="95%"
+    )
+    scatter!(ax, ts, inference_data.y_t;
+        color=:black,
+        label="Actual cases")
+    axislegend(ax)
+
+    return nothing
+end
+
+function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
+    ts = dates_to_times(inference_data.dates)
+    #Prediction quantiles
+    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
+        transformation=x -> exp.(x))
+
+    lines!(ax, ts, predicted_R_t[:, 3];
+        color=:green,
+        linewidth=2,
+        label="Post. median"
+    )
+    band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
+        color=(:green, 0.4),
+        label="50%"
+    )
+    band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
+        color=(:green, 0.2),
+        label="95%"
+    )
+    axislegend(ax)
+end
+```
+
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-figure5
+#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior samples from the composite observation model including time-varying ascertainment and Poisson sampling around a latent infection curve. (B) Posterior predictive distributions for the reproductive number (R₀) with the deterministic SIR model (blue density) and stochastic SIR model (yellow density) (C) Posterior predictive distribution for daily cases for deterministic SIR model, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (D) Posterior predictive distribution for daily cases for stochastic SIR model, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points)."
+figure5 = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    t_ticks = @chain england_data begin
+        _.dates
+        string.(_)
+    end
+    ts = dates_to_times(england_data.dates)
+    n = length(england_data.y_t)
+    posterior_gens = [posterior_gens_for_plot(results, n; epi_prob) 
+        for (results, epi_prob) in 
+        zip([deterministic_sir_results, stochastic_sir_results], [deterministic_sir, stochastic_sir])]
+    
+    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
+    obs_mdl = generate_observations(varying_ascertainment, missing, latent_infections)
+
+    fig = Figure(size=(1200, 1000))
+    ax11 = Axis(fig[1, 1];
+        # yscale=log10,
+        ylabel="Time varying ascertainment"
+    )
+    ax12 = Axis(fig[1, 2];
+        xlabel="Reproductive number (R₀)"
+    )
+    ax21 = Axis(fig[2, 1];
+        xticks=(ts[1:3:end], t_ticks[1:3:end]),
+        ylabel = "Daily cases",
+        title = "Deterministic SIR"
+    )
+    ax22 = Axis(fig[2, 2];
+        xticks=(ts[1:3:end], t_ticks[1:3:end]),
+        ylabel = "Daily cases",
+        title = "Stochastic SIR"
+    )
+
+    delay_dow_sample_plot!(ax11, obs_mdl, latent_infections; n_samples)
+    for (ax, gens) in zip((ax21, ax22), posterior_gens)
+        post_predictive_yt!(ax, england_data, gens; qs)
+    end
+    density!(ax12, posterior_R0(deterministic_sir_results), label = "Deterministic SIR")
+    density!(ax12,posterior_R0(stochastic_sir_results), label = "Stochastic SIR")
+    axislegend(ax12)
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D"],
+        [fig[1, 1], fig[1, 2], fig[2, 1], fig[2, 2]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18,
+            font=:bold,
+            padding=(0, 5, 5, 0),
+            halign=:right)
+    end
+
+    fig
+end
+
+figure5
+```
+
+Figure @fig-figure5 shows that the compositional SIR models recover similar results to @chatzilena2019contemporary; using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} @chain deterministic_sir_results posterior_R0 mean round(digits=1)` (`{julia} @chain deterministic_sir_results posterior_R0 quantile(0.025) round(digits=1)` - `{julia} @chain deterministic_sir_results posterior_R0 quantile(0.975) round(digits=1)` 95% CI) whilst using the stochastic SIR model infers a reproductive number ($R_0$) of `{julia} @chain stochastic_sir_results posterior_R0 mean round(digits=1)` (`{julia} @chain stochastic_sir_results posterior_R0 quantile(0.025) round(digits=1)` - `{julia} @chain stochastic_sir_results posterior_R0 quantile(0.975) round(digits=1)` 95% CI) @fig-figure5 **B**.
+The deterministic SIR model posterior predictive trajectories @fig-figure5 **C** look less well calibrated than those generated using the stochastic SIR model @fig-figure5 **D** with five of the 14 data points falling outside the 95% prediction envelopes.
+This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
+
 
 # Discussion {#sec-discussion}
 
