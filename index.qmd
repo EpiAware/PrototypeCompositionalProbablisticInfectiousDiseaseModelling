@@ -1,27 +1,31 @@
 ---
 title: "A Prototype for Compositional Probabilistic Infectious Disease Modelling"
 authors:
-  - name: "Samuel P. C. Brand"
-    affiliations:
-      - ref: cdc
-    email: "usi1@cdc.gov"
-    orcid: "0000-0003-0645-5367"
-  - name: "Sebastian Funk"
-    affiliations:
-      - ref: lshtm
-    email: "sebastian.funk@lshtm.ac.uk"
-    orcid: "0000-0002-2842-3406"
-  - name: "Kaitlyn E. Johnson"
-    affiliations:
-      - ref: lshtm
-    email: "kaitlyn.johnson@lshtm.ac.uk"
-    orcid: "0000-0001-8011-0012"
   - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
     email: "sam.abbott@lshtm.ac.uk"
     orcid: "0000-0001-8057-8037"
-    corresponding: true
+    attributes:
+      corresponding: true
+      equal-contributor: true
+  - name: "Samuel P. C. Brand"
+    affiliations:
+      - ref: cdc
+    email: "usi1@cdc.gov"
+    orcid: "0000-0003-0645-5367"
+    attributes:
+      equal-contributor: true
+  - name: "Kaitlyn E. Johnson"
+    affiliations:
+      - ref: lshtm
+    email: "kaitlyn.johnson@lshtm.ac.uk"
+    orcid: "0000-0001-8011-0012"
+  - name: "Sebastian Funk"
+    affiliations:
+      - ref: lshtm
+    email: "sebastian.funk@lshtm.ac.uk"
+    orcid: "0000-0002-2842-3406"
 
 affiliations:
   - id: cdc
