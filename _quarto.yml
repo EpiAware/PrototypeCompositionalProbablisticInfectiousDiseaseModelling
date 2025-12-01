@@ -1,6 +1,7 @@
 project:
   type: default
   render:
+    - case-studies.qmd
     - index.qmd
 
 engines: ['julia']

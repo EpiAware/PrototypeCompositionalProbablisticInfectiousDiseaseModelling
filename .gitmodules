@@ -1,3 +1,6 @@
 [submodule "EpiAware"]
 	path = EpiAware
 	url = https://github.com/seabbs/Rt-without-renewal.git
+[submodule "EpiAwareR"]
+	path = EpiAwareR
+	url = https://github.com/sbfnk/EpiAwareR

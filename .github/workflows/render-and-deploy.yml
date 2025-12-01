@@ -59,7 +59,7 @@ jobs:
             .cache
             .quarto/project-cache
             _freeze/
-          key: ${{ runner.os }}-${{ github.ref_name }}-quarto-${{ hashFiles('index.qmd', '_quarto.yml') }}
+          key: ${{ runner.os }}-${{ github.ref_name }}-quarto-${{ hashFiles('index.qmd', 'case-studies.qmd', '_quarto.yml') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-quarto-
             ${{ runner.os }}-main-quarto-
@@ -97,11 +97,13 @@ jobs:
           mkdir -p _site
           cp index.html _site/ 2>/dev/null || echo "HTML file not found"
           cp index.pdf _site/ 2>/dev/null || echo "PDF file not found"
-          cp index.ipynb _site/ 2>/dev/null || echo "Notebook file not found"
+          cp case-studies.html _site/ 2>/dev/null || echo "Case studies HTML not found"
+          cp case-studies.pdf _site/ 2>/dev/null || echo "Case studies PDF not found"
           cp -r site_libs _site/ 2>/dev/null || echo "Site libs not found"
           cp Project.toml _site/ || echo "Project.toml not found"
           cp Manifest.toml _site/ || echo "Manifest.toml not found"
           cp -r data _site/ || echo "Data folder not found"
+          cp -r figures _site/ 2>/dev/null || echo "Figures folder not found"
 
       - name: Upload artifacts
         if: steps.check-outputs.outputs.has-artifacts == 'true'
@@ -110,10 +112,11 @@ jobs:
           name: quarto-outputs-${{ github.sha }}
           path: |
             index.pdf
-            index.ipynb
+            case-studies.pdf
             Project.toml
             Manifest.toml
             data/
+            figures/
           retention-days: 30
           if-no-files-found: warn
 

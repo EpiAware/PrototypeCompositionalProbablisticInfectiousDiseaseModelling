@@ -11,9 +11,11 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 🌐 **[Read the paper online](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/)** (HTML)
 
-📓 **[Jupyter Notebook](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/index.ipynb)**
+📑 **[Supplementary Information: Case Studies](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/case-studies.html)** (HTML)
 
 📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
+
+📦 **[EpiAwareR: R Interface](https://github.com/sbfnk/EpiAwareR)**
 
 ## Citation
 
@@ -44,7 +46,9 @@ task
 This automatically handles git submodules, Julia environment setup, Quarto extension installation, and document rendering.
 
 Available tasks:
-- `task` - Complete workflow (default)
+- `task` - Render all documents (default)
+- `task render-case-studies` - Render case studies (generates figures)
+- `task render-index` - Render main document
 - `task preview` - Preview document with live reload
 - `task repl` - Launch Julia REPL with project environment
 - `task install-extensions` - Install Quarto extensions
