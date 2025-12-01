@@ -285,12 +285,14 @@ using CodeTracking, Revise
 
 ```{julia}
 #| echo: false
+#| class-output: julia
 print(@code_string EpiAwareBase.generate_latent(ar2, 50))
 ```
 
 The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state.
 ```{julia}
 #| echo: false
+#| class-output: julia
 print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
 ```
 
@@ -303,6 +305,7 @@ The full ARIMA(2,1,1) model we defined in the DSL section can then be generated 
 
 ```{julia}
 #| echo: false
+#| class-output: julia
 print(@code_string generate_latent(arima211, 50))
 ```
 
@@ -963,6 +966,7 @@ First, transformation and broadcasting
 
 ```{julia}
 #| echo: false
+#| class-output: julia
 print(@code_string broadcast_dayofweek(HierarchicalNormal()))
 ```
 
@@ -972,6 +976,7 @@ Second is the linkage of the day of week model to the latent infections time ser
 
 ```{julia}
 #| echo: false
+#| class-output: julia
 I_t_demo = [1000.0 for _ in 1:30]
 print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
 ```
