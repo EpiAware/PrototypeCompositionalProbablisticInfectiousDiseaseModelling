@@ -451,12 +451,11 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
-*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate contemporary statistical inference for infectious disease models, showing how to fit mechanistic compartmental models to outbreak data with proper uncertainty quantification.
-Their work provides a template for integrating ODE-based transmission models with probabilistic observation processes.
+*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 
-Our replication integrates the SciML ecosystem [@SciML] for solving ordinary differential equations with EpiAware's observation model interface.
-The AR(1) latent model captures stochastic deviations from the deterministic SIR dynamics, whilst the Poisson observation model links the infected compartment to observed cases.
-This case study demonstrates that compositional approaches extend beyond renewal models to compartmental disease transmission models, enabling the same component reuse patterns across different modelling paradigms.
+Our replication composes an SIR compartmental model with time-varying transmission, an AR(1) latent process for stochastic deviations from deterministic dynamics, and a Poisson observation model for case counts.
+In code, `ODEProcess` from the SciML ecosystem [@SciML] solves the SIR differential equations, `AR` generates multiplicative perturbations to the transmission rate, and `PoissonError` links the infected compartment to observed cases.
+This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
 
 *The figure for this case study is currently under development and will be added once the implementation follows the standard case study format.*
 
