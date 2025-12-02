@@ -33,8 +33,14 @@ cd EpiAware/EpiAware && julia --project=docs/ -e "using Pkg; Pkg.instantiate(); 
 
 ### Using Task (Recommended)
 ```bash
-# Complete workflow (render document)
+# Render all documents (case studies first, then main paper)
 task
+
+# Render case studies only (generates figures)
+task render-case-studies
+
+# Render main document only
+task render-index
 
 # Preview document with live reload
 task preview
@@ -61,10 +67,12 @@ pre-commit run --all-files
 ## Architecture Overview
 
 ### Project Structure
-This is a **compositional epidemiological modelling** research project with two main components:
+This is a **compositional epidemiological modelling** research project with the following components:
 
 1. **Main Research Document** (`index.qmd`): Quarto-based manuscript presenting compositional approaches to infectious disease modelling
-2. **EpiAware Package** (`EpiAware/` submodule): Core Julia package providing the modelling framework
+2. **Supplementary Information** (`case-studies.qmd`): Full implementation details for case studies, generates figures used in main text
+3. **EpiAware Package** (`EpiAware/` submodule): Core Julia package providing the modelling framework
+4. **EpiAwareR** (`EpiAwareR/` submodule): R interface to EpiAware using JuliaCall
 
 ### Key Technical Stack
 - **Julia 1.11+**: Primary language for scientific computing
@@ -120,10 +128,12 @@ EpiAware/src/
 ## Quarto Integration
 
 ### Manuscript Development
-- `index.qmd`: Main research article
-- `_quarto.yml`: Multi-format output (HTML, PDF)
-- `execute.freeze: false`: Live computation during rendering
+- `index.qmd`: Main research article (references figures from `figures/`)
+- `case-studies.qmd`: Supplementary Information with full case study code (generates figures)
+- `_quarto.yml`: Multi-format output (HTML, PDF), renders case-studies.qmd first then index.qmd
+- `execute.freeze: auto`: Cached computation during rendering
 - Julia engine integration for reproducible analysis
+- Figures saved to `figures/` directory by case-studies.qmd for use in index.qmd
 
 ### Bibliography Management
 - BibTeX files in `resources/` directory

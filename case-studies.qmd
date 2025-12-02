@@ -1,0 +1,864 @@
+---
+title: "Supplementary Information: Case Studies"
+format:
+  html: default
+  pdf: default
+execute:
+  freeze: auto
+  cache: true
+bibliography: references.bib
+---
+
+```{julia}
+#| output: false
+#| echo: false
+import QuartoTools
+```
+
+```{julia}
+#| output: false
+#| echo: false
+using Random
+Random.seed!(1234)
+```
+
+# Setup
+
+This supplementary document contains the full implementation details for the case studies presented in the main text.
+The code here demonstrates how our prototype compositional modelling DSL recreates and extends existing epidemiological models.
+
+## Required Definitions
+
+We first define the latent models that are reused across case studies.
+These definitions mirror those in the main text.
+
+```{julia}
+#| output: false
+# Core packages needed for case studies
+using EpiAware, Distributions
+using DynamicPPL, Turing, LinearAlgebra
+using ReverseDiff
+using Chain, CSV, DataFramesMeta, Dates
+using CairoMakie
+using CodeTracking, Revise
+```
+
+```{julia}
+#| output: false
+ar2 = AR(;
+    damp_priors=[truncated(Normal(0.2, 0.2), 0, 1),
+        truncated(Normal(0.1, 0.05), 0, 1)],
+    init_priors=[Normal(0, 0.2), Normal(0, 0.2)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
+)
+```
+
+```{julia}
+#| output: false
+ma1 = MA(;
+    θ_priors=[truncated(Normal(0.0, 0.2), -1, 1)],
+    ϵ_t=HierarchicalNormal(std_prior=HalfNormal(0.1))
+)
+```
+
+```{julia}
+#| output: false
+using Accessors
+arma21 = @set ar2.ϵ_t = ma1
+```
+
+```{julia}
+#| output: false
+arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
+```
+
+# Case Studies {#sec-case-studies}
+
+We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
+Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
+The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
+The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
+
+All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+
+## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
+
+<!-- Reference: https://arxiv.org/abs/2006.16487 -->
+
+<!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
+
+In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, as a renewal model with time-varying reproduction number $R_t$.
+Renewal models use the renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (or serial interval) [@cori2013new].
+This is analogous to an autoregressive process where the autoregressive coefficients have epidemiological meaning rather than being estimated parameters.
+They show how solutions to the renewal equation, when combined with a negative binomial observation model, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
+
+### Data
+
+_Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
+This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
+
+```{julia}
+#| output: false
+using Chain, CSV, DataFramesMeta, Dates
+datapath = "data/south_korea_data.csv"
+south_korea_data = @chain datapath begin
+    CSV.read(DataFrame)
+    (y_t = _.cases_new, dates = _.date)
+end
+```
+
+### Model
+
+Our model is inspired by _Mishra et al_ and uses a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
+The latent infection process is then linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
+The key difference from _Mishra et al_ is in the initialization.
+They seed the renewal equation with importations (independent daily effects $\mu_t \sim \text{Exponential}(0.5)$), whilst we initialize by solving for the growth rate corresponding to the initial reproduction number and extrapolating backwards without allowing for ongoing importations.
+
+$$
+\begin{aligned}
+\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma, \phi &\sim \pi(\cdot), \\
+\epsilon_t & \sim \text{Normal}(0, \sigma)~~ \text{i.i.d } \forall t, \\
+Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t,~~ t = 1, 2, 3, \dots\\
+R_t & = \exp(Z_t), \\
+r & \text{ solves } G(r) = 1 / R_1, \\
+I_{t} & = I_0 e^{rt},~~ t = 0, -1, -2, -3,-n+1, \\
+I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
+y_t & \sim \text{NegBin}(I_t, \phi), ~~ t = 1, 2, 3, \dots.
+\end{aligned}
+$$
+
+Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the autoregressive coefficients $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
+$g_t$ is the generation distribution probability mass function (pmf).
+$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation.
+
+$$
+G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
+$$
+
+This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
+
+#### Latent Model
+
+We reuse the AR(2) model `ar2` defined in the main text (see Domain-Specific Language Structure section), which has the appropriate priors from _Mishra et al_.
+Prior predictive samples (@fig-mishra A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
+
+```{julia}
+#| echo: false
+#| output: false
+using CairoMakie
+
+ar_mdl = generate_latent(ar2, 50)
+
+function ar_sample_plot!(ax, ar_mdl; n_samples=100)
+    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        ar_mdl() .|> exp
+    end
+    for col in eachcol(ar_mdl_samples)
+        lines!(ax, col, color=(:grey, 0.1))
+    end
+    return nothing
+end
+```
+
+#### Infection Generating Process
+
+The renewal equation requires a discrete generation time pmf $g_t$.
+Our prototype provides a constructor that converts continuous distributions into the required discrete pmf using double interval censoring @charniga2024best.
+This is called inside the `EpiData` struct which we use to define the expected model specific input data.
+_Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
+
+```{julia}
+#| output: false
+truth_SI = Gamma(6.5, 0.62)
+model_data = EpiData(gen_distribution=truth_SI)
+```
+
+@fig-mishra D compares the discretized generation interval with the underlying continuous distribution.
+As expected the observed discrete generation interval differs from the underlying continuous distrbution due to the double censoring process.
+
+```{julia}
+#| echo: false
+#| output: false
+function discretised_gen_plot!(ax, model_data, truth_SI)
+    barplot!(ax, model_data.gen_int;
+        label="Discretized next gen pmf"
+    )
+    lines!(ax, truth_SI;
+        label="Continuous serial interval",
+        color=:green
+    )
+    axislegend(ax)
+    return nothing
+end
+```
+
+As in the earlier example, we define our renewal model using a specialised struct, `Renewal`.
+This requires the discretized generation time (from `model_data`) and an initialisation prior.
+We use a lognormal prior for the initial latent infections as it has a skewed right tail allow some weight on large initial values.
+
+```{julia}
+#| output: false
+log_I0_prior = Normal(log(1.0), 0.1)
+renewal = Renewal(model_data; initialisation_prior=log_I0_prior)
+```
+
+This results in the following model structure.
+
+```{julia}
+renewal
+```
+
+To demonstrate the infection model independently, we define a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days and pass this to the `generate_latent_infs` function which, like the `generate_latent` function, relies on multiple dispatch to contruct the model that the struct it is passed defines.
+
+```{julia}
+#| output: false
+Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
+renewal_mdl = generate_latent_infs(renewal, log.(Rt))
+```
+
+The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can then be sampled independently of other model components (@fig-mishra B). As expected this gives us a "classical" outbreak like dynamic with infection incidence initially increasing exponentially, the rate of growth slowing over time, and then finally the infection incidence "turning over".
+
+```{julia}
+#| echo: false
+#| output: false
+function plot_latent_infections!(ax, renewal_mdl; n_samples)
+    renewal_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        renewal_mdl()
+    end
+    for col in eachcol(renewal_mdl_samples)
+        lines!(ax, col;
+            color=(:grey, 0.1)
+        )
+    end
+    return nothing
+end
+
+function plot_Rt_traj!(ax, Rt)
+    lines!(ax, Rt;
+        linewidth=2
+    )
+    return nothing
+end
+```
+
+The full infection generating process, that is the model defined in @sec-example1 without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
+
+#### Observation Model
+
+In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors.
+We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
+A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
+
+```{julia}
+#| output: false
+negbin = NegativeBinomialError(cluster_factor_prior=HalfNormal(0.1))
+```
+
+As with the latent model, we can generate a `Turing.jl` model conditional on a fixed latent infection trajectory.
+Here we simulated this to look like an outbreak with a symmetrical growth and decay phase.
+
+```{julia}
+#| output: false
+I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
+negbin_mdl = generate_observations(negbin, missing, I_t)
+```
+
+Here we use a `missing` argument to indicate observed variables that are to be sampled rather than to be used to accumulate log posterior density.
+Prior predictive samples (@fig-mishra C) show the dispersion around the mean implied by our choice of prior.
+
+```{julia}
+#| echo: false
+#| output: false
+function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
+    negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        θ = negbin_mdl()
+    end
+    for col in eachcol(negbin_mdl_samples)
+        scatter!(ax, col;
+            color=(:grey, 0.2)
+        )
+    end
+    lines!(ax, I_t;
+        color=:red,
+        linewidth=3,
+        label="Latent infections"
+    )
+    axislegend(ax)
+    return nothing
+end
+```
+
+### Fitting to Data
+
+We now compose the three model components into an `EpiProblem`, which defines the complete generative model for the time range `tspan`.
+
+```{julia}
+#| output: false
+tspan = (45, 80)
+mishra = EpiProblem(epi_model = renewal,
+    latent_model = ar2,
+    observation_model = negbin,
+    tspan = tspan)
+```
+
+We create training data by subsetting the full data to match `tspan`.
+
+```{julia}
+#| output: false
+training_data = @chain south_korea_data begin
+    @set _.y_t = _.y_t[first(tspan):last(tspan)]
+    @set _.dates = _.dates[first(tspan):last(tspan)]
+end
+```
+
+As a last step before fitting the model, we generate a new `Turing.jl` model using `generate_epiaware`, the `EpiProblem` we just defined, and our training data.
+
+```{julia}
+#| output: false
+using Turing
+mishra_mdl = generate_epiaware(mishra, training_data)
+```
+
+Following the same compositional pattern as our modelling DSL, we also support composing inference approaches using `EpiMethod`, which, for example, can combine pre-sampling steps with sampling algorithms.
+We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound to estimate the intialise the sampler.
+
+```{julia}
+#| output: false
+using ReverseDiff
+inference_method = EpiMethod(
+    pre_sampler_steps=[ManyPathfinder(nruns=5, maxiters=100)],
+    sampler=NUTSampler(
+        target_acceptance=0.9,
+        adtype=AutoReverseDiff(compile=true),
+        ndraws=1000,
+        nchains=4,
+        mcmc_parallel=MCMCThreads(),
+        nadapts=1000)
+)
+```
+
+We now need to combine our inference approach with our generated model.
+We can do this using the `apply_method`.
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: true
+mishra_results = apply_method(mishra_mdl,
+    inference_method,
+    training_data
+)
+```
+
+This gives the following posterior estimates for our model parameters.
+
+```{julia}
+summarystats(mishra_results.samples)
+```
+
+```{julia}
+#| echo: false
+#| output: false
+dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
+
+function generated_quantiles(gens, quantity, qs; transformation=x -> x)
+    mapreduce(hcat, gens) do gen #loop over sampled generated quantities
+        getfield(gen, quantity) |> transformation
+    end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
+        map(eachrow(mat)) do row
+            if any(ismissing, row)
+                return missing
+            else
+                quantile(row, q)
+            end
+        end
+    end
+
+end
+
+function posterior_gens_for_plot(inference_results, n; epi_prob)
+    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, n),))
+
+    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
+
+    return posterior_gens
+end
+
+function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
+    ts = dates_to_times(inference_data.dates)
+    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
+    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
+    predicted_y_t = predicted_y_t[(n+1):end, :]
+
+    lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
+        color=:purple,
+        linewidth=2,
+        label="Post. median"
+    )
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
+        color=(:purple, 0.4),
+        label="50%"
+    )
+    band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
+        color=(:purple, 0.2),
+        label="95%"
+    )
+    scatter!(ax, ts, inference_data.y_t;
+        color=:black,
+        label="Actual cases")
+    axislegend(ax)
+
+    return nothing
+end
+
+function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
+    ts = dates_to_times(inference_data.dates)
+    #Prediction quantiles
+    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
+        transformation=x -> exp.(x))
+
+    lines!(ax, ts, predicted_R_t[:, 3];
+        color=:green,
+        linewidth=2,
+        label="Post. median"
+    )
+    band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
+        color=(:green, 0.4),
+        label="50%"
+    )
+    band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
+        color=(:green, 0.2),
+        label="95%"
+    )
+    axislegend(ax)
+end
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-mishra
+#| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+fig_mishra = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    t_ticks = @chain training_data begin
+        _.dates
+        string.(_)
+    end
+    ts = dates_to_times(training_data.dates)
+
+    posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
+        epi_prob=mishra)
+
+    fig = Figure(size=(1200, 1000))
+
+    ax11 = Axis(fig[1, 1];
+        yscale=log10,
+        ylabel="Time varying Rₜ"
+    )
+    ax12 = Axis(fig[1, 2];
+        ylabel="Latent infections"
+    )
+    ax13 = Axis(fig[1, 3];
+        ylabel="Observed cases"
+    )
+    ax21 = Axis(fig[2, 1];
+        xticks=0:14,
+        xlabel="Days"
+    )
+    ax22 = Axis(fig[2, 2];
+        ylabel="Daily cases",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
+    )
+    ax23 = Axis(fig[2, 3];
+        yscale=log10,
+        ylabel="Time varying Rₜ",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
+    )
+
+    ar_sample_plot!(ax11, ar_mdl; n_samples)
+    plot_latent_infections!(ax12, renewal_mdl; n_samples)
+    neg_bin_obs_plot!(ax13, negbin_mdl; n_samples)
+    discretised_gen_plot!(ax21, model_data, truth_SI)
+    post_predictive_yt!(ax22, training_data, posterior_gens; qs)
+    post_predictive_Rt!(ax23, training_data, posterior_gens; qs)
+
+    # Format y-axis labels to avoid scientific notation
+    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18,
+            font=:bold,
+            padding=(0, 5, 5, 0),
+            halign=:right)
+    end
+
+    fig
+end
+
+# Save fig_mishra to files
+save("figures/fig-mishra.pdf", fig_mishra)
+save("figures/fig-mishra.png", fig_mishra)
+
+fig_mishra
+```
+
+@fig-mishra shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
+
+## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
+
+In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
+`EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
+`EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from the main text and @sec-example1 and composing them with new delay and temporal effect components.
+
+### Data
+
+We use the example dataset included with the `EpiNow2` R package, which contains daily confirmed COVID-19 cases from Italy during the first wave in 2020, from 22nd February to 30th June.
+
+```{julia}
+#| output: false
+using Chain, CSV, DataFramesMeta, Dates
+datapath = "data/italy_data.csv"
+italy_data = @chain datapath begin
+    CSV.read(DataFrame)
+    (y_t = _.confirm, dates = Date.(_."date"))
+end
+```
+
+### Model
+
+Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, making it piecewise constant by week, whilst building an observation model that accounts for reporting delays and day-of-week effects using discrete convolutions and a partially pooled day of the week effect.
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Mathematically, we represent the complete model as:
+
+$$
+\begin{aligned}
+\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma_Z, \sigma_\omega, \phi &\sim \pi(\cdot), \\
+\epsilon_w & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall w, \\
+Z_w - Z_{w-1} &= \rho_1 (Z_{w-1} - Z_{w-2}) + \rho_2 (Z_{w-2} - Z_{w-3}) + \epsilon_w,~~ w = 1, 2, 3, \dots\\
+R_t &= \exp\left(Z_{\lfloor t/7 \rfloor}\right),~~ \text{Piecewise } R_t \text{ constant by week}\\
+I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
+S_t &= \sum_{s\geq1} I_{t-s} \eta_s,~~ \text{Incubation delay: infections to symptom onset}\\
+D_t &= \sum_{s\geq1} S_{t-s} \xi_s,~~ \text{Reporting delay: symptom onset to case reports}\\
+\tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
+\omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
+y_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
+\end{aligned}
+$$ {#eq-epinow2-model}
+
+Where $\pi$ represents prior distributions for model hyperparameters.
+$g_t$ is the generation time distribution pmf, $\eta_t$ is the incubation period distribution pmf, and $\xi_t$ is the reporting delay distribution pmf (all obtained by double interval censoring continuous distributions @charniga2024best).
+$S_t$ represents symptom onsets (infections convolved with incubation period) and $D_t$ represents delayed case reports (symptom onsets convolved with reporting delay).
+The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on reporting.
+
+#### Latent Model
+
+We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section above but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
+```{julia}
+#| output: false
+weekly_arima211 = broadcast_weekly(arima211)
+```
+
+This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
+In `EpiNow2`, although stationary process representations of $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
+Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to $\log R_{w}$ at the weekly scale, then broadcasts this to daily values.
+The weekly piecewise constant formulation we use is an option in the `EpiNow2` package but not part of the default model.
+Prior predictive samples (@fig-epinow2 A) show the behaviour of the piecewise constant by week process.
+
+```{julia}
+#| echo: false
+#| output: false
+weekly_arima211_mdl = generate_latent(weekly_arima211, 50)
+
+function arima_sample_plot!(ax, arima_mdl; n_samples=100)
+    arima_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        arima_mdl() .|> exp
+    end
+    for col in eachcol(arima_mdl_samples)
+        lines!(ax, col, color=(:grey, 0.1))
+    end
+    return nothing
+end
+```
+
+#### Infection Generating Process
+
+Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
+Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
+
+Here we follow the `EpiNow2` getting started vignette to parameterise our model, this has a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
+Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days
+
+```{julia}
+#| output: false
+gen_time_dist = Gamma(1.4, 1 / 0.38)
+epinow2_data = EpiData(gen_distribution=gen_time_dist)
+```
+
+We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
+
+```{julia}
+#| output: false
+initialisation_prior = Normal(log(1.0), 2.0)
+renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
+```
+
+As before, to demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
+@fig-epinow2 B shows prior samples from the renewal process conditional on this $R_t$ trajectory.
+
+```{julia}
+#| echo: false
+#| output: false
+renewal_mdl = let
+    rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
+    _renewal_mdl = generate_latent_infs(renewal_gt, log.(rt_process))
+end
+```
+
+#### Observation Model
+
+We build the observation model through the composition of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
+We start by adding a day of the week ascertainment model using the `ascertainment_dayofweek` helper function.
+
+```{julia}
+#| output: false
+dayofweek_negbin = ascertainment_dayofweek(negbin;
+    latent_model=HierarchicalNormal(std_prior=HalfNormal(1.0))
+)
+```
+
+Unpacking this helper function reveals a nested stack of modelling constructions.
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string ascertainment_dayofweek(negbin;
+    latent_model=HierarchicalNormal(std_prior=HalfNormal(1.0))))
+```
+
+First, transformation and broadcasting
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string broadcast_dayofweek(HierarchicalNormal()))
+```
+
+which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
+
+Second is the linkage of the day of week model to the latent infections time series as a multiplicative ascertainment process, which produces
+
+```{julia}
+#| echo: false
+#| class-output: julia
+I_t_demo = [1000.0 for _ in 1:30]
+print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
+```
+
+This day-of-week model assumes a static weekly pattern; to allow temporal evolution, the weekly pattern could be modelled by concatenating latent processes, where each day's effect becomes a time-varying process.
+
+In addition to ascertainment, we also need to model the incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
+Again following the `EpiNow2` getting started vignette, the incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
+The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, giving a mean of 1.99 days.
+
+Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values:
+
+```{julia}
+#| output: false
+incubation_distribution = LogNormal(1.6, 0.42)
+reporting_distribution = LogNormal(0.58, 0.47)
+```
+
+The `LatentDelay` struct uses double interval censoring @charniga2024best to convert continuous delay models into pmfs and stacks with the temporal modifier model.
+We compose two delay layers sequentially:
+
+```{julia}
+#| output: false
+incubation_dayofweek_negbin = LatentDelay(dayofweek_negbin, incubation_distribution)
+delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_distribution)
+```
+
+This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
+Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the struct-in-struct approach with multiple dispatch.
+@fig-epinow2 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
+
+```{julia}
+#| echo: false
+#| output: false
+function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
+    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
+        obs_mdl()
+    end
+    for col in eachcol(obs_mdl_samples)
+        scatter!(ax, col; color=(:grey, 0.2))
+    end
+    lines!(ax, latent_infections; color=:red, linewidth=3, label="Latent infections")
+    axislegend(ax)
+    return nothing
+end
+```
+
+### Fitting to Data
+
+We compose these modelling subcomponents into one `EpiProblem` model. The delay padding accounts for the combined length of the incubation period and reporting delay pmfs, allowing the model to properly account for infections that have occurred but not yet been observed by the end of the training period.
+
+```{julia}
+#| output: false
+incubation_pmf_length = length(incubation_dayofweek_negbin.rev_pmf)
+reporting_pmf_length = length(delay_dayofweek_negbin.rev_pmf)
+delay_padding = incubation_pmf_length + reporting_pmf_length
+
+tspan = (1, 40 + delay_padding)
+epinow2 = EpiProblem(epi_model=renewal_gt,
+    latent_model=weekly_arima211,
+    observation_model=delay_dayofweek_negbin,
+    tspan=tspan)
+```
+
+This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
+The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
+
+We filter the data as before to the timespan of interest.
+
+```{julia}
+#| output: false
+italy_training_data = @chain italy_data begin
+    @set _.y_t = _.y_t[first(tspan):last(tspan)]
+    @set _.dates = _.dates[first(tspan):last(tspan)]
+end
+```
+
+We again construct a Turing model using `generate_epiaware`.
+
+```{julia}
+#| output: false
+epinow2_mdl = generate_epiaware(epinow2, italy_training_data)
+```
+
+We reuse the same `inference_method` defined in @sec-example1..
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: false
+epinow2_results = apply_method(epinow2_mdl,
+    inference_method,
+    italy_training_data
+)
+```
+
+Here is the summarised posterior:
+
+```{julia}
+summarystats(epinow2_results.samples)
+```
+
+We see the model has converged and the summary statistics are similar to @sec-example1.
+@fig-epinow2 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (@fig-epinow2 F), whilst explicitly accounting for reporting delays (@fig-epinow2 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (@fig-epinow2 E).
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-epinow2
+#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
+fig_epinow2 = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    t_ticks = @chain italy_training_data begin
+        _.dates
+        string.(_)
+    end
+    ts = dates_to_times(italy_training_data.dates)
+
+    posterior_gens = posterior_gens_for_plot(epinow2_results, length(italy_training_data.y_t);
+        epi_prob=epinow2)
+
+    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
+    log_scale_dow_effect = [1.0; zeros(6)]
+    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
+              (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
+
+    fig = Figure(size=(1200, 1000))
+
+    ax11 = Axis(fig[1, 1];
+        yscale=log10,
+        ylabel="Time varying Rₜ"
+    )
+    ax12 = Axis(fig[1, 2];
+        ylabel="Latent infections"
+    )
+    ax13 = Axis(fig[1, 3];
+        ylabel="Observed cases"
+    )
+    ax21 = Axis(fig[2, 1];
+        xticks=0:5:20,
+        xlabel="Days"
+    )
+    ax22 = Axis(fig[2, 2];
+        ylabel="Daily cases",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
+    )
+    ax23 = Axis(fig[2, 3];
+        yscale=log10,
+        ylabel="Time varying Rₜ",
+        xticks=(ts[1:14:end], t_ticks[1:14:end])
+    )
+
+    arima_sample_plot!(ax11, weekly_arima211_mdl; n_samples)
+    plot_latent_infections!(ax12, renewal_mdl; n_samples)
+    delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
+
+    # Extract delay PMFs
+    incubation_pmf = incubation_dayofweek_negbin.rev_pmf[end:-1:1]
+    reporting_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
+
+    barplot!(ax21, 0:(length(incubation_pmf)-1), incubation_pmf;
+        label="Incubation period", alpha=0.6, color=:green)
+    lines!(ax21, 0:0.1:20, x -> pdf(incubation_distribution, x);
+        color=:green, linewidth=2)
+    barplot!(ax21, 0:(length(reporting_pmf)-1), reporting_pmf;
+        label="Reporting delay", alpha=0.6, color=:blue)
+    lines!(ax21, 0:0.1:20, x -> pdf(reporting_distribution, x);
+        color=:blue, linewidth=2)
+    ax21.ytickformat = values -> [string(round(v, digits=4)) for v in values]
+    axislegend(ax21)
+
+    post_predictive_yt!(ax22, italy_training_data, posterior_gens; qs)
+    post_predictive_Rt!(ax23, italy_training_data, posterior_gens; qs)
+
+    # Format y-axis labels to avoid scientific notation
+    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18,
+            font=:bold,
+            padding=(0, 5, 5, 0),
+            halign=:right)
+    end
+
+    fig
+end
+
+# Save fig_epinow2 to files
+save("figures/fig-epinow2.pdf", fig_epinow2)
+save("figures/fig-epinow2.png", fig_epinow2)
+
+fig_epinow2
+```
