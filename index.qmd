@@ -420,7 +420,7 @@ All code and data for reproducing the analyses are available at: [https://github
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
-*Mishra et al.* [@mishra2020covid] estimate time-varying reproduction numbers from case data by combining the renewal equation with a negative binomial observation model.
+*Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
 Our replication uses the AR(2) latent model and negative binomial observation model defined in @sec-dsl, composing them with a renewal infection process [@cori2013new] that uses a discretised serial interval distribution [@wallinga2007generation].
 The `EpiProblem` container is used to assemble these three components into a complete generative model.
