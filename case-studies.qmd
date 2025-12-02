@@ -894,29 +894,37 @@ end
 
 ### Model
 
-The SIR model describes the flow of individuals between susceptible (S), infected (I), and recovered (R) compartments:
+The mathematical description of the model is:
 
 $$
 \begin{aligned}
-\frac{dS}{dt} &= -\beta \frac{I(t)}{N} S(t), \\
-\frac{dI}{dt} &= \beta \frac{I(t)}{N} S(t) - \gamma I(t), \\
-\frac{dR}{dt} &= \gamma I(t), \\
-Y_t &\sim \text{Poisson}(\text{softplus}(I(t))).
+\beta, \gamma, I(0), \kappa_0, \rho, \sigma &\sim \pi(\cdot), \\
+R_0 &= \beta / \gamma, & \text{(Basic reproduction number)} \\
+r_{SI}(t) &= \beta S(t) \frac{I(t)}{N}, & \text{(Infection rate)} \\
+r_{IR}(t) &= \gamma I(t), & \text{(Recovery rate)} \\
+\frac{dS}{dt} &= -r_{SI}(t), \\
+\frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
+\frac{dR}{dt} &= r_{IR}(t), \\
+\epsilon_t &\sim \text{Normal}(0, \sigma^2), & \text{(Observation innovations)} \\
+\kappa_{t} &= \rho \kappa_{t-1} + \epsilon_t, & \text{(Ascertainment process)} \\
+\lambda_t &= \text{softplus}(I(t))\exp(\kappa_t), & \text{(Expected observations)} \\
+Y_t &\sim \text{Poisson}(\lambda_t). & \text{(Observation link)}
 \end{aligned}
 $$
 
-Where $\beta$ is the transmission rate, $\gamma$ is the recovery rate, and $R_0 = \beta/\gamma$ is the basic reproduction number.
+Here we connect a continuous time model, where we index continuously evolving variables using $(t)$, to daily incrementing processes which we index with a subscript $t$.
+The population variables $S(t)$, $I(t)$, and $R(t)$ represent susceptible, infected, and recovered individuals at time $t$.
+The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
+The basic reproduction number $R_0$ characterises transmission potential, assumed constant in this model.
+All individuals are assumed to be either susceptible or infected at the beginning of the outbreak, therefore only $I(0)$ is needed to define the initial conditions.
 We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
-The softplus transformation ensures numerical stability when the solver returns small negative values.
+$\pi$ represents the priors over each parameter.
 
-*Chatzilena et al.* also present a stochastic model with time-varying ascertainment via an AR(1) process:
+The softplus transformation $\text{softplus}(x) = \log(1 + \exp(x))$ ensures numerical stability: ODE solvers can return small negative values near zero, and softplus smoothly maintains positivity whilst being very close to $x$ when $x > 2$.
 
-$$
-\begin{aligned}
-Y_t &\sim \text{Poisson}(\text{softplus}(I(t)) \exp(\kappa_t)), \\
-\kappa_t &= \rho \kappa_{t-1} + \epsilon_t, \quad \epsilon_t \sim N(0, \sigma^2).
-\end{aligned}
-$$
+The log-scale ascertainment rate is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with damping parameter $\rho$, initial state $\kappa_0$, and innovation standard deviation $\sigma$.
+*Chatzilena et al.* parameterise this as a time-discretised Ornstein-Uhlenbeck process, which can be identified with an AR(1) process.
+Setting $\kappa_t = 0$ for all $t$ gives the deterministic model with direct Poisson link.
 
 #### Latent Model
 
@@ -939,6 +947,7 @@ sir_params = SIRParams(
 ```
 
 The `ODEProcess` composes the parameter model with solver details.
+This follows the standard SciML compositional approach of problem definition composed with solution method [@rackauckas2017differentialequations], specialised here to probabilistically generated SIR parameters.
 The ODE model returns the infected proportion $I(t)/N$; returning proportions rather than counts improves numerical stability across different population sizes.
 
 ```{julia}
@@ -1073,6 +1082,7 @@ end
 
 We compose both models using `EpiProblem`, swapping the observation model component as in previous case studies.
 We reuse the same `inference_method` defined in @sec-example1.
+The only additional requirement for ODE-based models is making `SciMLSensitivity` available for reverse-mode automatic differentiation through the ODE solutions.
 
 ```{julia}
 #| output: false
@@ -1132,11 +1142,13 @@ stochastic_R0 = vec(stochastic_sir_results.samples[:β] ./
 #| label: fig-sir
 #| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior SIR
 #|   trajectories showing S (blue), I (red), R (green) compartment dynamics. (B) Prior
-#|   samples from the stochastic observation model with time-varying ascertainment.
-#|   (C) Posterior $R_0$ distributions comparing deterministic (blue) and stochastic
-#|   (yellow) models. (D) Posterior compartment trajectories for deterministic model.
-#|   (E) Posterior predictive cases for deterministic model. (F) Posterior predictive
-#|   cases for stochastic model."
+#|   samples from the stochastic observation model including time-varying ascertainment
+#|   and Poisson sampling around a latent infection curve. (C) Posterior $R_0$
+#|   distributions comparing deterministic (blue) and stochastic (orange) models.
+#|   (D) Posterior compartment trajectories for deterministic model. (E) Posterior
+#|   predictive cases for deterministic model, with median (purple line) and 50%
+#|   (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data
+#|   (black points). (F) Posterior predictive cases for stochastic model."
 fig_sir = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1222,6 +1234,6 @@ fig_sir
 ```
 
 @fig-sir shows that both compositional SIR models recover similar results to *Chatzilena et al.*
-Panel C compares the posterior $R_0$ distributions: the deterministic model infers $R_0$ around 2, whilst the stochastic model with time-varying ascertainment produces a similar estimate.
-Panels E-F compare posterior predictive cases between the models.
-The stochastic model's flexible observation process provides better calibrated prediction intervals, compensating for potential model misspecification in the deterministic model.
+Using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} round(mean(deterministic_R0), digits=1)` (`{julia} round(quantile(deterministic_R0, 0.025), digits=1)`--`{julia} round(quantile(deterministic_R0, 0.975), digits=1)` 95% CI), whilst using the stochastic SIR model infers $R_0$ of `{julia} round(mean(stochastic_R0), digits=1)` (`{julia} round(quantile(stochastic_R0, 0.025), digits=1)`--`{julia} round(quantile(stochastic_R0, 0.975), digits=1)` 95% CI) (@fig-sir C).
+The deterministic SIR model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those generated using the stochastic SIR model (@fig-sir F), with several data points falling outside the 95% prediction envelopes.
+This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
