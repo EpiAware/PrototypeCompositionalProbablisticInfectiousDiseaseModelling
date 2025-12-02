@@ -525,10 +525,11 @@ We compose an SIR compartmental model using `ODEProcess` from the SciML ecosyste
 A softplus transformation ensures numerical stability when the ODE solver returns small negative values near zero.
 
 @fig-sir shows model components and posterior analysis.
-Panels A-B demonstrate prior predictive checks for the SIR dynamics and stochastic observation model.
-Panel C compares posterior $R_0$ distributions between models, with both recovering $R_0 \approx 2$.
+Panels A-B demonstrate prior predictive checks for the SIR dynamics and stochastic observation model including time-varying ascertainment.
+Panel C compares posterior $R_0$ distributions, with both models recovering $R_0 \approx 2$, consistent with *Chatzilena et al.*
 Panels D-F show posterior compartment trajectories and predictive cases.
-The stochastic model provides better calibrated prediction intervals, indicating that the flexible observation model compensates for potential misspecification in the deterministic model.
+The deterministic model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those from the stochastic model (@fig-sir F), with several data points falling outside the 95% prediction envelopes.
+This indicates that the flexible observation model compensates for potential misspecification in the deterministic model.
 
 ![Model components and posterior analysis for Case Study 3. (A) Prior SIR trajectories showing S (blue), I (red), R (green) dynamics. (B) Stochastic observation model samples with time-varying ascertainment. (C) Posterior $R_0$ comparison between deterministic and stochastic models. (D) Posterior compartment trajectories. (E) Deterministic model posterior predictive cases. (F) Stochastic model posterior predictive cases.](figures/fig-sir){#fig-sir width=100%}
 
