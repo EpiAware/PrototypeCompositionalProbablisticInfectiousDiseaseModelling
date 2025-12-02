@@ -995,11 +995,22 @@ transform_ascertainment = @set transform_pois.model = ascertainment_model
 
 # Helper functions for SIR case study plotting
 
-function sir_trajectory_plot!(ax, sir_mdl; n_samples=100, alpha=0.1)
+# Solve SIR ODE with given parameters
+function solve_sir(β, γ, I₀, ts; tspan=(0.0, ts[end]))
+    u0 = [1.0 - I₀, I₀, 0.0]
+    p = [β, γ]
+    prob = ODEProblem(EpiAware._sir_vf, u0, tspan, p)
+    solve(prob, Tsit5(); saveat=ts, verbose=false)
+end
+
+# Plot prior SIR trajectories by sampling from priors
+function sir_trajectory_plot!(ax, sir_params, ts; n_samples=100, alpha=0.1)
     for _ in 1:n_samples
-        gen = sir_mdl()
-        sol = gen.I_t_sol
-        if !isnothing(sol) && sol.retcode == :Success
+        β = rand(sir_params.infectiousness)
+        γ = rand(sir_params.recovery_rate)
+        I₀ = rand(sir_params.initial_prop_infected)
+        sol = solve_sir(β, γ, I₀, ts)
+        if sol.retcode == ReturnCode.Success
             lines!(ax, sol.t, sol[1, :], color=(:blue, alpha))
             lines!(ax, sol.t, sol[2, :], color=(:red, alpha))
             lines!(ax, sol.t, sol[3, :], color=(:green, alpha))
@@ -1008,73 +1019,29 @@ function sir_trajectory_plot!(ax, sir_mdl; n_samples=100, alpha=0.1)
     return nothing
 end
 
-function r0_hist_plot!(ax, r0_samples; color=:grey)
-    valid_r0 = filter(x -> !isnan(x) && !isinf(x) && x > 0 && x < 50, r0_samples)
-    if length(valid_r0) > 10
-        hist!(ax, valid_r0, color=(color, 0.6), bins=30)
+# Generate posterior ODE solutions from chain samples
+function posterior_sir_solutions(samples, ts)
+    β_samples = vec(samples[:β])
+    γ_samples = vec(samples[:γ])
+    I₀_samples = vec(samples[:I₀])
+    map(eachindex(β_samples)) do i
+        solve_sir(β_samples[i], γ_samples[i], I₀_samples[i], ts)
     end
-    return nothing
 end
 
-function obs_model_sir_plot!(ax, obs_samples, expected; n_samples=100)
-    n_valid = min(n_samples, size(obs_samples, 2))
-    for i in 1:n_valid
-        scatter!(ax, obs_samples[:, i], color=(:grey, 0.2), markersize=3)
-    end
-    lines!(ax, expected, color=:red, linewidth=3, label="Expected")
-    return nothing
-end
-
-function post_compartments_plot!(ax, ts, posterior_sols; qs, compartment=2)
+# Compute quantiles across posterior ODE solutions for a compartment
+function compartment_quantiles(posterior_sols, ts, qs; compartment=2)
+    colors = [:blue, :red, :green]
     compartment_mat = mapreduce(hcat, posterior_sols) do sol
-        if !isnothing(sol) && sol.retcode == :Success
-            sol[compartment, :]
-        else
-            fill(NaN, length(ts))
-        end
+        sol.retcode == ReturnCode.Success ? sol[compartment, :] : fill(NaN, length(ts))
     end
-
     q_vals = mapreduce(hcat, qs) do q
         map(eachrow(compartment_mat)) do row
             valid = filter(!isnan, row)
-            if length(valid) > 0
-                quantile(valid, q)
-            else
-                NaN
-            end
+            length(valid) > 0 ? quantile(valid, q) : NaN
         end
     end
-
-    colors = [:blue, :red, :green]
-    c = colors[compartment]
-
-    lines!(ax, ts, q_vals[:, 3], color=c, linewidth=2)
-    band!(ax, ts, q_vals[:, 2], q_vals[:, 4], color=(c, 0.4))
-    band!(ax, ts, q_vals[:, 1], q_vals[:, 5], color=(c, 0.2))
-    return nothing
-end
-
-function post_predictive_sir_cases!(ax, ts, data, posterior_gens; qs)
-    predicted_y_t = mapreduce(hcat, posterior_gens) do gen
-        gen.generated_y_t
-    end
-
-    q_vals = mapreduce(hcat, qs) do q
-        map(eachrow(predicted_y_t)) do row
-            valid = filter(x -> !ismissing(x) && !isnan(x), row)
-            if length(valid) > 0
-                quantile(valid, q)
-            else
-                NaN
-            end
-        end
-    end
-
-    lines!(ax, ts, q_vals[:, 3], color=:purple, linewidth=2, label="Median")
-    band!(ax, ts, q_vals[:, 2], q_vals[:, 4], color=(:purple, 0.4), label="50%")
-    band!(ax, ts, q_vals[:, 1], q_vals[:, 5], color=(:purple, 0.2), label="95%")
-    scatter!(ax, ts, data, color=:black, label="Data")
-    return nothing
+    (q_vals, colors[compartment])
 end
 ```
 
@@ -1155,17 +1122,18 @@ fig_sir = let
     ts = england_data.ts
     t_ticks = string.(england_data.dates[1:3:end])
 
-    # Generate prior samples from deterministic model
-    det_uncond_mdl = generate_epiaware(deterministic_sir, (y_t=fill(missing, length(ts)),))
-
     # Generate posterior samples for both models
-    det_posterior_gens = generated_quantities(det_uncond_mdl, deterministic_sir_results.samples)
-    stoch_uncond_mdl = generate_epiaware(stochastic_sir, (y_t=fill(missing, length(ts)),))
-    stoch_posterior_gens = generated_quantities(stoch_uncond_mdl, stochastic_sir_results.samples)
+    det_posterior_gens = posterior_gens_for_plot(
+        deterministic_sir_results, length(ts); epi_prob=deterministic_sir
+    )
+    stoch_posterior_gens = posterior_gens_for_plot(
+        stochastic_sir_results, length(ts); epi_prob=stochastic_sir
+    )
 
-    det_posterior_sols = map(det_posterior_gens) do gen
-        haskey(gen, :I_t_sol) ? gen.I_t_sol : nothing
-    end
+    # Generate posterior ODE solutions from chain samples
+    det_posterior_sols = posterior_sir_solutions(
+        deterministic_sir_results.samples, ts
+    )
 
     # Prior observation model samples with ascertainment
     fixed_I_t = [0.01 * (1 - cos(2π * t / 14)) for t in ts]
@@ -1189,11 +1157,14 @@ fig_sir = let
     ax23 = Axis(fig[2, 3]; ylabel="Cases", xlabel="Days",
                 xticks=(ts[1:3:end], t_ticks), title="Stochastic Model")
 
-    # Panel A: Prior SIR trajectories
-    sir_trajectory_plot!(ax11, det_uncond_mdl; n_samples=n_samples, alpha=0.1)
+    # Panel A: Prior SIR trajectories (sample from priors directly)
+    sir_trajectory_plot!(ax11, sir_params, ts; n_samples=n_samples, alpha=0.1)
 
     # Panel B: Stochastic observation model samples
-    obs_model_sir_plot!(ax12, prior_obs_samples, log1pexp.(N .* fixed_I_t); n_samples)
+    for col in eachcol(prior_obs_samples)
+        scatter!(ax12, col; color=(:grey, 0.2), markersize=3)
+    end
+    lines!(ax12, softplus.(N .* fixed_I_t); color=:red, linewidth=3, label="Expected")
 
     # Panel C: Posterior R0 comparison
     density!(ax13, deterministic_R0, label="Deterministic", color=:blue)
@@ -1202,20 +1173,21 @@ fig_sir = let
 
     # Panel D: Posterior compartments (deterministic)
     for comp in [1, 2, 3]
-        post_compartments_plot!(ax21, ts, det_posterior_sols; qs, compartment=comp)
+        q_vals, c = compartment_quantiles(det_posterior_sols, ts, qs; compartment=comp)
+        lines!(ax21, ts, q_vals[:, 3], color=c, linewidth=2)
+        band!(ax21, ts, q_vals[:, 2], q_vals[:, 4], color=(c, 0.4))
+        band!(ax21, ts, q_vals[:, 1], q_vals[:, 5], color=(c, 0.2))
     end
 
     # Panel E: Deterministic posterior predictive cases
-    post_predictive_sir_cases!(ax22, ts, england_data.y_t, det_posterior_gens; qs)
+    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs)
 
     # Panel F: Stochastic posterior predictive cases
-    post_predictive_sir_cases!(ax23, ts, england_data.y_t, stoch_posterior_gens; qs)
+    post_predictive_yt!(ax23, england_data, stoch_posterior_gens; qs)
 
     # Format axes
     ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
     ax21.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax23.ytickformat = values -> [string(round(Int, v)) for v in values]
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
