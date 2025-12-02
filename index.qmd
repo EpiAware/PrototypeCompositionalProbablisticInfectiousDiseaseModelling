@@ -412,7 +412,7 @@ plot_fit_with_truth(
 
 # Case Studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies.
+We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
 Each case study shows how complex models are built by composing reusable components, with full implementation details provided in the Supplementary Information.
 The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], demonstrating cross-ecosystem accessibility.
 
@@ -420,7 +420,7 @@ All code and data for reproducing the analyses are available at: [https://github
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
-Our first case study is "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], which estimates time-varying reproduction numbers from case data by combining the renewal equation with a negative binomial observation model.
+*Mishra et al.* [@mishra2020covid] estimate time-varying reproduction numbers from case data by combining the renewal equation with a negative binomial observation model.
 
 Our replication uses the AR(2) latent model and negative binomial observation model defined in @sec-dsl, composing them with a renewal infection process [@cori2013new] that uses a discretised serial interval distribution [@wallinga2007generation].
 The `EpiProblem` container is used to assemble these three components into a complete generative model.
@@ -431,11 +431,11 @@ Panels A-C demonstrate prior predictive checks for each component in isolation: 
 Panel D compares the continuous serial interval distribution with its discretised form.
 Panels E-F show posterior predictive distributions for daily cases and time-varying $R_t$, recovering the main finding that $R_t$ in South Korea peaked at approximately 10 before rapidly dropping below 1 in early March 2020.
 
-![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-figure3.pdf){#fig-figure3 width=100%}
+![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-figure3){#fig-figure3 width=100%}
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
-`EpiNow2` [@abbott-epinow2-wellcomeopenres] addresses real-time estimation of case counts and epidemiological parameters accounting for reporting delays, right-truncation, and day-of-week effects.
+*Abbott et al.* [@abbott-epinow2-wellcomeopenres] address real-time estimation of case counts and epidemiological parameters accounting for reporting delays, right-truncation, and day-of-week effects.
 These observation process complexities are common in surveillance data and must be handled appropriately for accurate inference.
 
 Our replication reuses the AR(2), ARIMA(2,1,1), and negative binomial components from the main text and @sec-example1, extending them with new delay and temporal effect components.
@@ -450,11 +450,11 @@ Panels A-C show prior predictive checks for the piecewise constant weekly ARIMA 
 Panel D displays the incubation period and reporting delay distributions.
 Panels E-F show posterior predictive distributions, demonstrating that the model explicitly accounts for reporting delays whilst recovering similar $R_t$ dynamics to @sec-example1.
 
-![Model components and posterior analysis for Case Study 2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process. (B) Prior samples from the renewal model. (C) Prior samples from the composite observation model including delays and day-of-week effects. (D) Incubation period and reporting delay distributions. (E) Posterior predictive distribution for daily cases. (F) Posterior predictive distribution for time-varying $R_t$.](figures/fig-figure4.pdf){#fig-figure4 width=100%}
+![Model components and posterior analysis for Case Study 2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process. (B) Prior samples from the renewal model. (C) Prior samples from the composite observation model including delays and day-of-week effects. (D) Incubation period and reporting delay distributions. (E) Posterior predictive distribution for daily cases. (F) Posterior predictive distribution for time-varying $R_t$.](figures/fig-figure4){#fig-figure4 width=100%}
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
-@chatzilena2019contemporary demonstrate contemporary statistical inference for infectious disease models, showing how to fit mechanistic compartmental models to outbreak data with proper uncertainty quantification.
+*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate contemporary statistical inference for infectious disease models, showing how to fit mechanistic compartmental models to outbreak data with proper uncertainty quantification.
 Their work provides a template for integrating ODE-based transmission models with probabilistic observation processes.
 
 Our replication integrates the SciML ecosystem [@SciML] for solving ordinary differential equations with EpiAware's observation model interface.
