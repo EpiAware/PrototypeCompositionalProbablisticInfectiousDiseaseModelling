@@ -9,6 +9,7 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
+  actions: write
   contents: read
   pages: write
   id-token: write
@@ -39,9 +40,10 @@ jobs:
         run: juliaup override set 1.11.6
 
       - name: Cache Julia
-        uses: julia-actions/cache@v1
+        uses: julia-actions/cache@v2
         with:
-          cache-name: julia-cache-artifacts
+          cache-name: julia-cache-${{ hashFiles('Manifest.toml') }}
+          cache-registries: true
           cache-compiled: true
 
       - name: Install Julia dependencies
