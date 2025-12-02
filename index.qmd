@@ -36,12 +36,12 @@ authors:
     orcid: "0000-0002-2842-3406"
 
 affiliations:
+  - id: lshtm
+    name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine, United Kingdom"
   - id: cdc
     name: "Center for Forecasting and Outbreak Analysis; Centers for Disease Control, United States of America"
   - id: cambridge
     name: "University of Cambridge, United Kingdom"
-  - id: lshtm
-    name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine, United Kingdom"
   - id: imperial
     name: "MRC Centre for Global Infectious Disease Analysis, School of Public Health, Imperial College London, United Kingdom"
 date: today
@@ -83,10 +83,14 @@ Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray1
 These tools enable statistically principled inference with probabilistic reasoning across a wide range of applications.
 However, they are designed for implementing complete models and do not provide straightforward ways to share or reuse model components.
 The practical unit of reuse therefore remains the whole model or its codebase, not the underlying epidemiological concepts.
-Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms such as flexible statistical models for real-time estimation [@scott2021_epidemia;@epinow2].
-Yet these efforts, too, have encountered clear limits of extensibility: extending them requires embedding new data types or processes within a single, expanding codebase, which becomes harder to maintain and adapt as complexity grows.
-To work around these constraints, some analyses have adopted multi-stage or “pipeline” approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman2022].
-This allows different data sources or processes to be analysed independently but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
+Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms.
+Effective reproduction number estimation illustrates this: `epidemia` [@scott2021_epidemia], `EpiNow2` [@epinow2], `epinowcast` [@epinowcast], `epimap` [@epimap], and `EpiLine` [@epiline] all estimate Rt using renewal-based approaches in Stan, yet maintain separate codebases with no shared components despite overlapping features and, in some cases, the same authors.
+`epidemia` and `epimap` saw development cease, `EpiLine` has minimal ongoing work, and whilst `EpiNow2` and `epinowcast` continue development, new features must be implemented separately in each.
+Delay distribution estimation shows similar challenges.
+`epidist` [@epidist] extends `brms` (Bayesian Regression Models using Stan) [@brms], a general-purpose regression tool built on Stan, allowing ecosystem integration but with limited scope for extension to other epidemiological models due to constraints in its composability.
+`primarycensored` [@primarycensored] was developed to handle delays for `EpiNow2`, `epidist`, and `epinowcast` but is currently only used in `epidist` and requires maintaining parallel R and Stan codebases with the same functionality, and custom tooling to inject its code into the other packages models.
+To work around these constraints, some analyses have adopted multi-stage or "pipeline" approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman2022;@epinow2].
+This allows different data sources or processes to be analysed independently and more flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour.
 Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, offering a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
@@ -488,8 +492,8 @@ All code and data for reproducing the analyses are available at: [https://github
 *Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
 Our replication composes an AR(2) latent process for log $R_t$, a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
-In code, `AR` generates the latent log $R_t$ trajectory, `Renewal` computes expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` links expected infections to observed cases with overdispersion.
-The `EpiProblem` container assembles these three components, and inference combines Pathfinder [@zhang2022pathfinder] initialisation with NUTS sampling.
+We use `AR` to generate the latent log $R_t$ trajectory, `Renewal` to compute expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` to link expected infections to observed cases with overdispersion.
+We assemble these components and use Pathfinder [@zhang2022pathfinder] to initialise NUTS sampling.
 
 @fig-mishra shows model components and posterior analysis.
 Panels A-C demonstrate prior predictive checks for each component in isolation: the AR(2) latent process for log $R_t$, the renewal model for latent infections, and the negative binomial observation model.
@@ -500,12 +504,11 @@ Panels E-F show posterior predictive distributions for daily cases and time-vary
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
-*Abbott et al.* [@abbott-epinow2-wellcomeopenres] address real-time estimation of case counts and epidemiological parameters accounting for reporting delays, right-truncation, and day-of-week effects.
-These observation process complexities are common in surveillance data and must be handled appropriately for accurate inference.
+`EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely used package for real-time situational awareness in infectious disease surveillance, estimating case counts and epidemiological parameters whilst accounting for reporting delays, right-truncation, and day-of-week effects.
 
 Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1, extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
 Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
-In code, `broadcast_weekly` converts the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` convolves latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` multiplies expected observations by day-of-week effects via a softmax transformation.
+We use `broadcast_weekly` to convert the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` to convolve latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` to multiply expected observations by day-of-week effects via a softmax transformation.
 
 @fig-epinow2 shows model components and posterior analysis.
 Panels A-C show prior predictive checks for the piecewise constant weekly ARIMA process, the renewal model, and the composite observation model with delays and day-of-week effects.
@@ -516,11 +519,11 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
+This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
 *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 
-Our replication composes an SIR compartmental model with time-varying transmission, an AR(1) latent process for stochastic deviations from deterministic dynamics, and a Poisson observation model for case counts.
-In code, `ODEProcess` from the SciML ecosystem [@SciML] solves the SIR differential equations, `AR` generates multiplicative perturbations to the transmission rate, and `PoissonError` links the infected compartment to observed cases.
-This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
+We compose an SIR compartmental model with time-varying transmission, an AR(1) latent process for stochastic deviations from deterministic dynamics, and a Poisson observation model for case counts.
+We use `ODEProcess` from the SciML ecosystem [@SciML] to solve the SIR differential equations, `AR` to generate multiplicative perturbations to the transmission rate, and `PoissonError` to link the infected compartment to observed cases.
 
 *The figure for this case study is currently under development and will be added once the implementation follows the standard case study format.*
 
