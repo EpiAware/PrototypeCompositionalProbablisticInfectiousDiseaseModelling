@@ -637,6 +637,14 @@ dayofweek_negbin = ascertainment_dayofweek(negbin;
 ```
 
 Unpacking this helper function reveals a nested stack of modelling constructions.
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string ascertainment_dayofweek(negbin;
+    latent_model=HierarchicalNormal(std_prior=HalfNormal(1.0))))
+```
+
 First, transformation and broadcasting
 
 ```{julia}
