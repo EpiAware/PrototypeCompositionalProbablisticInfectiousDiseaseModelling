@@ -357,7 +357,7 @@ fixed_model = fix(gen_model, simulated_params)
 y_observed = fixed_model()
 ```
 
-For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-turn sampler (a popular variant of MCMC).
+For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-Turn Sampler (NUTS) [@hoffman2014nuts], a popular variant of MCMC.
 
 ```{julia}
 #| output: false
