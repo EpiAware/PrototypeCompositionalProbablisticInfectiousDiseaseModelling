@@ -868,16 +868,9 @@ fig_epinow2
 
 <!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
 
-This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
-*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
-We recreate the single strain influenza examples by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
-
-```{julia}
-#| output: false
-# ODE packages for Case Study 3
-using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity
-using LogExpFunctions
-```
+In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models using Stan's ODE solvers.
+We recreate the single strain influenza example, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+Unlike Stan, we integrate with existing solver libraries from the SciML ecosystem [@rackauckas2017differentialequations] rather than encoding bespoke solvers.
 
 ### Data
 
@@ -887,6 +880,8 @@ We accessed this data using the R package `outbreaks` [@jombart2020outbreaks].
 
 ```{julia}
 #| output: false
+using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity, LogExpFunctions
+
 N = 763
 datapath = "data/influenza_england_1978_school.csv"
 england_data = @chain datapath begin
@@ -905,44 +900,33 @@ $$
 \begin{aligned}
 \frac{dS}{dt} &= -\beta \frac{I(t)}{N} S(t), \\
 \frac{dI}{dt} &= \beta \frac{I(t)}{N} S(t) - \gamma I(t), \\
-\frac{dR}{dt} &= \gamma I(t).
+\frac{dR}{dt} &= \gamma I(t), \\
+Y_t &\sim \text{Poisson}(\text{softplus}(I(t))).
 \end{aligned}
 $$
 
 Where $\beta$ is the transmission rate, $\gamma$ is the recovery rate, and $R_0 = \beta/\gamma$ is the basic reproduction number.
 We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
+The softplus transformation ensures numerical stability when the solver returns small negative values.
 
-*Chatzilena et al.* present two observation models.
-The deterministic model links the infected proportion directly to observed cases via a Poisson distribution:
-
-$$
-\begin{aligned}
-Y_t &\sim \text{Poisson}(\lambda_t), \\
-\lambda_t &= \text{softplus}(N \cdot I(t)/N).
-\end{aligned}
-$$
-
-The stochastic model adds time-varying ascertainment via an AR(1) process:
+*Chatzilena et al.* also present a stochastic model with time-varying ascertainment via an AR(1) process:
 
 $$
 \begin{aligned}
-Y_t &\sim \text{Poisson}(\lambda_t \exp(\kappa_t)), \\
+Y_t &\sim \text{Poisson}(\text{softplus}(I(t)) \exp(\kappa_t)), \\
 \kappa_t &= \rho \kappa_{t-1} + \epsilon_t, \quad \epsilon_t \sim N(0, \sigma^2).
 \end{aligned}
 $$
 
-This introduces `Ascertainment`, a new observation model modifier that applies a latent process as a multiplicative adjustment to expected observations.
-We demonstrate both models below.
-
 #### Latent Model
 
 Unlike the renewal models in previous case studies, the SIR model does not require a time-varying latent process for $R_t$ as transmission dynamics are fully determined by the ODE parameters.
-We use a `Null` latent model to indicate this.
 
 #### Infection Generating Process
 
 Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
-The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
+The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected, following *Chatzilena et al.*
+Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 
 ```{julia}
 #| output: false
@@ -955,7 +939,7 @@ sir_params = SIRParams(
 ```
 
 The `ODEProcess` composes the parameter model with solver details.
-The ODE model returns the infected proportion $I(t)/N$, whilst the observation model handles the transformation to expected case counts.
+The ODE model returns the infected proportion $I(t)/N$; returning proportions rather than counts improves numerical stability across different population sizes.
 
 ```{julia}
 #| output: false
@@ -969,7 +953,6 @@ sir_process = ODEProcess(
 #### Observation Model
 
 We link the infected proportion to observed cases using `TransformObservationModel`, which applies population scaling and the softplus transformation before passing to the Poisson link.
-The softplus transformation (`log1pexp`) ensures numerical stability when the solver returns small negative values.
 
 ```{julia}
 #| output: false
@@ -977,24 +960,24 @@ pois = PoissonError()
 transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
 ```
 
-For the stochastic model, we add time-varying ascertainment using `Ascertainment` with an AR(1) process.
-We use `@set` from `Accessors.jl` to swap the underlying observation model:
+For the stochastic model, we add time-varying ascertainment using `Ascertainment`, an observation model modifier that applies a latent process as a multiplicative adjustment.
+Prior predictive samples (@fig-sir B) show how this modifies expected observations.
 
 ```{julia}
 #| output: false
-ascert_ar = AR(
+ascertainment_ar = AR(
     damp_priors = [HalfNormal(0.005)],
     init_priors = [Normal(0, 0.001)],
     ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
 )
 
-varying_ascertainment = Ascertainment(
+ascertainment_model = Ascertainment(
     model = pois,
-    latent_model = ascert_ar,
-    latent_prefix = "va"
+    latent_model = ascertainment_ar,
+    latent_prefix = "Ascertainment"
 )
 
-transform_varying = @set transform_pois.model = varying_ascertainment
+transform_ascertainment = @set transform_pois.model = ascertainment_model
 ```
 
 ```{julia}
@@ -1088,9 +1071,8 @@ end
 
 ### Fitting to Data
 
-We fit both the deterministic and stochastic models to compare their performance.
-
-#### Deterministic Model
+We compose both models using `EpiProblem`, swapping the observation model component as in previous case studies.
+We reuse the same `inference_method` defined in @sec-example1.
 
 ```{julia}
 #| output: false
@@ -1101,11 +1083,8 @@ deterministic_sir = EpiProblem(
     observation_model = transform_pois,
     tspan = tspan
 )
-```
 
-```{julia}
-#| output: false
-deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
+stochastic_sir = @set deterministic_sir.observation_model = transform_ascertainment
 ```
 
 ```{julia}
@@ -1113,6 +1092,7 @@ deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
 #| julia:
 #|   cache:
 #|     enabled: true
+deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
 deterministic_sir_results = apply_method(
     deterministic_sir_mdl, inference_method, england_data
 )
@@ -1122,25 +1102,12 @@ deterministic_sir_results = apply_method(
 summarystats(deterministic_sir_results.samples)
 ```
 
-#### Stochastic Model
-
-We swap the observation model using `@set`, demonstrating how `Ascertainment` composes with the same SIR process:
-
-```{julia}
-#| output: false
-stochastic_sir = @set deterministic_sir.observation_model = transform_varying
-```
-
-```{julia}
-#| output: false
-stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
-```
-
 ```{julia}
 #| output: false
 #| julia:
 #|   cache:
 #|     enabled: true
+stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
 stochastic_sir_results = apply_method(
     stochastic_sir_mdl, inference_method, england_data
 )
@@ -1150,9 +1117,8 @@ stochastic_sir_results = apply_method(
 summarystats(stochastic_sir_results.samples)
 ```
 
-We compute the posterior distribution of $R_0 = \beta/\gamma$ for both models:
-
 ```{julia}
+#| echo: false
 #| output: false
 deterministic_R0 = vec(deterministic_sir_results.samples[:β] ./
                        deterministic_sir_results.samples[:γ])
@@ -1191,7 +1157,7 @@ fig_sir = let
 
     # Prior observation model samples with ascertainment
     fixed_I_t = [0.01 * (1 - cos(2π * t / 14)) for t in ts]
-    prior_obs_mdl = generate_observations(transform_varying, missing, fixed_I_t)
+    prior_obs_mdl = generate_observations(transform_ascertainment, missing, fixed_I_t)
     prior_obs_samples = mapreduce(hcat, 1:n_samples) do _
         prior_obs_mdl()
     end

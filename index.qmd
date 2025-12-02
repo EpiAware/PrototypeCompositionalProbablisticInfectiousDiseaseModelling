@@ -519,19 +519,14 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
-This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
-*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
-
-We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@SciML] to solve the differential equations.
-The ODE model returns infected proportions, whilst the observation model handles the transformation to expected case counts via `TransformObservationModel`.
-We demonstrate two observation models: a deterministic model with direct Poisson link, and a stochastic model that introduces `Ascertainment`, an observation model modifier for time-varying effects using an AR(1) process.
+In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models.
+We recreate the single strain influenza example, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], demonstrating two observation models: a deterministic model with direct Poisson link, and a stochastic model using `Ascertainment` for time-varying effects.
 
 @fig-sir shows model components and posterior analysis.
-Panel A shows prior SIR trajectories.
-Panel B demonstrates the stochastic observation model with time-varying ascertainment.
-Panel C compares posterior $R_0$ distributions between deterministic and stochastic models.
-Panel D shows posterior compartment trajectories.
-Panels E-F compare posterior predictive cases between models, recovering similar findings to *Chatzilena et al.* with $R_0 \approx 2$.
+Panels A-B demonstrate prior predictive checks for the SIR dynamics and stochastic observation model.
+Panel C compares posterior $R_0$ distributions between models.
+Panels D-F show posterior compartment trajectories and predictive cases, recovering similar findings to *Chatzilena et al.* with $R_0 \approx 2$.
 
 ![Model components and posterior analysis for Case Study 3. (A) Prior SIR trajectories showing S (blue), I (red), R (green) dynamics. (B) Stochastic observation model samples with time-varying ascertainment. (C) Posterior $R_0$ comparison between deterministic and stochastic models. (D) Posterior compartment trajectories. (E) Deterministic model posterior predictive cases. (F) Stochastic model posterior predictive cases.](figures/fig-sir){#fig-sir width=100%}
 
@@ -586,6 +581,7 @@ Another symbolic-numeric approach to defining dynamical systems, `ModelingToolki
 `AlgebraicPetri.jl` uses the direct association between Petri nets and reaction networks [@baez2017compositional] to link the graphical/algebraic representation of the model to its computational semantics via `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst], allowing models composed using this approach access to the SciML ecosystem.
 However, all of these tools are currently designed for representing the generators of dynamical systems and do not naturally extend to general probabilistic models.
 Our probabilistic programming foundation offers more direct support for statistical inference and uncertainty quantification, supports a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory approaches and automated optimisations of symbolic-numeric frameworks.
+The SIR model in @sec-example3 uses a complete ODE specification, but more complex compartmental models could be composed from reusable reaction components using `AlgebraicPetri.jl` or `Catalyst.jl`, with our approach managing the probabilistic aspects such as priors and observation models.
 
 <!-- Comparison to literature - Other approaches -->
 
