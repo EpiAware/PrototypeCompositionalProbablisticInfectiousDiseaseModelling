@@ -1080,7 +1080,7 @@ end
 
 ### Fitting to Data
 
-We compose both models using `EpiProblem`, swapping the observation model component as in previous case studies.
+We compose both models using `EpiProblem`, demonstrating how observation model components can be swapped to compare modelling assumptions.
 We reuse the same `inference_method` defined in @sec-example1.
 The only additional requirement for ODE-based models is making `SciMLSensitivity` available for reverse-mode automatic differentiation through the ODE solutions.
 
