@@ -9,7 +9,7 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 📖 **[Read the paper](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/index.pdf)** (PDF)
 
-🌐 **[Read the paper online](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/)** (HTML)
+🌐 **[Read the paper online](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/paper.html)** (HTML)
 
 📑 **[Supplementary Information: Case Studies](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/case-studies.html)** (HTML)
 

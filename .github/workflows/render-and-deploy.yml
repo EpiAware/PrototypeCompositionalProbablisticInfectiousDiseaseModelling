@@ -92,10 +92,14 @@ jobs:
           echo "has-artifacts=$outputs_exist" >> $GITHUB_OUTPUT
           echo "Found outputs: $outputs_exist"
 
+      - name: Render README as homepage
+        run: |
+          quarto render README.md --to html --output index.html --output-dir _site
+
       - name: Copy artifacts to _site for GitHub Pages
         run: |
           mkdir -p _site
-          cp index.html _site/ 2>/dev/null || echo "HTML file not found"
+          cp index.html _site/paper.html 2>/dev/null || echo "Paper HTML not found"
           cp index.pdf _site/ 2>/dev/null || echo "PDF file not found"
           cp case-studies.html _site/ 2>/dev/null || echo "Case studies HTML not found"
           cp case-studies.pdf _site/ 2>/dev/null || echo "Case studies PDF not found"
