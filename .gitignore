@@ -47,6 +47,11 @@ case-studies.html
 case-studies.pdf
 case-studies.tex
 case-studies_files/
+case-studies.ipynb
+
+# Generated figures from case-studies
+figures/fig-*.pdf
+figures/fig-*.png
 
 _freeze/
 _manuscript/
