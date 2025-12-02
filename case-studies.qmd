@@ -1080,7 +1080,7 @@ end
 
 ### Fitting to Data
 
-We compose both models using `EpiProblem`, swapping the observation model at the top level to compare modelling assumptions whilst keeping the infection process fixed.
+We compose both models using `EpiProblem`. Just as we swap lower-level model components (e.g., replacing a Poisson with an `Ascertainment`-wrapped Poisson), we can swap components at the `EpiProblem` level to compare modelling assumptions whilst keeping other parts fixed.
 We reuse the same `inference_method` defined in @sec-example1.
 The only additional requirement for ODE-based models is making `SciMLSensitivity` available for reverse-mode automatic differentiation through the ODE solutions.
 
