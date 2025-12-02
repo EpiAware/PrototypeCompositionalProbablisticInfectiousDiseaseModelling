@@ -1,12 +1,10 @@
 project:
   type: default
   render:
+    - case-studies.qmd
     - index.qmd
 
 engines: ['julia']
-
-filters:
-  - authors-block
 
 format:
   html:

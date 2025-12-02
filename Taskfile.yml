@@ -2,10 +2,46 @@ version: '3'
 
 tasks:
   default:
-    desc: "Render the Quarto document (main development task)"
+    desc: "Render all documents"
+    deps: [render-index]
+
+  render-case-studies:
+    desc: "Render case studies (generates figures)"
     deps: [instantiate, install-extensions]
     cmds:
-      - quarto render
+      - quarto render case-studies.qmd
+    sources:
+      - case-studies.qmd
+    generates:
+      - figures/fig-mishra.pdf
+      - figures/fig-mishra.png
+      - figures/fig-epinow2.pdf
+      - figures/fig-epinow2.png
+      - case-studies.html
+      - case-studies.pdf
+      - case-studies.ipynb
+    status:
+      - test -f case-studies.html
+      - test -f case-studies.pdf
+      - test -f figures/fig-mishra.pdf
+      - test -f figures/fig-epinow2.pdf
+
+  render-index:
+    desc: "Render main document"
+    deps: [instantiate, install-extensions, render-case-studies]
+    cmds:
+      - quarto render index.qmd
+    sources:
+      - index.qmd
+      - figures/fig-mishra.pdf
+      - figures/fig-epinow2.pdf
+    generates:
+      - index.html
+      - index.pdf
+      - index.ipynb
+    status:
+      - test -f index.html
+      - test -f index.pdf
 
   install-julia:
     desc: "Install Julia 1.11.6 using juliaup and set as default"

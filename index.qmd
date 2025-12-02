@@ -1,39 +1,55 @@
 ---
 title: "A Prototype for Compositional Probabilistic Infectious Disease Modelling"
 authors:
-  - name: "Samuel P. C. Brand"
-    affiliations:
-      - ref: cdc
-    email: "usi1@cdc.gov"
-    orcid: "0000-0003-0645-5367"
-  - name: "Sebastian Funk"
-    affiliations:
-      - ref: lshtm
-    email: "sebastian.funk@lshtm.ac.uk"
-    orcid: "0000-0002-2842-3406"
-  - name: "Kaitlyn E. Johnson"
-    affiliations:
-      - ref: lshtm
-    email: "kaitlyn.johnson@lshtm.ac.uk"
-    orcid: "0000-0001-8011-0012"
   - name: "Sam Abbott"
     affiliations:
       - ref: lshtm
     email: "sam.abbott@lshtm.ac.uk"
     orcid: "0000-0001-8057-8037"
-    corresponding: true
+    attributes:
+      corresponding: true
+      equal-contributor: true
+  - name: "Samuel P. C. Brand"
+    affiliations:
+      - ref: cdc
+    email: "usi1@cdc.gov"
+    orcid: "0000-0003-0645-5367"
+    attributes:
+      equal-contributor: true
+  - name: "Hong Ge"
+    affiliations:
+      - ref: cambridge
+    orcid: "0000-0001-9421-2677"
+  - name: "Kaitlyn E. Johnson"
+    affiliations:
+      - ref: lshtm
+    email: "kaitlyn.johnson@lshtm.ac.uk"
+    orcid: "0000-0001-8011-0012"
+  - name: "Anne Cori"
+    affiliations:
+      - ref: imperial
+    orcid: "0000-0002-8443-9162"
+  - name: "Sebastian Funk"
+    affiliations:
+      - ref: lshtm
+    email: "sebastian.funk@lshtm.ac.uk"
+    orcid: "0000-0002-2842-3406"
 
 affiliations:
-  - id: cdc
-    name: "Center for Forecasting and Outbreak Analysis; Centers for Disease Control, United States of America"
   - id: lshtm
     name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine, United Kingdom"
+  - id: cdc
+    name: "Center for Forecasting and Outbreak Analysis; Centers for Disease Control, United States of America"
+  - id: cambridge
+    name: "University of Cambridge, United Kingdom"
+  - id: imperial
+    name: "MRC Centre for Global Infectious Disease Analysis, School of Public Health, Imperial College London, United Kingdom"
 date: today
 monofont: JuliaMono
+filters:
+  - authors-block
 abstract: |
-  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
-julia:
-  exeflags: ["--threads=4", "-O3"]
+  Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. Beyond enabling modellers to build models more efficiently, standardised component interfaces provide structured environments for large language models to compose and validate epidemiological models. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. We also demonstrate a prototype R interface showing how such frameworks can bridge software ecosystems. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise for enabling interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development. Future work is needed to solve remaining composability challenges, expand the component library, integrate bridges to existing epidemiological software ecosystems, and explore opportunities for large language model assisted model construction in resource-constrained settings.
 ---
 
 ```{julia}
@@ -55,24 +71,31 @@ Modelling infectious disease dynamics can be a valuable tool for synthesising in
 The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance [e.g. in wastewater, @oreilly25_analysis] and by-products of clinical management [e.g., hospital admissions and bed occupancy, @davies21_associationcovidengland] to dedicated transmission studies [e.g., in households, @kombe19_model].
 However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
 This hampers transfer of learning.
-For example, a model developed for understanding the spread of SARS-CoV-2 via observations in wastewater would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights.
+For example, a model developed for real-time estimation of SARS-CoV-2 transmission integrating case counts, prevalence surveys, and severity data [@birrell2024] would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights [@Endo2022-ij].
 
-As a consequence, modellers often have to re-implement model components in new models that used for different situations even when underlying concepts (e.g. of how population-level infections manifest as pathogen concentrations in wastewater) are, in principle, the same.
+As a consequence, modellers often have to re-implement model components in new models that used for different situations even when underlying concepts (e.g. of how prevalence surveys relate to underlying infection dynamics) are, in principle, the same.
 This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed [@whitty2015what].
 It also limits opportunities for collaboration and co-development of robust methods that others can re-use, and raises technical barriers to building state-of-the-art models, as individual modellers must understand and implement all parts of the relevant transmission and observation models.
 As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction].
+An alternative is to use more generic modelling frameworks that are easier to generalise, but these can be difficult to adapt to capture transmission dynamics or aspects of the data generating process such as time-varying missing data [@Overton2023-dk].
 
 Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [king16_statistical;fitzjohn25_monty], have transformed how infectious disease models are fitted to data.
 These tools enable statistically principled inference with probabilistic reasoning across a wide range of applications.
 However, they are designed for implementing complete models and do not provide straightforward ways to share or reuse model components.
 The practical unit of reuse therefore remains the whole model or its codebase, not the underlying epidemiological concepts.
-Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms such as flexible statistical models for real-time estimation [@scott2021_epidemia;@epinow2].
-Yet these efforts, too, have encountered clear limits of extensibility: extending them requires embedding new data types or processes within a single, expanding codebase, which becomes harder to maintain and adapt as complexity grows.
-To work around these constraints, some analyses have adopted multi-stage or “pipeline” approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman2022].
-This allows different data sources or processes to be analysed independently but prevents proper propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
+Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms.
+Effective reproduction number estimation illustrates this: `epidemia` [@scott2021_epidemia], `EpiNow2` [@epinow2], `epinowcast` [@epinowcast], `epimap` [@epimap], and `EpiLine` [@epiline] all estimate Rt using renewal-based approaches in Stan, yet maintain separate codebases with no shared components despite overlapping features and, in some cases, the same authors.
+`epidemia` and `epimap` have had little recent development, `EpiLine` has minimal ongoing work, and whilst `EpiNow2` and `epinowcast` remain actively maintained, new features must be implemented separately in each.
+Delay distribution estimation shows similar challenges.
+`epidist` [@epidist] extends `brms` (Bayesian Regression Models using Stan) [@brms], a general-purpose regression tool built on Stan, allowing ecosystem integration but with limited scope for extension to other epidemiological models due to constraints in its composability.
+`primarycensored` [@primarycensored] was developed to handle delays for `EpiNow2`, `epidist`, and `epinowcast` but is currently only used in `epidist` and requires maintaining parallel R and Stan codebases with the same functionality, and custom tooling to inject its code into the other packages models.
+To work around these constraints, some analyses have adopted multi-stage or "pipeline" approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman2022;@epinow2].
+This allows different data sources or processes to be analysed independently and more flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
 
 Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour.
 Advances in `Turing.jl` have introduced submodel interfaces that enable composable probabilistic programming, offering a pathway for epidemiological model composition, though initial epidemiological applications revealed interoperability challenges [@Nicholson2022-ua; @fjelde2025turin].
+These included handling data at different temporal resolutions and spatial granularities, situations where moment-matched Gaussian approximations (used in their approximate Markov melding approach) proved inadequate, and determining how best to weight different evidence sources whilst incorporating prior knowledge.
+Importantly, their work focused on ad-hoc interoperable models for specific applications rather than a general system for question-agnostic interoperable modelling.
 Category theory provides one mathematical framework for this composability through operadic composition (a mathematical framework for composing operations hierarchically where operations can have multiple inputs and be combined according to formal rules) in hierarchical model construction, as applied in the AlgebraicJulia ecosystem [@libkind2022algebraic].
 Alternative approaches to compositional modelling include the SciML ecosystem's [@SciML] symbolic-numeric framework, where `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] use acausal equation-based modelling with automated symbolic transformations to support mixed equation types including differential-algebraic equations, partial differential equations, and stochastic differential equations through unified interfaces.
 `HydroModels.jl` [@jing2025hydromodels] demonstrates compositional hydrological modelling with differentiable neural-enhanced components, whilst `SpeedyWeather.jl` uses an interactive domain-specific language (a programming language tailored to a specific application domain that uses terminology and concepts familiar to domain experts rather than general programming constructs) approach for "LEGO-like" atmospheric modelling with modular component assembly [@speedyweather2024].
@@ -124,6 +147,9 @@ This separation enables incremental adoption without rebuilding existing models 
 The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the low-level details of all framework elements.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
+
+To demonstrate cross-ecosystem accessibility, we also developed EpiAwareR [@EpiAwareR], an R interface to the prototype using JuliaCall [@JuliaCall].
+This enables R users to access the compositional modelling framework without requiring Julia programming knowledge.
 
 @fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
 Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
@@ -191,6 +217,7 @@ This constructor has created the following struct definition.
 ar2
 ```
 
+Prior samples from this model are shown in @fig-arima A.
 Another common latent model is the moving average model
 
 $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
@@ -205,6 +232,7 @@ ma1 = MA(;
 )
 ```
 
+Prior samples from this process are shown in @fig-arima B.
 A popular combination of these models is the autoregressive moving average (ARMA) model that can have different orders for both the AR and MA components.
 An ARMA(2,1) can be defined as:
 
@@ -225,6 +253,7 @@ The result of this step has been to update the `ar2` struct so that the definiti
 arma21
 ```
 
+The combined model dynamics are shown in @fig-arima C.
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing operations that transform the series
 
 $$\Delta Z_t = Z_{t} - Z_{t-1}$$
@@ -240,6 +269,7 @@ We compose the ARMA model with a differencing operation using the `DiffLatentMod
 arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 ```
 
+Prior samples from the full model are shown in @fig-arima D.
 Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
 
 Other latent models extend modelling options through combining models additively, multiplicative scaling, and piecewise processes.
@@ -277,13 +307,19 @@ using CodeTracking, Revise
 
 ```{julia}
 #| echo: false
+#| output: asis
+println("```julia")
 print(@code_string EpiAwareBase.generate_latent(ar2, 50))
+println("\n```")
 ```
 
 The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state.
 ```{julia}
 #| echo: false
+#| output: asis
+println("```julia")
 print(@code_string EpiLatentModels.ARStep([1, 2, 1])(1, 1))
+println("\n```")
 ```
 
 This step function works with `accumulate_scan` to build the AR series by applying the autoregressive equation at each time step.
@@ -295,7 +331,10 @@ The full ARIMA(2,1,1) model we defined in the DSL section can then be generated 
 
 ```{julia}
 #| echo: false
+#| output: asis
+println("```julia")
 print(@code_string generate_latent(arima211, 50))
+println("\n```")
 ```
 
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
@@ -338,7 +377,7 @@ fixed_model = fix(gen_model, simulated_params)
 y_observed = fixed_model()
 ```
 
-For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-turn sampler (a popular variant of MCMC).
+For inference, we condition on the generative model using simulated observations and the  `condition` function or here the equivalent `|` notation. Now we have a model conditioned on data we can fit it using our choice of approach supported by `Turing.jl`. Here we decide to use the No-U-Turn Sampler (NUTS) [@hoffman2014nuts], a popular variant of MCMC.
 
 ```{julia}
 #| output: false
@@ -349,1189 +388,144 @@ conditioned_model = gen_model | (; y_obs = y_observed)
 chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
-We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairPlots.jl` [@PairPlots.jl] with the `CairoMakie.jl` [@DanischKrumbiegel2021] backend for visualisation (@fig-arima-demo).
+We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairPlots.jl` [@PairPlots.jl] with the `CairoMakie.jl` [@DanischKrumbiegel2021] backend for visualisation (@fig-arima E).
 The posterior distributions recover the simulated parameter values.
 
 ```{julia}
 #| output: false
 #| echo: false
 using PairPlots, CairoMakie
-params = [:damp_AR, :ar_init, :θ]
 
-function plot_fit_with_truth(chain, truth, params)
+function latent_sample_plot!(ax, latent_mdl; n_samples=100)
+    samples = mapreduce(hcat, 1:n_samples) do _
+        latent_mdl()
+    end
+    for col in eachcol(samples)
+        lines!(ax, col, color=(:grey, 0.1))
+    end
+    return nothing
+end
 
+function plot_fit_with_truth(fig_position, chain, truth, params)
     params_with_names = mapreduce(param -> namesingroup(chain, param), vcat, params)
     filtered_chains = chain[params_with_names]
-
     filtered_truth = reduce(vcat, truth[params])
     filtered_truth = Dict(
         zip(params_with_names, reduce(vcat, truth[params]))
     )
-
-    f = pairplot(
+    pairplot(fig_position,
         filtered_chains,
-        PairPlots.Truth(
-            filtered_truth,
-            label="True Values"
-        )
+        PairPlots.Truth(filtered_truth, label="True Values")
     )
-    return f
 end
 ```
 
 ```{julia}
 #| echo: false
-#| label: fig-arima-demo
-#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (blue) used to generate the synthetic data. The posterior distributions recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
-plot_fit_with_truth(
-    chains,
-    simulated_params,
-    params
-)
+#| label: fig-arima
+#| fig-cap: "Prior predictive samples and posterior inference for latent time series models. (A) AR(2) process showing autoregressive dynamics. (B) MA(1) process showing moving average behaviour. (C) ARMA(2,1) combining AR and MA components. (D) ARIMA(2,1,1) with differencing. (E) Posterior density for ARIMA(2,1,1) parameters showing pairwise relationships between AR damping coefficients and MA coefficient, with true parameter values (blue) used to generate synthetic data."
+fig_arima = let
+    n_samples = 100
+    n_timesteps = 20
+
+    # Generate latent models
+    ar_mdl = generate_latent(ar2, n_timesteps)
+    ma_mdl = generate_latent(ma1, n_timesteps)
+    arma_mdl = generate_latent(arma21, n_timesteps)
+    arima_mdl = generate_latent(arima211, n_timesteps)
+
+    fig = Figure(size=(1600, 800))
+
+    # Row 1: Prior predictive samples (left 4 panels)
+    ax_ar = Axis(fig[1, 1]; ylabel="Zₜ", title="AR(2)")
+    ax_ma = Axis(fig[1, 2]; title="MA(1)")
+    ax_arma = Axis(fig[2, 1]; ylabel="Zₜ", xlabel="Time", title="ARMA(2,1)")
+    ax_arima = Axis(fig[2, 2]; xlabel="Time", title="ARIMA(2,1,1)")
+
+    # Prior predictive plots
+    latent_sample_plot!(ax_ar, ar_mdl; n_samples)
+    latent_sample_plot!(ax_ma, ma_mdl; n_samples)
+    latent_sample_plot!(ax_arma, arma_mdl; n_samples)
+    latent_sample_plot!(ax_arima, arima_mdl; n_samples)
+
+    # Sync y-axis limits across all prior predictive panels
+    ylims = (-1.5, 1.5)
+    ylims!(ax_ar, ylims)
+    ylims!(ax_ma, ylims)
+    ylims!(ax_arma, ylims)
+    ylims!(ax_arima, ylims)
+
+    # Pairs plot spanning right 4 panels (columns 3-4, rows 1-2)
+    params = [:damp_AR, :ar_init, :θ]
+    plot_fit_with_truth(fig[1:2, 3:4], chains, simulated_params, params)
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E"],
+        [fig[1, 1], fig[1, 2], fig[2, 1], fig[2, 2], fig[1:2, 3:4]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18,
+            font=:bold,
+            padding=(0, 5, 5, 0),
+            halign=:right)
+    end
+
+    fig
+end
+
+save("figures/fig-arima.pdf", fig_arima)
+save("figures/fig-arima.png", fig_arima)
+
+fig_arima
 ```
+
 
 # Case Studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
-Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
-The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
+We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
+Each case study shows how complex models are built by composing reusable components, with full implementation details provided in the Supplementary Information.
+The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], demonstrating cross-ecosystem accessibility.
 
-All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
-<!-- Reference: https://arxiv.org/abs/2006.16487 -->
+*Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
-<!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/mishra-2020/ -->
+Our replication composes an AR(2) latent process for log $R_t$, a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
+We use `AR` to generate the latent log $R_t$ trajectory, `Renewal` to compute expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` to link expected infections to observed cases with overdispersion.
+We assemble these components and use Pathfinder [@zhang2022pathfinder] to initialise NUTS sampling.
 
-In _On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective, *Mishra et al* (2020)_ @mishra demonstrate the mathematical correspondance between age-dependent branching processes and time-since-infection epidemiological models, as a renewal model with time-varying reproduction number $R_t$.
-Renewal models use the renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (or serial interval) [@cori2013new].
-This is analogous to an autoregressive process where the autoregressive coefficients have epidemiological meaning rather than being estimated parameters.
-They show how solutions to the renewal equation, when combined with a negative binomial observation model, define a Bayesian hierarchical framework for inference on reported case time series data, demonstrating this on test-confirmed cases of COVID-19 in South Korea.
+@fig-mishra shows model components and posterior analysis.
+Panels A-C demonstrate prior predictive checks for each component in isolation: the AR(2) latent process for log $R_t$, the renewal model for latent infections, and the negative binomial observation model.
+Panel D compares the continuous serial interval distribution with its discretised form.
+Panels E-F show posterior predictive distributions for daily cases and time-varying $R_t$, recovering the main finding that $R_t$ in South Korea peaked at approximately 10 before rapidly dropping below 1 in early March 2020.
 
-### Data
-
-_Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
-This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
-
-```{julia}
-#| output: false
-using Chain, CSV, DataFramesMeta, Dates
-datapath = "data/south_korea_data.csv"
-south_korea_data = @chain datapath begin
-    CSV.read(DataFrame)
-    (y_t = _.cases_new, dates = _.date)
-end
-```
-
-### Model
-
-Our model is inspired by _Mishra et al_ and uses a log-scale time-varying reproductive number $\log R_t$ modelled as an AR(2) process, which in turn specifies the latent infections $I_t$ as a solution to the renewal equation conditional on the trajectory of $\log R_t$.
-The latent infection process is then linked directly to reported cases $C_t$ on matching days using a negative binomial link distribution.
-The key difference from _Mishra et al_ is in the initialization.
-They seed the renewal equation with importations (independent daily effects $\mu_t \sim \text{Exponential}(0.5)$), whilst we initialize by solving for the growth rate corresponding to the initial reproduction number and extrapolating backwards without allowing for ongoing importations.
-
-$$
-\begin{aligned}
-\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma, \phi &\sim \pi(\cdot), \\
-\epsilon_t & \sim \text{Normal}(0, \sigma)~~ \text{i.i.d } \forall t, \\
-Z_t &= \rho_1 Z_{t-1} + \rho_2 Z_{t-2} + \epsilon_t,~~ t = 1, 2, 3, \dots\\
-R_t & = \exp(Z_t), \\
-r & \text{ solves } G(r) = 1 / R_1, \\
-I_{t} & = I_0 e^{rt},~~ t = 0, -1, -2, -3,-n+1, \\
-I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
-y_t & \sim \text{NegBin}(I_t, \phi), ~~ t = 1, 2, 3, \dots.
-\end{aligned}
-$$
-
-Where $\pi$ is a prior distribution for the hyperparmeters of the AR(2) model, initial states $Z_0, Z_{-1}$, the autoregressive coefficients $\rho_1,\rho_2$ and innovations standard deviation $\sigma$, along with initial condition value for the latent infections $I_0$ and observation overdispersion $\phi$.
-$g_t$ is the generation distribution probability mass function (pmf).
-$r$ is the growth rate determined by the by $R_1 = \exp(Z_1)$ using the implicit relationship @wallinga2007generation.
-
-$$
-G(r) = \sum_{j \geq 1} g_j \exp(- r j) = 1 / R_1.
-$$
-
-This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
-
-#### Latent Model
-
-We reuse the AR(2) model `ar2` defined in @sec-dsl, which has the appropriate priors from _Mishra et al_.
-Prior predictive samples (@fig-figure3 A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
-
-```{julia}
-#| echo: false
-#| output: false
-using CairoMakie
-
-ar_mdl = generate_latent(ar2, 50)
-
-function ar_sample_plot!(ax, ar_mdl; n_samples=100)
-    ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        ar_mdl() .|> exp
-    end
-    for col in eachcol(ar_mdl_samples)
-        lines!(ax, col, color=(:grey, 0.1))
-    end
-    return nothing
-end
-```
-
-#### Infection Generating Process
-
-The renewal equation requires a discrete generation time pmf $g_t$.
-Our prototype provides a constructor that converts continuous distributions into the required discrete pmf using double interval censoring @charniga2024best.
-This is called inside the `EpiData` struct which we use to define the expected model specific input data.
-_Mishra et al_ used a $\text{Gamma}(6.5, 0.62)$ serial interval distribution,
-
-```{julia}
-#| output: false
-truth_SI = Gamma(6.5, 0.62)
-model_data = EpiData(gen_distribution=truth_SI)
-```
-
-@fig-figure3 D compares the discretized generation interval with the underlying continuous distribution.
-As expected the observed discrete generation interval differs from the underlying continuous distrbution due to the double censoring process.
-
-```{julia}
-#| echo: false
-#| output: false
-function discretised_gen_plot!(ax, model_data, truth_SI)
-    barplot!(ax, model_data.gen_int;
-        label="Discretized next gen pmf"
-    )
-    lines!(ax, truth_SI;
-        label="Continuous serial interval",
-        color=:green
-    )
-    axislegend(ax)
-    return nothing
-end
-```
-
-As in the earlier example, we define our renewal model using a specialised struct, `Renewal`.
-This requires the discretized generation time (from `model_data`) and an initialisation prior.
-We use a lognormal prior for the initial latent infections as it has a skewed right tail allow some weight on large initial values.
-
-```{julia}
-#| output: false
-log_I0_prior = Normal(log(1.0), 0.1)
-renewal = Renewal(model_data; initialisation_prior=log_I0_prior)
-```
-
-This results in the following model structure.
-
-```{julia}
-renewal
-```
-
-To demonstrate the infection model independently, we define a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days and pass this to the `generate_latent_infs` function which, like the `generate_latent` function, relies on multiple dispatch to contruct the model that the struct it is passed defines.
-
-```{julia}
-#| output: false
-Rt = [0.5 + 2.5 / (1 + exp(t - 15)) for t in 1:50]
-renewal_mdl = generate_latent_infs(renewal, log.(Rt))
-```
-
-The implied distribution of $I_t$ trajectories conditional on this $R_t$ trajectory can then be sampled independently of other model components (@fig-figure3 B). As expected this gives us a "classical" outbreak like dynamic with infection incidence initially increasing exponentially, the rate of growth slowing over time, and then finally the infection incidence "turning over".
-
-```{julia}
-#| echo: false
-#| output: false
-function plot_latent_infections!(ax, renewal_mdl; n_samples)
-    renewal_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        renewal_mdl()
-    end
-    for col in eachcol(renewal_mdl_samples)
-        lines!(ax, col;
-            color=(:grey, 0.1)
-        )
-    end
-    return nothing
-end
-
-function plot_Rt_traj!(ax, Rt)
-    lines!(ax, Rt;
-        linewidth=2
-    )
-    return nothing
-end
-```
-
-The full infection generating process, that is the model defined in @sec-example1 without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
-
-#### Observation Model
-
-In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors.
-We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
-A prior for $\phi$ was not specified in *Mishra et al*, so we use $\sqrt{1/\phi} \sim \text{HalfNormal}(0.1)$.
-
-```{julia}
-#| output: false
-negbin = NegativeBinomialError(cluster_factor_prior=HalfNormal(0.1))
-```
-
-As with the latent model, we can generate a `Turing.jl` model conditional on a fixed latent infection trajectory.
-Here we simulated this to look like an outbreak with a symmetrical growth and decay phase.
-
-```{julia}
-#| output: false
-I_t = [1000 * exp(-(t - 15)^2 / (2 * 4)) for t in 1:30]
-negbin_mdl = generate_observations(negbin, missing, I_t)
-```
-
-Here we use a `missing` argument to indicate observed variables that are to be sampled rather than to be used to accumulate log posterior density.
-Prior predictive samples (@fig-figure3 C) show the dispersion around the mean implied by our choice of prior.
-
-```{julia}
-#| echo: false
-#| output: false
-function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
-    negbin_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        θ = negbin_mdl()
-    end
-    for col in eachcol(negbin_mdl_samples)
-        scatter!(ax, col;
-            color=(:grey, 0.2)
-        )
-    end
-    lines!(ax, I_t;
-        color=:red,
-        linewidth=3,
-        label="Latent infections"
-    )
-    axislegend(ax)
-    return nothing
-end
-```
-
-### Fitting to Data
-
-We now compose the three model components into an `EpiProblem`, which defines the complete generative model for the time range `tspan`.
-
-```{julia}
-#| output: false
-tspan = (45, 80)
-mishra = EpiProblem(epi_model = renewal,
-    latent_model = ar2,
-    observation_model = negbin,
-    tspan = tspan)
-```
-
-We create training data by subsetting the full data to match `tspan`.
-
-```{julia}
-#| output: false
-training_data = @chain south_korea_data begin
-    @set _.y_t = _.y_t[first(tspan):last(tspan)]
-    @set _.dates = _.dates[first(tspan):last(tspan)]
-end
-```
-
-As a last step before fitting the model, we generate a new `Turing.jl` model using `generate_epiaware`, the `EpiProblem` we just defined, and our training data.
-
-```{julia}
-#| output: false
-using Turing
-mishra_mdl = generate_epiaware(mishra, training_data)
-```
-
-Following the same compositional pattern as our modelling DSL, we also support composing inference approaches using `EpiMethod`, which, for example, can combine pre-sampling steps with sampling algorithms.
-We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound to estimate the intialise the sampler.
-
-```{julia}
-#| output: false
-using ReverseDiff
-inference_method = EpiMethod(
-    pre_sampler_steps=[ManyPathfinder(nruns=5, maxiters=100)],
-    sampler=NUTSampler(
-        target_acceptance=0.9,
-        adtype=AutoReverseDiff(compile=true),
-        # ndraws=1000,
-        ndraws=100,
-        nchains=4,
-        mcmc_parallel=MCMCThreads(),
-        # nadapts=1000,
-        nadapts=250,
-        )
-)
-```
-
-We now need to combine our inference approach with our generated model.
-We can do this using the `apply_method`.
-
-```{julia}
-#| output: false
-#| julia:
-#|   cache:
-#|     enabled: true
-mishra_results = apply_method(mishra_mdl,
-    inference_method,
-    training_data
-)
-```
-
-This gives the following posterior estimates for our model parameters.
-
-```{julia}
-summarystats(mishra_results.samples)
-```
-
-```{julia}
-#| echo: false
-#| output: false
-dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
-
-function generated_quantiles(gens, quantity, qs; transformation=x -> x)
-    mapreduce(hcat, gens) do gen #loop over sampled generated quantities
-        getfield(gen, quantity) |> transformation
-    end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
-        map(eachrow(mat)) do row
-            if any(ismissing, row)
-                return missing
-            else
-                quantile(row, q)
-            end
-        end
-    end
-
-end
-
-function posterior_gens_for_plot(inference_results, n; epi_prob)
-    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, n),))
-
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
-
-    return posterior_gens
-end
-
-function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
-    ts = dates_to_times(inference_data.dates)
-    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
-    predicted_y_t = predicted_y_t[(n+1):end, :]
-
-    lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
-        color=:purple,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color=(:purple, 0.4),
-        label="50%"
-    )
-    band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color=(:purple, 0.2),
-        label="95%"
-    )
-    scatter!(ax, ts, inference_data.y_t;
-        color=:black,
-        label="Actual cases")
-    axislegend(ax)
-
-    return nothing
-end
-
-function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
-    ts = dates_to_times(inference_data.dates)
-    #Prediction quantiles
-    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-        transformation=x -> exp.(x))
-
-    lines!(ax, ts, predicted_R_t[:, 3];
-        color=:green,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
-        color=(:green, 0.4),
-        label="50%"
-    )
-    band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
-        color=(:green, 0.2),
-        label="95%"
-    )
-    axislegend(ax)
-end
-```
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-figure3
-#| fig-cap: "Model components and posterior analysis for @sec-example1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days, showing potential reproductive number trajectories. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory, demonstrating infection dynamics. (C) Prior samples from the negative binomial observation model around a latent infection curve, illustrating observation noise. (D) Comparison of the continuous serial interval distribution (green line) with its discretised pmf (bars) used in the renewal model. (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-figure3 = let
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
-    n_samples = 100
-    t_ticks = @chain training_data begin
-        _.dates
-        string.(_)
-    end
-    ts = dates_to_times(training_data.dates)
-
-    posterior_gens = posterior_gens_for_plot(mishra_results, length(training_data.y_t);
-        epi_prob=mishra)
-
-    fig = Figure(size=(1200, 1000))
-
-    ax11 = Axis(fig[1, 1];
-        yscale=log10,
-        ylabel="Time varying Rₜ"
-    )
-    ax12 = Axis(fig[1, 2];
-        ylabel="Latent infections"
-    )
-    ax13 = Axis(fig[1, 3];
-        ylabel="Observed cases"
-    )
-    ax21 = Axis(fig[2, 1];
-        xticks=0:14,
-        xlabel="Days"
-    )
-    ax22 = Axis(fig[2, 2];
-        ylabel="Daily cases",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
-    )
-    ax23 = Axis(fig[2, 3];
-        yscale=log10,
-        ylabel="Time varying Rₜ",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
-    )
-
-    ar_sample_plot!(ax11, ar_mdl; n_samples)
-    plot_latent_infections!(ax12, renewal_mdl; n_samples)
-    neg_bin_obs_plot!(ax13, negbin_mdl; n_samples)
-    discretised_gen_plot!(ax21, model_data, truth_SI)
-    post_predictive_yt!(ax22, training_data, posterior_gens; qs)
-    post_predictive_Rt!(ax23, training_data, posterior_gens; qs)
-
-    # Format y-axis labels to avoid scientific notation
-    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-
-    # Add panel labels
-    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
-        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
-        Label(layout[1, 1, TopLeft()], label,
-            fontsize=18,
-            font=:bold,
-            padding=(0, 5, 5, 0),
-            halign=:right)
-    end
-
-    fig
-end
-
-figure3
-```
-
-@fig-figure3 shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-figure3 F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-figure3 E).
+![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-mishra){#fig-mishra width=100%}
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
-In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
-`EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
-`EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from @sec-dsl and @sec-example1 and composing them with new delay and temporal effect components.
+`EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely used package for real-time situational awareness in infectious disease surveillance, estimating case counts and epidemiological parameters whilst accounting for reporting delays, right-truncation, and day-of-week effects.
 
-### Data
+Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1, extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
+Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
+We use `broadcast_weekly` to convert the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` to convolve latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` to multiply expected observations by day-of-week effects via a softmax transformation.
 
-We use the example dataset included with the `EpiNow2` R package, which contains daily confirmed COVID-19 cases from Italy during the first wave in 2020, from 22nd February to 30th June.
+@fig-epinow2 shows model components and posterior analysis.
+Panels A-C show prior predictive checks for the piecewise constant weekly ARIMA process, the renewal model, and the composite observation model with delays and day-of-week effects.
+Panel D displays the incubation period and reporting delay distributions.
+Panels E-F show posterior predictive distributions, demonstrating that the model explicitly accounts for reporting delays whilst recovering similar $R_t$ dynamics to @sec-example1.
 
-```{julia}
-#| output: false
-using Chain, CSV, DataFramesMeta, Dates
-datapath = "data/italy_data.csv"
-italy_data = @chain datapath begin
-    CSV.read(DataFrame)
-    (y_t = _.confirm, dates = Date.(_."date"))
-end
-```
-
-### Model
-
-Our model reuses the renewal infection model and ARIMA(2,1,1) latent process from earlier sections, making it piecewise constant by week, whilst building an observation model that accounts for reporting delays and day-of-week effects using discrete convolutions and a partially pooled day of the week effect.
-Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
-Mathematically, we represent the complete model as:
-
-$$
-\begin{aligned}
-\rho_1, \rho_2, Z_0, Z_{-1}, I_0,  \sigma_Z, \sigma_\omega, \phi &\sim \pi(\cdot), \\
-\epsilon_w & \sim \text{Normal}(0, \sigma_Z)~~ \text{i.i.d } \forall w, \\
-Z_w - Z_{w-1} &= \rho_1 (Z_{w-1} - Z_{w-2}) + \rho_2 (Z_{w-2} - Z_{w-3}) + \epsilon_w,~~ w = 1, 2, 3, \dots\\
-R_t &= \exp\left(Z_{\lfloor t/7 \rfloor}\right),~~ \text{Piecewise } R_t \text{ constant by week}\\
-I_t &= R_t \sum_{s \geq 1} g_s I_{t-s}, ~~ t = 1, 2, 3, \dots, \\
-S_t &= \sum_{s\geq1} I_{t-s} \eta_s,~~ \text{Incubation delay: infections to symptom onset}\\
-D_t &= \sum_{s\geq1} S_{t-s} \xi_s,~~ \text{Reporting delay: symptom onset to case reports}\\
-\tilde{\omega}_k &\sim \text{N}(0, \sigma^2_\omega),~ k = 0,\dots, 6,~~ \text{Day-of-week modifier} \\
-\omega &= 7 \times \text{softmax}(\tilde{\omega}),\\
-y_t &\sim \text{NegBin}( D_t \omega_{t~\text{mod}~7}, \phi),~~ \text{Link to data}.
-\end{aligned}
-$$ {#eq-epinow2-model}
-
-Where $\pi$ represents prior distributions for model hyperparameters.
-$g_t$ is the generation time distribution pmf, $\eta_t$ is the incubation period distribution pmf, and $\xi_t$ is the reporting delay distribution pmf (all obtained by double interval censoring continuous distributions @charniga2024best).
-$S_t$ represents symptom onsets (infections convolved with incubation period) and $D_t$ represents delayed case reports (symptom onsets convolved with reporting delay).
-The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on reporting.
-
-#### Latent Model
-
-We reuse the ARIMA(2,1,1) model `arima211` defined in @sec-dsl but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
-```{julia}
-#| output: false
-weekly_arima211 = broadcast_weekly(arima211)
-```
-
-This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
-In `EpiNow2`, although stationary process representations of $R_t$ are available, the default latent process is a *differenced* stationary (Matern) Gaussian Process; that is stationary only on its increments.
-Similarly, our piecewise constant weekly model applies the ARIMA(2,1,1) model to $\log R_{w}$ at the weekly scale, then broadcasts this to daily values.
-The weekly piecewise constant formulation we use is an option in the `EpiNow2` package but not part of the default model.
-Prior predictive samples (@fig-figure4 A) show the behaviour of the piecewise constant by week process.
-
-```{julia}
-#| echo: false
-#| output: false
-weekly_arima211_mdl = generate_latent(weekly_arima211, 50)
-
-function arima_sample_plot!(ax, arima_mdl; n_samples=100)
-    arima_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        arima_mdl() .|> exp
-    end
-    for col in eachcol(arima_mdl_samples)
-        lines!(ax, col, color=(:grey, 0.1))
-    end
-    return nothing
-end
-```
-
-#### Infection Generating Process
-
-Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
-Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
-
-Here we follow the `EpiNow2` getting started vignette to parameterise our model, this has a Gamma distribution with uncertain parameters for the generation time: shape ~ Normal(1.4, 0.48) and rate ~ Normal(0.38, 0.25).
-Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values, giving a Gamma(1.4, 0.38) distribution with mean 3.68 days
-
-```{julia}
-#| output: false
-gen_time_dist = Gamma(1.4, 1 / 0.38)
-epinow2_data = EpiData(gen_distribution=gen_time_dist)
-```
-
-We  use a similar `renewal` structure as we did in @sec-example1, updating it to use the generation time distribution rather than the serial interval.
-
-```{julia}
-#| output: false
-initialisation_prior = Normal(log(1.0), 2.0)
-renewal_gt = Renewal(epinow2_data; initialisation_prior=initialisation_prior)
-```
-
-As before, to demonstrate the infection model independently, we supply a fixed $R_t$ trajectory that decreases from 3 to 0.5 over 50 days.
-@fig-figure4 B shows prior samples from the renewal process conditional on this $R_t$ trajectory.
-
-```{julia}
-#| echo: false
-#| output: false
-renewal_mdl = let
-    rt_process = [3.0 * (1.0 - t / 50.0)^3 + 0.5 for t in 1:50]
-    _renewal_mdl = generate_latent_infs(renewal_gt, log.(rt_process))
-end
-```
-
-#### Observation Model
-
-We build the observation model through the composition of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
-We start by adding a day of the week ascertainment model using the `ascertainment_dayofweek` helper function.
-
-```{julia}
-#| output: false
-dayofweek_negbin = ascertainment_dayofweek(negbin;
-    latent_model=HierarchicalNormal(std_prior=HalfNormal(1.0))
-)
-```
-
-Unpacking this helper function reveals a nested stack of modelling constructions.
-First, transformation and broadcasting
-
-```{julia}
-#| echo: false
-print(@code_string broadcast_dayofweek(HierarchicalNormal()))
-```
-
-which uses the `TransformLatentModel` and `BroadcastLatentModel` structs to dispatch the transformation $\omega = 7 \times \text{softmax}(\tilde{\omega})$ and then broadcast this along the time series.
-
-Second is the linkage of the day of week model to the latent infections time series as a multiplicative ascertainment process, which produces
-
-```{julia}
-#| echo: false
-I_t_demo = [1000.0 for _ in 1:30]
-print(@code_string generate_observations(dayofweek_negbin, missing, I_t_demo))
-```
-
-This day-of-week model assumes a static weekly pattern; to allow temporal evolution, the weekly pattern could be modelled by concatenating latent processes, where each day's effect becomes a time-varying process.
-
-In addition to ascertainment, we also need to model the incubation period (infection to symptom onset) and a reporting delay (symptom onset to case reporting).
-Again following the `EpiNow2` getting started vignette, the incubation period uses a LogNormal distribution with uncertain parameters: meanlog ~ Normal(1.6, 0.064) and sdlog ~ Normal(0.42, 0.069), giving a mean of 5.41 days at the parameter means.
-The reporting delay uses a LogNormal with meanlog = 0.58 and sdlog = 0.47, giving a mean of 1.99 days.
-
-Since our prototype does not yet support uncertain delay distributions, we use the mean parameter values:
-
-```{julia}
-#| output: false
-incubation_distribution = LogNormal(1.6, 0.42)
-reporting_distribution = LogNormal(0.58, 0.47)
-```
-
-The `LatentDelay` struct uses double interval censoring @charniga2024best to convert continuous delay models into pmfs and stacks with the temporal modifier model.
-We compose two delay layers sequentially:
-
-```{julia}
-#| output: false
-incubation_dayofweek_negbin = LatentDelay(dayofweek_negbin, incubation_distribution)
-delay_dayofweek_negbin = LatentDelay(incubation_dayofweek_negbin, reporting_distribution)
-```
-
-This code demonstrates component reuse (base `negbin` from @sec-example1), layered composition (adding day-of-week effects via `ascertainment_dayofweek`), and sequential composition (adding two delay layers via nested `LatentDelay`).
-Note that since these are deterministic delays, we could more efficiently compute this by first convolving the two delay distributions or by automating this using the struct-in-struct approach with multiple dispatch.
-@fig-figure4 C demonstrates how these delay and day-of-week effects work together to transform a latent infection signal.
-
-```{julia}
-#| echo: false
-#| output: false
-function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
-    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        obs_mdl()
-    end
-    for col in eachcol(obs_mdl_samples)
-        scatter!(ax, col; color=(:grey, 0.2))
-    end
-    lines!(ax, latent_infections; color=:red, linewidth=3, label="Latent infections")
-    axislegend(ax)
-    return nothing
-end
-```
-
-### Fitting to Data
-
-We compose these modelling subcomponents into one `EpiProblem` model. The delay padding accounts for the combined length of the incubation period and reporting delay pmfs, allowing the model to properly account for infections that have occurred but not yet been observed by the end of the training period.
-
-```{julia}
-#| output: false
-incubation_pmf_length = length(incubation_dayofweek_negbin.rev_pmf)
-reporting_pmf_length = length(delay_dayofweek_negbin.rev_pmf)
-delay_padding = incubation_pmf_length + reporting_pmf_length
-
-tspan = (1, 40 + delay_padding)
-epinow2 = EpiProblem(epi_model=renewal_gt,
-    latent_model=weekly_arima211,
-    observation_model=delay_dayofweek_negbin,
-    tspan=tspan)
-```
-
-This `EpiProblem` uses the renewal model with generation time data (`renewal_gt`) and the piecewise constant by week ARIMA(2,1,1) latent model (`weekly_arima211`).
-The observation model reuses `negbin` from @sec-example1, layering on delays and day-of-week effects.
-
-We filter the data as before to the timespan of interest.
-
-```{julia}
-#| output: false
-italy_training_data = @chain italy_data begin
-    @set _.y_t = _.y_t[first(tspan):last(tspan)]
-    @set _.dates = _.dates[first(tspan):last(tspan)]
-end
-```
-
-We again construct a Turing model using `generate_epiaware`.
-
-```{julia}
-#| output: false
-epinow2_mdl = generate_epiaware(epinow2, italy_training_data)
-```
-
-We reuse the same `inference_method` defined in @sec-example1..
-
-```{julia}
-#| output: false
-#| julia:
-#|   cache:
-#|     enabled: false
-epinow2_results = apply_method(epinow2_mdl,
-    inference_method,
-    italy_training_data
-)
-```
-
-Here is the summarised posterior:
-
-```{julia}
-summarystats(epinow2_results.samples)
-```
-
-We see the model has converged and the summary statistics are similar to @sec-example1.
-@fig-figure4 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (@fig-figure4 F), whilst explicitly accounting for reporting delays (@fig-figure4 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (@fig-figure4 E).
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-figure4
-#| fig-cap: "Model components and posterior analysis for @sec-example2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process for log $R_t$ over 50 days, showing non-stationary reproductive number trajectories that are constant within each week. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the composite observation model including incubation period, reporting delays and day-of-week effects around a latent infection curve. (D) Comparison of the continuous incubation period (green line) and reporting delay (blue line) distributions with the combined discretised delay pmf (bars). (E) Posterior predictive distribution for daily cases, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (F) Posterior predictive distribution for time-varying $R_t$ on a log scale, with median (green line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals."
-figure4 = let
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
-    n_samples = 100
-    t_ticks = @chain italy_training_data begin
-        _.dates
-        string.(_)
-    end
-    ts = dates_to_times(italy_training_data.dates)
-
-    posterior_gens = posterior_gens_for_plot(epinow2_results, length(italy_training_data.y_t);
-        epi_prob=epinow2)
-
-    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
-    log_scale_dow_effect = [1.0; zeros(6)]
-    obs_mdl = generate_observations(delay_dayofweek_negbin, missing, latent_infections) |
-              (var"DayofWeek.ϵ_t"=log_scale_dow_effect,)
-
-    fig = Figure(size=(1200, 1000))
-
-    ax11 = Axis(fig[1, 1];
-        yscale=log10,
-        ylabel="Time varying Rₜ"
-    )
-    ax12 = Axis(fig[1, 2];
-        ylabel="Latent infections"
-    )
-    ax13 = Axis(fig[1, 3];
-        ylabel="Observed cases"
-    )
-    ax21 = Axis(fig[2, 1];
-        xticks=0:5:20,
-        xlabel="Days"
-    )
-    ax22 = Axis(fig[2, 2];
-        ylabel="Daily cases",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
-    )
-    ax23 = Axis(fig[2, 3];
-        yscale=log10,
-        ylabel="Time varying Rₜ",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
-    )
-
-    arima_sample_plot!(ax11, weekly_arima211_mdl; n_samples)
-    plot_latent_infections!(ax12, renewal_mdl; n_samples)
-    delay_dow_sample_plot!(ax13, obs_mdl, latent_infections; n_samples)
-
-    # Extract delay PMFs
-    incubation_pmf = incubation_dayofweek_negbin.rev_pmf[end:-1:1]
-    reporting_pmf = delay_dayofweek_negbin.rev_pmf[end:-1:1]
-
-    barplot!(ax21, 0:(length(incubation_pmf)-1), incubation_pmf;
-        label="Incubation period", alpha=0.6, color=:green)
-    lines!(ax21, 0:0.1:20, x -> pdf(incubation_distribution, x);
-        color=:green, linewidth=2)
-    barplot!(ax21, 0:(length(reporting_pmf)-1), reporting_pmf;
-        label="Reporting delay", alpha=0.6, color=:blue)
-    lines!(ax21, 0:0.1:20, x -> pdf(reporting_distribution, x);
-        color=:blue, linewidth=2)
-    ax21.ytickformat = values -> [string(round(v, digits=4)) for v in values]
-    axislegend(ax21)
-
-    post_predictive_yt!(ax22, italy_training_data, posterior_gens; qs)
-    post_predictive_Rt!(ax23, italy_training_data, posterior_gens; qs)
-
-    # Format y-axis labels to avoid scientific notation
-    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-    ax12.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax13.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
-    ax23.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-
-    # Add panel labels
-    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
-        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
-        Label(layout[1, 1, TopLeft()], label,
-            fontsize=18,
-            font=:bold,
-            padding=(0, 5, 5, 0),
-            halign=:right)
-    end
-
-    fig
-end
-
-figure4
-```
+![Model components and posterior analysis for Case Study 2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process. (B) Prior samples from the renewal model. (C) Prior samples from the composite observation model including delays and day-of-week effects. (D) Incubation period and reporting delay distributions. (E) Posterior predictive distribution for daily cases. (F) Posterior predictive distribution for time-varying $R_t$.](figures/fig-epinow2){#fig-epinow2 width=100%}
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
-<!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
-<!-- Implementation: https://cdcgov.github.io/Rt-without-renewal/stable/showcase/replications/chatzilena-2019/ -->
+This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
+*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 
-In _Contemporary Statistical Inference for Infectious Disease Models using Stan_ Chatzilena _et al_ @chatzilena2019contemporary showcase using the stan PPL @carpenter2017stan for infectious disease models, including differential equation based models.
-Chatzilena _et al_ use stan's in-built ordinary differential equation (ODE) solvers to infer epidemic trajectories from observed case counts under the assumption that the latent infection dynamics follow a susceptible-infected-removed (SIR) transmission model @kermack1927contribution; the prototypical compartmental model of transmission dynamics @keeling2008modeling.
-They demonstrate epidemic inference with, and without, temporal modification to the ascertainment rate of latent infecteds.
+We compose an SIR compartmental model with time-varying transmission, an AR(1) latent process for stochastic deviations from deterministic dynamics, and a Poisson observation model for case counts.
+We use `ODEProcess` from the SciML ecosystem [@SciML] to solve the SIR differential equations, `AR` to generate multiplicative perturbations to the transmission rate, and `PoissonError` to link the infected compartment to observed cases.
 
-We recreate the single strain influenza examples from Chatzilena _et al_ by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies and composing this with temporal effects on ascertainment using an autoregressive latent process.
-Unlike in stan, we had no requirement to encode a bespoke differential equation solver in our prototype - our prototype integrates with high-quality existing solver libraries from the SciML ecosystem @rackauckas2017differentialequations.
-
-## Data {#sec-data-cs3}
-
-The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
-We accessed this data using the R package `outbreaks` @jombart2020outbreaks.
-
-```{julia}
-#| output: false
-N = 763
-datapath = "data/influenza_england_1978_school.csv"
-england_data = @chain datapath begin
-    CSV.read(DataFrame)
-    @transform(:ts = :date - minimum(:date))
-    @transform(@byrow :ts = Dates.value(:ts) + 1.0)
-    (y_t = _.in_bed, dates = _.date, ts = _.ts)
-end
-```
-
-### Model
-
-Our model introduces, and composes, new models for generating infections from the solution to an ODE and autoregressive time-varying ascertainment rate of latent infections.
-We will start with a simpler observation model, and reusing the infection generating process, then move on to demonstrate time-varying ascertainment.
-
-The mathematical description of the model is:
-
-$$
-\begin{aligned}
-\beta, \gamma, I(0), \kappa_0, \phi, \sigma &\sim \pi(\cdot)\\
-r_{SI}(t) &= \beta S(t) \frac{I(t)}{N} , ~~ \text{(Infection rate)},\\
-r_{IR}(t) &= \gamma I(t), ~~ \text{(Recovery rate)},\\
-\frac{dS}{dt} &= -r_{SI}(t), \\
-\frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
-\frac{dR}{dt} &= r_{IR}(t),\\
-\epsilon_t &\sim \text{Normal}(0, \sigma^2),~ t= 1, 2, \dots ~~ \text{(Observation innovations)}, \\
-\kappa_{t} &= \phi \kappa_{t-1} + \epsilon_t, ~~ \text{(Ascertainment process)}, \\
-\lambda_t &= I(t)\exp(\kappa_t), ~~ \text{(Expected observations)}, \\ 
-Y_t &\sim \text{Poisson}(\lambda_t), ~~ \text{(Observation link)}.  \\
-\end{aligned}
-$$
-
-Here we are connecting a continous time model, where we index continuously evolving variables using **(t)**, to daily incrementing processes which we index with a subscript $t$.
-The population variables $S(t)$, $I(t)$, and $R(t)$ represent susceptible, infected, and recovered individuals at time $t$.
-The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
-The basic reproduction number $R_0 = \beta/\gamma$ characterises transmission potential, which is assumed to be constant in time in this model.
-All individuals are assumed to be either susceptible or infected the beginning of the outbreak, therefore, only $I(0)$ is needed to define the initial conditions for the outbreak.
-The log-scale ascertainment rate  is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with a damping $\phi$ parameter, initial state $\kappa_0$ and innovation standard deviation $\sigma$.
-$\pi$ represents the priors over each parameter.
-
-#### Latent Models
-
-Chatzilena _et al_ parameterise the autoregressive model for log-scale ascertainment as a time discretised Ornstein-Uhlenbeck process, which can be identified with an AR(1) process.
-
-```{julia}
-#| output: false
-ascert_ar = AR(
-    damp_priors = [HalfNormal(0.005)],
-    init_priors = [Normal(0, 0.001)],
-    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
-)
-```
-
-The SIR model parameters are static during the outbreak, these are generated directly with the initial fraction of infecteds $I(0) / N$,
-
-```{julia}
-#| output: false
-sir_params = SIRParams(
-    tspan = (0., england_data.ts[end]),   # For ODEProblem constructor
-    infectiousness = LogNormal(0.0, 1.0),  # beta prior
-    recovery_rate = Gamma(0.004, 1 / 0.002), # gamma prior
-    initial_prop_infected = Beta(0.5, 0.5)  # I(0) prior
-)
-```
-
-#### Infection Generating Process
-
-We build the probabilistic SIR model as our infection generating process, by composing the probabilistic ODE model generator with solver details. 
-The SIR parameter model (`sir_params`) defines the underlying differential equation model and priors.
-The SIR model in our modelling DSL is specified in population density form, therefore, as well as specifying which solution index corresponds to the infecteds, we rescale by the population size $N$.
-We also make a `softplus` transformation which stabilises inference when sampling very low values of infected at some time point.
-
-
-```{julia}
-#| output: false
-using LogExpFunctions
-sir_process = ODEProcess(
-    params = sir_params,                                                 # Underlying ODE and priors
-    sol2infs = sol -> softplus.(N .* sol[2, :]),                         # Link model
-    solver_options = Dict(:verbose => false, :saveat => england_data.ts) # Solver options
-)
-```
-
-This specialises the standard SciML compositional approach: problem definition composed with solution method @rackauckas2017differentialequations, to randomly generated SIR models composed with their solver and a link to latent infections.
-
-#### Observation Model
-
-The observation model is built by first instantiating a Poisson link model.
-
-```{julia}
-#| output: false
-pois = PoissonError()
-```
-
-We then build on the Poisson link by layering the log-scale ascertainment process.
-
-```{julia}
-#| output: false
-varying_ascertainment = Ascertainment(
-    model = pois,               # Link model
-    latent_model = ascert_ar,   # Temporal modifier model
-)
-```
-
-The `Ascertainment` struct defines the temporal modifications to the latent infections by first applying multiplicative variation defined by the log-scale ascertainment process, and then linking to the count data.
-
-### Fitting to Data
-
-Chatzilena _et al_ use two different observation models to link the SIR model to the boarding school influenza data.
-
-1. **Deterministic model**. This uses a direct Poisson link for observations; that is defined by the `pois` object, or equivalently by conditioning on $\kappa_t = 0$ for each $t$.
-2. **Stochastic model**. This uses the full mathematical model for observations; that is defined by the `varying_ascertainment` object.
-
-#### Deterministic Model
-
-We compose the modelling subcomponents into one `EpiProblem` model
-
-```{julia}
-#| output: false
-tspan = (1, length(england_data.y_t))
-deterministic_sir = EpiProblem(epi_model=sir_process,
-    latent_model=Null(),
-    observation_model=pois,
-    tspan=tspan)
-```
-
-The `EpiProblem` uses the SIR process with straight Poisson link to the data.
-Unlike in the other examples, the SIR process does not require a latent time-varying model for parameters and so that subcomponent is left as `Null`.
-
-We construct a Turing model using `generate_epiaware`, 
-
-```{julia}
-#| output: false
-deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
-```
-
-We reuse the same `inference_method` defined in @sec-example1, showcasing how our inference setup can be applied across different model compositions.
-
-The only extra step in inference compared to previous examples is to make the `SciMLSensitivity` package available for reverse-mode automatic differentiation through the ODE solutions.
-
-```{julia}
-#| output: false
-using SciMLSensitivity
-deterministic_sir_results = apply_method(deterministic_sir_mdl,
-    inference_method,
-    england_data
-)
-```
-
-```{julia}
-summarystats(deterministic_sir_results.samples)
-```
-
-#### Stochastic Model
-
-To define the full stochastic model, we reuse the `EpiProblem` from before with the time-varying ascertainment subcomponent replacing the direct Poisson link subcomponent.
-
-```{julia}
-#| output: false
-using Accessors
-stochastic_sir = @set deterministic_sir.observation_model = varying_ascertainment
-```
-
-This in turn constructs the corresponding Turing model.
-
-```{julia}
-#| output: false
-stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
-```
-
-And we can apply the same inference method.
-
-```{julia}
-#| output: false
-stochastic_sir_results = apply_method(stochastic_sir_mdl,
-    inference_method,
-    england_data
-)
-```
-
-```{julia}
-summarystats(stochastic_sir_results.samples)
-```
-
-```{julia}
-#| echo: false
-#| output: false
-
-function posterior_R0(results)
-    vec(results.samples[:β] ./ results.samples[:γ])
-end
-
-dates_to_times(dates) = [(d - minimum(dates)).value + 1 for d in dates]
-
-function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
-    obs_mdl_samples = mapreduce(hcat, 1:n_samples) do _
-        obs_mdl()
-    end
-    for col in eachcol(obs_mdl_samples)
-        scatter!(ax, col; color=(:grey, 0.2))
-    end
-    lines!(ax, latent_infections; color=:red, linewidth=3, label="Latent infections")
-    axislegend(ax)
-    return nothing
-end
-
-function generated_quantiles(gens, quantity, qs; transformation=x -> x)
-    mapreduce(hcat, gens) do gen #loop over sampled generated quantities
-        getfield(gen, quantity) |> transformation
-    end |> mat -> mapreduce(hcat, qs) do q #Loop over matrix row to condense into qs
-        map(eachrow(mat)) do row
-            if any(ismissing, row)
-                return missing
-            else
-                quantile(row, q)
-            end
-        end
-    end
-
-end
-
-function posterior_gens_for_plot(inference_results, n; epi_prob)
-    mdl_unconditional = generate_epiaware(epi_prob, (y_t=fill(missing, n),))
-
-    posterior_gens = generated_quantities(mdl_unconditional, inference_results.samples)
-
-    return posterior_gens
-end
-
-function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
-    ts = dates_to_times(inference_data.dates)
-    predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
-    n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
-    predicted_y_t = predicted_y_t[(n+1):end, :]
-
-    lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
-        color=:purple,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color=(:purple, 0.4),
-        label="50%"
-    )
-    band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color=(:purple, 0.2),
-        label="95%"
-    )
-    scatter!(ax, ts, inference_data.y_t;
-        color=:black,
-        label="Actual cases")
-    axislegend(ax)
-
-    return nothing
-end
-
-function post_predictive_Rt!(ax, inference_data, posterior_gens; qs)
-    ts = dates_to_times(inference_data.dates)
-    #Prediction quantiles
-    predicted_R_t = generated_quantiles(posterior_gens, :Z_t, qs;
-        transformation=x -> exp.(x))
-
-    lines!(ax, ts, predicted_R_t[:, 3];
-        color=:green,
-        linewidth=2,
-        label="Post. median"
-    )
-    band!(ax, ts, predicted_R_t[:, 2], predicted_R_t[:, 4];
-        color=(:green, 0.4),
-        label="50%"
-    )
-    band!(ax, ts, predicted_R_t[:, 1], predicted_R_t[:, 5];
-        color=(:green, 0.2),
-        label="95%"
-    )
-    axislegend(ax)
-end
-```
-
-
-```{julia}
-#| output: true
-#| echo: false
-#| label: fig-figure5
-#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior samples from the composite observation model including time-varying ascertainment and Poisson sampling around a latent infection curve. (B) Posterior predictive distributions for the reproductive number (R₀) with the deterministic SIR model (blue density) and stochastic SIR model (yellow density) (C) Posterior predictive distribution for daily cases for deterministic SIR model, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points). (D) Posterior predictive distribution for daily cases for stochastic SIR model, with median (purple line) and 50% (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data (black points)."
-figure5 = let
-    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
-    n_samples = 100
-    t_ticks = @chain england_data begin
-        _.dates
-        string.(_)
-    end
-    ts = dates_to_times(england_data.dates)
-    n = length(england_data.y_t)
-    posterior_gens = [posterior_gens_for_plot(results, n; epi_prob) 
-        for (results, epi_prob) in 
-        zip([deterministic_sir_results, stochastic_sir_results], [deterministic_sir, stochastic_sir])]
-    
-    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t = 1:(7*10)]
-    obs_mdl = generate_observations(varying_ascertainment, missing, latent_infections)
-
-    fig = Figure(size=(1200, 1000))
-    ax11 = Axis(fig[1, 1];
-        # yscale=log10,
-        ylabel="Time varying ascertainment"
-    )
-    ax12 = Axis(fig[1, 2];
-        xlabel="Reproductive number (R₀)"
-    )
-    ax21 = Axis(fig[2, 1];
-        xticks=(ts[1:3:end], t_ticks[1:3:end]),
-        ylabel = "Daily cases",
-        title = "Deterministic SIR"
-    )
-    ax22 = Axis(fig[2, 2];
-        xticks=(ts[1:3:end], t_ticks[1:3:end]),
-        ylabel = "Daily cases",
-        title = "Stochastic SIR"
-    )
-
-    delay_dow_sample_plot!(ax11, obs_mdl, latent_infections; n_samples)
-    for (ax, gens) in zip((ax21, ax22), posterior_gens)
-        post_predictive_yt!(ax, england_data, gens; qs)
-    end
-    density!(ax12, posterior_R0(deterministic_sir_results), label = "Deterministic SIR")
-    density!(ax12,posterior_R0(stochastic_sir_results), label = "Stochastic SIR")
-    axislegend(ax12)
-
-    # Add panel labels
-    for (label, layout) in zip(["A", "B", "C", "D"],
-        [fig[1, 1], fig[1, 2], fig[2, 1], fig[2, 2]])
-        Label(layout[1, 1, TopLeft()], label,
-            fontsize=18,
-            font=:bold,
-            padding=(0, 5, 5, 0),
-            halign=:right)
-    end
-
-    fig
-end
-
-figure5
-```
-
-Figure @fig-figure5 shows that the compositional SIR models recover similar results to @chatzilena2019contemporary; using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} @chain deterministic_sir_results posterior_R0 mean round(digits=1)` (`{julia} @chain deterministic_sir_results posterior_R0 quantile(0.025) round(digits=1)` - `{julia} @chain deterministic_sir_results posterior_R0 quantile(0.975) round(digits=1)` 95% CI) whilst using the stochastic SIR model infers a reproductive number ($R_0$) of `{julia} @chain stochastic_sir_results posterior_R0 mean round(digits=1)` (`{julia} @chain stochastic_sir_results posterior_R0 quantile(0.025) round(digits=1)` - `{julia} @chain stochastic_sir_results posterior_R0 quantile(0.975) round(digits=1)` 95% CI) @fig-figure5 **B**.
-The deterministic SIR model posterior predictive trajectories @fig-figure5 **C** look less well calibrated than those generated using the stochastic SIR model @fig-figure5 **D** with five of the 14 data points falling outside the 95% prediction envelopes.
-This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
-
+*The figure for this case study is currently under development and will be added once the implementation follows the standard case study format.*
 
 # Discussion {#sec-discussion}
 
@@ -1545,6 +539,10 @@ Our three case studies, which were based on previous studies [@mishra2020covid; 
 A strength of our prototype approach is its modular design, which enables faster model development and component reuse, whilst also facilitating comparison of modelling assumptions without large reimplementation efforts.
 The approach reduces implementation barriers for methodological advances and enables researchers to embed new components within existing models more easily.
 For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement the existing infection, latent, and observation models.
+This modularity also enables interdisciplinary collaboration.
+Domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to understand the full modelling framework or probabilistic programming details.
+The EpiAwareR R interface [@EpiAwareR] demonstrates that our frameworks can bridge software ecosystems.
+Similar interfaces could be built for other languages using existing Julia bridges such as JuliaCall [@PythonCall.jl] for Python.
 Standardised interfaces should also allow large language models to compose models programmatically with validation methods ensuring correctness.
 However, a clear limitation is that this is just a prototype and not designed for ongoing use or adoption.
 For example, we only partially implemented support for automated mappings between latent and observed states, which remains challenging to do well.
@@ -1605,7 +603,8 @@ Symbolic-numeric frameworks like `ModelingToolkit.jl` [@modelingtoolkit2021] and
 However, these approaches require generalisation to explicitly model probabilities and support a range of different modelling approaches which are both needed for infectious disease modelling applications.
 An alternative potential abstraction approach would be to build the domain-specific language on `Distributions.jl` rather than `Turing.jl`, which would enable compatibility with multiple probabilistic programming languages like `JuliaBUGS` whilst trading off the expressiveness of Turing's submodel interface.
 Further investigation of `Gen.jl` [@cusumanotowner2019gen], Genify [@tan2021genify], and `JuliaBUGS.jl` [@sun2024juliabugs] is needed, as Gen's programmable inference capabilities and tools like `AutoGP.jl` [@saad2023sequential] may overcome some limitations of `Turing.jl`, Genify's metaprogramming bridge could ease adoption by allowing modellers to write familiar Julia code, and JuliaBUGS's graph-based approach could enable more efficient inference through explicit model structure.
-Performance optimisation through parallelisation and approximate inference methods, along with integration bridges to existing epidemiological software ecosystems, will be needed for practical adoption.
+Performance optimisation through parallelisation and approximate inference methods will be needed for practical adoption.
+Ongoing work on compiling Julia applications to standalone executables could enable interfaces in other languages with fewer dependencies.
 The compositional framework creates opportunities for large language model integration.
 Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
 The explicit structure and validation tools of a composable framework should enable language models to reason about model design and propose structural adaptations more easily and with less room for error.
@@ -1616,6 +615,7 @@ Further work is needed to realise this potential.
 
 A complete implementation of the prototype we present here could improve real-time analysis of infectious disease dynamics by enabling "LEGO-like" assembly of epidemiological components.
 This prototype establishes the feasibility of integrating diverse expertise whilst maintaining statistical rigour, addressing limitations of current modelling approaches.
+By lowering technical barriers, compositional frameworks could enable interdisciplinary teams to contribute directly to model development rather than relying on modellers to translate their knowledge.
 Such frameworks are also likely key for enabling, and increasing the robustness of, large language model assisted model construction, especially in resource-constrained settings where such capabilities could prove most valuable.
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can incorporate diverse data sources and domain expertise are needed for future public health decision making.
 
