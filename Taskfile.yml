@@ -13,17 +13,18 @@ tasks:
     sources:
       - case-studies.qmd
     generates:
-      - figures/fig-figure3.pdf
-      - figures/fig-figure3.png
-      - figures/fig-figure4.pdf
-      - figures/fig-figure4.png
+      - figures/fig-mishra.pdf
+      - figures/fig-mishra.png
+      - figures/fig-epinow2.pdf
+      - figures/fig-epinow2.png
       - case-studies.html
       - case-studies.pdf
+      - case-studies.ipynb
     status:
       - test -f case-studies.html
       - test -f case-studies.pdf
-      - test -f figures/fig-figure3.pdf
-      - test -f figures/fig-figure4.pdf
+      - test -f figures/fig-mishra.pdf
+      - test -f figures/fig-epinow2.pdf
 
   render-index:
     desc: "Render main document"
@@ -32,11 +33,12 @@ tasks:
       - quarto render index.qmd
     sources:
       - index.qmd
-      - figures/fig-figure3.pdf
-      - figures/fig-figure4.pdf
+      - figures/fig-mishra.pdf
+      - figures/fig-epinow2.pdf
     generates:
       - index.html
       - index.pdf
+      - index.ipynb
     status:
       - test -f index.html
       - test -f index.pdf
