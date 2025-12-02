@@ -522,10 +522,17 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
 *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 
-We compose an SIR compartmental model with time-varying transmission, an AR(1) latent process for stochastic deviations from deterministic dynamics, and a Poisson observation model for case counts.
-We use `ODEProcess` from the SciML ecosystem [@SciML] to solve the SIR differential equations, `AR` to generate multiplicative perturbations to the transmission rate, and `PoissonError` to link the infected compartment to observed cases.
+We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@SciML] to solve the differential equations.
+We demonstrate two observation models: a deterministic model with direct Poisson link via `TransformObservationModel`, and a stochastic model that adds time-varying ascertainment using `Ascertainment` with an AR(1) process.
 
-*The figure for this case study is currently under development and will be added once the implementation follows the standard case study format.*
+@fig-sir shows model components and posterior analysis.
+Panel A shows prior SIR trajectories.
+Panel B demonstrates the stochastic observation model with time-varying ascertainment.
+Panel C compares posterior $R_0$ distributions between deterministic and stochastic models.
+Panel D shows posterior compartment trajectories.
+Panels E-F compare posterior predictive cases between models, recovering similar findings to *Chatzilena et al.* with $R_0 \approx 2$.
+
+![Model components and posterior analysis for Case Study 3. (A) Prior SIR trajectories showing S (blue), I (red), R (green) dynamics. (B) Stochastic observation model samples with time-varying ascertainment. (C) Posterior $R_0$ comparison between deterministic and stochastic models. (D) Posterior compartment trajectories. (E) Deterministic model posterior predictive cases. (F) Stochastic model posterior predictive cases.](figures/fig-sir){#fig-sir width=100%}
 
 # Discussion {#sec-discussion}
 

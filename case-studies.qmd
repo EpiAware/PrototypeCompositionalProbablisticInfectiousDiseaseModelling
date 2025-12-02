@@ -42,6 +42,10 @@ using ReverseDiff
 using Chain, CSV, DataFramesMeta, Dates
 using CairoMakie
 using CodeTracking, Revise
+
+# ODE packages for Case Study 3
+using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity
+using LogExpFunctions
 ```
 
 ```{julia}
@@ -863,3 +867,395 @@ save("figures/fig-epinow2.png", fig_epinow2)
 
 fig_epinow2
 ```
+
+## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
+
+<!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
+
+This case study demonstrates that compositional approaches extend beyond renewal models to compartmental transmission models.
+*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
+We recreate the single strain influenza examples by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+
+### Data
+
+The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
+Of the 763 children at the school, 512 became ill over 14 days.
+We accessed this data using the R package `outbreaks` [@jombart2020outbreaks].
+
+```{julia}
+#| output: false
+N = 763
+datapath = "data/influenza_england_1978_school.csv"
+england_data = @chain datapath begin
+    CSV.read(DataFrame)
+    @transform(:ts = :date - minimum(:date))
+    @transform(@byrow :ts = Dates.value(:ts) + 1.0)
+    (y_t = _.in_bed, dates = _.date, ts = _.ts)
+end
+```
+
+### Model
+
+The SIR model describes the flow of individuals between susceptible (S), infected (I), and recovered (R) compartments:
+
+$$
+\begin{aligned}
+\frac{dS}{dt} &= -\beta \frac{I(t)}{N} S(t), \\
+\frac{dI}{dt} &= \beta \frac{I(t)}{N} S(t) - \gamma I(t), \\
+\frac{dR}{dt} &= \gamma I(t).
+\end{aligned}
+$$
+
+Where $\beta$ is the transmission rate, $\gamma$ is the recovery rate, and $R_0 = \beta/\gamma$ is the basic reproduction number.
+We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
+
+#### Latent Model
+
+Unlike the renewal models in previous case studies, the SIR model does not require a time-varying latent process for $R_t$ as transmission dynamics are fully determined by the ODE parameters.
+We use a `Null` latent model to indicate this.
+
+#### Infection Generating Process
+
+Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
+The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
+
+```{julia}
+#| output: false
+sir_params = SIRParams(
+    tspan = (0.0, england_data.ts[end]),
+    infectiousness = LogNormal(0.0, 1.0),
+    recovery_rate = Gamma(0.004, 1 / 0.002),
+    initial_prop_infected = Beta(0.5, 0.5)
+)
+```
+
+The `ODEProcess` composes the parameter model with solver details.
+Critically, we separate the ODE solution from the observation model: `sol2infs` extracts the infected proportion from the ODE solution, whilst the transformation to expected case counts is handled by the observation model.
+
+```{julia}
+#| output: false
+sir_process = ODEProcess(
+    params = sir_params,
+    sol2infs = sol -> sol[2, :],
+    solver_options = Dict(:verbose => false, :saveat => england_data.ts)
+)
+```
+
+#### Observation Model
+
+We link the infected proportion to observed cases using `TransformObservationModel`, which applies the population scaling and softplus transformation before passing to the Poisson link.
+The softplus transformation `log1pexp` ensures numerical stability when the solver returns small negative values.
+
+```{julia}
+#| output: false
+pois = PoissonError()
+transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
+```
+
+This separation of concerns means the ODE model returns epidemiologically meaningful quantities (infected proportions), whilst the observation model handles the transformation to expected counts.
+
+```{julia}
+#| echo: false
+#| output: false
+
+# Helper functions for SIR case study plotting
+
+function sir_trajectory_plot!(ax, sir_mdl; n_samples=100, alpha=0.1)
+    for _ in 1:n_samples
+        gen = sir_mdl()
+        sol = gen.I_t_sol
+        if !isnothing(sol) && sol.retcode == :Success
+            lines!(ax, sol.t, sol[1, :], color=(:blue, alpha))
+            lines!(ax, sol.t, sol[2, :], color=(:red, alpha))
+            lines!(ax, sol.t, sol[3, :], color=(:green, alpha))
+        end
+    end
+    return nothing
+end
+
+function r0_hist_plot!(ax, r0_samples; color=:grey)
+    valid_r0 = filter(x -> !isnan(x) && !isinf(x) && x > 0 && x < 50, r0_samples)
+    if length(valid_r0) > 10
+        hist!(ax, valid_r0, color=(color, 0.6), bins=30)
+    end
+    return nothing
+end
+
+function obs_model_sir_plot!(ax, obs_samples, expected; n_samples=100)
+    n_valid = min(n_samples, size(obs_samples, 2))
+    for i in 1:n_valid
+        scatter!(ax, obs_samples[:, i], color=(:grey, 0.2), markersize=3)
+    end
+    lines!(ax, expected, color=:red, linewidth=3, label="Expected")
+    return nothing
+end
+
+function post_compartments_plot!(ax, ts, posterior_sols; qs, compartment=2)
+    compartment_mat = mapreduce(hcat, posterior_sols) do sol
+        if !isnothing(sol) && sol.retcode == :Success
+            sol[compartment, :]
+        else
+            fill(NaN, length(ts))
+        end
+    end
+
+    q_vals = mapreduce(hcat, qs) do q
+        map(eachrow(compartment_mat)) do row
+            valid = filter(!isnan, row)
+            if length(valid) > 0
+                quantile(valid, q)
+            else
+                NaN
+            end
+        end
+    end
+
+    colors = [:blue, :red, :green]
+    c = colors[compartment]
+
+    lines!(ax, ts, q_vals[:, 3], color=c, linewidth=2)
+    band!(ax, ts, q_vals[:, 2], q_vals[:, 4], color=(c, 0.4))
+    band!(ax, ts, q_vals[:, 1], q_vals[:, 5], color=(c, 0.2))
+    return nothing
+end
+
+function post_predictive_sir_cases!(ax, ts, data, posterior_gens; qs)
+    predicted_y_t = mapreduce(hcat, posterior_gens) do gen
+        gen.generated_y_t
+    end
+
+    q_vals = mapreduce(hcat, qs) do q
+        map(eachrow(predicted_y_t)) do row
+            valid = filter(x -> !ismissing(x) && !isnan(x), row)
+            if length(valid) > 0
+                quantile(valid, q)
+            else
+                NaN
+            end
+        end
+    end
+
+    lines!(ax, ts, q_vals[:, 3], color=:purple, linewidth=2, label="Median")
+    band!(ax, ts, q_vals[:, 2], q_vals[:, 4], color=(:purple, 0.4), label="50%")
+    band!(ax, ts, q_vals[:, 1], q_vals[:, 5], color=(:purple, 0.2), label="95%")
+    scatter!(ax, ts, data, color=:black, label="Data")
+    return nothing
+end
+```
+
+*Chatzilena et al.* present two models: a deterministic SIR with direct Poisson link, and a stochastic model with time-varying ascertainment.
+We demonstrate both, showing how the observation model can be composed with or without temporal effects.
+
+#### Stochastic Observation Model
+
+To model time-varying ascertainment, we use an AR(1) process on the log-scale following *Chatzilena et al.*
+The AR(1) process modifies the expected observations multiplicatively.
+
+```{julia}
+#| output: false
+ascert_ar = AR(
+    damp_priors = [HalfNormal(0.005)],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
+)
+```
+
+We compose the AR(1) process with the Poisson link using `Ascertainment`, which applies the latent process as a multiplicative modifier.
+
+```{julia}
+#| output: false
+varying_ascertainment = Ascertainment(
+    model = pois,
+    latent_model = ascert_ar,
+    latent_prefix = "va"
+)
+```
+
+We then wrap this with our population scaling transformation:
+
+```{julia}
+#| output: false
+transform_varying = TransformObservationModel(
+    varying_ascertainment,
+    x -> log1pexp.(N .* x)
+)
+```
+
+### Fitting to Data
+
+We fit both the deterministic and stochastic models to compare their performance.
+
+#### Deterministic Model
+
+```{julia}
+#| output: false
+tspan = (1, length(england_data.y_t))
+deterministic_sir = EpiProblem(
+    epi_model = sir_process,
+    latent_model = Null(),
+    observation_model = transform_pois,
+    tspan = tspan
+)
+```
+
+```{julia}
+#| output: false
+deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
+```
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: true
+deterministic_sir_results = apply_method(
+    deterministic_sir_mdl, inference_method, england_data
+)
+```
+
+```{julia}
+summarystats(deterministic_sir_results.samples)
+```
+
+#### Stochastic Model
+
+We compose the stochastic observation model with the same SIR process:
+
+```{julia}
+#| output: false
+stochastic_sir = EpiProblem(
+    epi_model = sir_process,
+    latent_model = Null(),
+    observation_model = transform_varying,
+    tspan = tspan
+)
+```
+
+```{julia}
+#| output: false
+stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
+```
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: true
+stochastic_sir_results = apply_method(
+    stochastic_sir_mdl, inference_method, england_data
+)
+```
+
+```{julia}
+summarystats(stochastic_sir_results.samples)
+```
+
+We compute the posterior distribution of $R_0 = \beta/\gamma$ for both models:
+
+```{julia}
+#| output: false
+deterministic_R0 = vec(deterministic_sir_results.samples[:β] ./
+                       deterministic_sir_results.samples[:γ])
+stochastic_R0 = vec(stochastic_sir_results.samples[:β] ./
+                    stochastic_sir_results.samples[:γ])
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-sir
+#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior SIR
+#|   trajectories showing S (blue), I (red), R (green) compartment dynamics. (B) Prior
+#|   samples from the stochastic observation model with time-varying ascertainment.
+#|   (C) Posterior $R_0$ distributions comparing deterministic (blue) and stochastic
+#|   (yellow) models. (D) Posterior compartment trajectories for deterministic model.
+#|   (E) Posterior predictive cases for deterministic model. (F) Posterior predictive
+#|   cases for stochastic model."
+fig_sir = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    ts = england_data.ts
+    t_ticks = string.(england_data.dates[1:3:end])
+
+    # Generate prior samples from deterministic model
+    det_uncond_mdl = generate_epiaware(deterministic_sir, (y_t=fill(missing, length(ts)),))
+
+    # Generate posterior samples for both models
+    det_posterior_gens = generated_quantities(det_uncond_mdl, deterministic_sir_results.samples)
+    stoch_uncond_mdl = generate_epiaware(stochastic_sir, (y_t=fill(missing, length(ts)),))
+    stoch_posterior_gens = generated_quantities(stoch_uncond_mdl, stochastic_sir_results.samples)
+
+    det_posterior_sols = map(det_posterior_gens) do gen
+        haskey(gen, :I_t_sol) ? gen.I_t_sol : nothing
+    end
+
+    # Prior observation model samples with ascertainment
+    fixed_I_t = [0.01 * (1 - cos(2π * t / 14)) for t in ts]
+    prior_obs_mdl = generate_observations(transform_varying, missing, fixed_I_t)
+    prior_obs_samples = mapreduce(hcat, 1:n_samples) do _
+        prior_obs_mdl()
+    end
+
+    fig = Figure(size=(1200, 1000))
+
+    # Row 1: Prior components
+    ax11 = Axis(fig[1, 1]; ylabel="Proportion", title="Prior SIR Trajectories")
+    ax12 = Axis(fig[1, 2]; ylabel="Cases", title="Stochastic Obs Model")
+    ax13 = Axis(fig[1, 3]; xlabel="R0", title="Posterior R0 Comparison")
+
+    # Row 2: Posterior predictions
+    ax21 = Axis(fig[2, 1]; ylabel="Proportion", xlabel="Days",
+                title="Posterior Compartments")
+    ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
+                xticks=(ts[1:3:end], t_ticks), title="Deterministic Model")
+    ax23 = Axis(fig[2, 3]; ylabel="Cases", xlabel="Days",
+                xticks=(ts[1:3:end], t_ticks), title="Stochastic Model")
+
+    # Panel A: Prior SIR trajectories
+    sir_trajectory_plot!(ax11, det_uncond_mdl; n_samples=n_samples, alpha=0.1)
+
+    # Panel B: Stochastic observation model samples
+    obs_model_sir_plot!(ax12, prior_obs_samples, log1pexp.(N .* fixed_I_t); n_samples)
+
+    # Panel C: Posterior R0 comparison
+    density!(ax13, deterministic_R0, label="Deterministic", color=:blue)
+    density!(ax13, stochastic_R0, label="Stochastic", color=:orange)
+    axislegend(ax13)
+
+    # Panel D: Posterior compartments (deterministic)
+    for comp in [1, 2, 3]
+        post_compartments_plot!(ax21, ts, det_posterior_sols; qs, compartment=comp)
+    end
+
+    # Panel E: Deterministic posterior predictive cases
+    post_predictive_sir_cases!(ax22, ts, england_data.y_t, det_posterior_gens; qs)
+
+    # Panel F: Stochastic posterior predictive cases
+    post_predictive_sir_cases!(ax23, ts, england_data.y_t, stoch_posterior_gens; qs)
+
+    # Format axes
+    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax21.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax22.ytickformat = values -> [string(round(Int, v)) for v in values]
+    ax23.ytickformat = values -> [string(round(Int, v)) for v in values]
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18, font=:bold, padding=(0, 5, 5, 0), halign=:right)
+    end
+
+    fig
+end
+
+save("figures/fig-sir.pdf", fig_sir)
+save("figures/fig-sir.png", fig_sir)
+
+fig_sir
+```
+
+@fig-sir shows that both compositional SIR models recover similar results to *Chatzilena et al.*
+Panel C compares the posterior $R_0$ distributions: the deterministic model infers $R_0$ around 2, whilst the stochastic model with time-varying ascertainment produces a similar estimate.
+Panels E-F compare posterior predictive cases between the models.
+The stochastic model's flexible observation process provides better calibrated prediction intervals, compensating for potential model misspecification in the deterministic model.
