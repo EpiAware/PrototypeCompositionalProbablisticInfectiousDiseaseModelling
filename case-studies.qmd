@@ -3,6 +3,7 @@ title: "Supplementary Information: Case Studies"
 format:
   html: default
   pdf: default
+  ipynb: default
 execute:
   freeze: auto
   cache: true
