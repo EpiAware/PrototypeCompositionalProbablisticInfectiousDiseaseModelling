@@ -3,7 +3,7 @@ version: '3'
 tasks:
   default:
     desc: "Render all documents"
-    deps: [render-case-studies, render-index]
+    deps: [render-index]
 
   render-case-studies:
     desc: "Render case studies (generates figures)"
