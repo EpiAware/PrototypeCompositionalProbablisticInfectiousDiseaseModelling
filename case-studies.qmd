@@ -42,10 +42,6 @@ using ReverseDiff
 using Chain, CSV, DataFramesMeta, Dates
 using CairoMakie
 using CodeTracking, Revise
-
-# ODE packages for Case Study 3
-using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity
-using LogExpFunctions
 ```
 
 ```{julia}
@@ -876,6 +872,13 @@ This case study demonstrates that compositional approaches extend beyond renewal
 *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 We recreate the single strain influenza examples by introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
 
+```{julia}
+#| output: false
+# ODE packages for Case Study 3
+using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity
+using LogExpFunctions
+```
+
 ### Data
 
 The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
@@ -909,6 +912,28 @@ $$
 Where $\beta$ is the transmission rate, $\gamma$ is the recovery rate, and $R_0 = \beta/\gamma$ is the basic reproduction number.
 We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
 
+*Chatzilena et al.* present two observation models.
+The deterministic model links the infected proportion directly to observed cases via a Poisson distribution:
+
+$$
+\begin{aligned}
+Y_t &\sim \text{Poisson}(\lambda_t), \\
+\lambda_t &= \text{softplus}(N \cdot I(t)/N).
+\end{aligned}
+$$
+
+The stochastic model adds time-varying ascertainment via an AR(1) process:
+
+$$
+\begin{aligned}
+Y_t &\sim \text{Poisson}(\lambda_t \exp(\kappa_t)), \\
+\kappa_t &= \rho \kappa_{t-1} + \epsilon_t, \quad \epsilon_t \sim N(0, \sigma^2).
+\end{aligned}
+$$
+
+This introduces `Ascertainment`, a new observation model modifier that applies a latent process as a multiplicative adjustment to expected observations.
+We demonstrate both models below.
+
 #### Latent Model
 
 Unlike the renewal models in previous case studies, the SIR model does not require a time-varying latent process for $R_t$ as transmission dynamics are fully determined by the ODE parameters.
@@ -930,7 +955,7 @@ sir_params = SIRParams(
 ```
 
 The `ODEProcess` composes the parameter model with solver details.
-Critically, we separate the ODE solution from the observation model: `sol2infs` extracts the infected proportion from the ODE solution, whilst the transformation to expected case counts is handled by the observation model.
+The ODE model returns the infected proportion $I(t)/N$, whilst the observation model handles the transformation to expected case counts.
 
 ```{julia}
 #| output: false
@@ -943,8 +968,8 @@ sir_process = ODEProcess(
 
 #### Observation Model
 
-We link the infected proportion to observed cases using `TransformObservationModel`, which applies the population scaling and softplus transformation before passing to the Poisson link.
-The softplus transformation `log1pexp` ensures numerical stability when the solver returns small negative values.
+We link the infected proportion to observed cases using `TransformObservationModel`, which applies population scaling and the softplus transformation before passing to the Poisson link.
+The softplus transformation (`log1pexp`) ensures numerical stability when the solver returns small negative values.
 
 ```{julia}
 #| output: false
@@ -952,7 +977,25 @@ pois = PoissonError()
 transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
 ```
 
-This separation of concerns means the ODE model returns epidemiologically meaningful quantities (infected proportions), whilst the observation model handles the transformation to expected counts.
+For the stochastic model, we add time-varying ascertainment using `Ascertainment` with an AR(1) process.
+We use `@set` from `Accessors.jl` to swap the underlying observation model:
+
+```{julia}
+#| output: false
+ascert_ar = AR(
+    damp_priors = [HalfNormal(0.005)],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
+)
+
+varying_ascertainment = Ascertainment(
+    model = pois,
+    latent_model = ascert_ar,
+    latent_prefix = "va"
+)
+
+transform_varying = @set transform_pois.model = varying_ascertainment
+```
 
 ```{julia}
 #| echo: false
@@ -1043,44 +1086,6 @@ function post_predictive_sir_cases!(ax, ts, data, posterior_gens; qs)
 end
 ```
 
-*Chatzilena et al.* present two models: a deterministic SIR with direct Poisson link, and a stochastic model with time-varying ascertainment.
-We demonstrate both, showing how the observation model can be composed with or without temporal effects.
-
-#### Stochastic Observation Model
-
-To model time-varying ascertainment, we use an AR(1) process on the log-scale following *Chatzilena et al.*
-The AR(1) process modifies the expected observations multiplicatively.
-
-```{julia}
-#| output: false
-ascert_ar = AR(
-    damp_priors = [HalfNormal(0.005)],
-    init_priors = [Normal(0, 0.001)],
-    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
-)
-```
-
-We compose the AR(1) process with the Poisson link using `Ascertainment`, which applies the latent process as a multiplicative modifier.
-
-```{julia}
-#| output: false
-varying_ascertainment = Ascertainment(
-    model = pois,
-    latent_model = ascert_ar,
-    latent_prefix = "va"
-)
-```
-
-We then wrap this with our population scaling transformation:
-
-```{julia}
-#| output: false
-transform_varying = TransformObservationModel(
-    varying_ascertainment,
-    x -> log1pexp.(N .* x)
-)
-```
-
 ### Fitting to Data
 
 We fit both the deterministic and stochastic models to compare their performance.
@@ -1119,16 +1124,11 @@ summarystats(deterministic_sir_results.samples)
 
 #### Stochastic Model
 
-We compose the stochastic observation model with the same SIR process:
+We swap the observation model using `@set`, demonstrating how `Ascertainment` composes with the same SIR process:
 
 ```{julia}
 #| output: false
-stochastic_sir = EpiProblem(
-    epi_model = sir_process,
-    latent_model = Null(),
-    observation_model = transform_varying,
-    tspan = tspan
-)
+stochastic_sir = @set deterministic_sir.observation_model = transform_varying
 ```
 
 ```{julia}

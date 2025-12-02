@@ -523,7 +523,8 @@ This case study demonstrates that compositional approaches extend beyond renewal
 *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate statistical inference for compartmental disease models, fitting mechanistic SIR models to outbreak data with uncertainty quantification.
 
 We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@SciML] to solve the differential equations.
-We demonstrate two observation models: a deterministic model with direct Poisson link via `TransformObservationModel`, and a stochastic model that adds time-varying ascertainment using `Ascertainment` with an AR(1) process.
+The ODE model returns infected proportions, whilst the observation model handles the transformation to expected case counts via `TransformObservationModel`.
+We demonstrate two observation models: a deterministic model with direct Poisson link, and a stochastic model that introduces `Ascertainment`, an observation model modifier for time-varying effects using an AR(1) process.
 
 @fig-sir shows model components and posterior analysis.
 Panel A shows prior SIR trajectories.
