@@ -422,9 +422,9 @@ All code and data for reproducing the analyses are available at: [https://github
 
 *Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
-Our replication uses the AR(2) latent model and negative binomial observation model defined in @sec-dsl, composing them with a renewal infection process [@cori2013new] that uses a discretised serial interval distribution [@wallinga2007generation].
-The `EpiProblem` container is used to assemble these three components into a complete generative model.
-The inference method combines Pathfinder variational inference [@zhang2022pathfinder] for initialisation with NUTS sampling.
+Our replication composes an AR(2) latent process for log $R_t$, a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
+In code, `AR` generates the latent log $R_t$ trajectory, `Renewal` computes expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` links expected infections to observed cases with overdispersion.
+The `EpiProblem` container assembles these three components, and inference combines Pathfinder [@zhang2022pathfinder] initialisation with NUTS sampling.
 
 @fig-figure3 shows model components and posterior analysis.
 Panels A-C demonstrate prior predictive checks for each component in isolation: the AR(2) latent process for log $R_t$, the renewal model for latent infections, and the negative binomial observation model.
