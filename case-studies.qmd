@@ -79,7 +79,7 @@ Each case study shows how complex models are built by composing reusable compone
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
 
-All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling) and at [https://github.com/sbfnk/EpiAwareR](https://github.com/sbfnk/EpiAwareR)
+All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
