@@ -6,9 +6,6 @@ project:
 
 engines: ['julia']
 
-filters:
-  - authors-block
-
 format:
   html:
     toc: true
