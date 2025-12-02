@@ -995,11 +995,21 @@ transform_ascertainment = @set transform_pois.model = ascertainment_model
 
 # Helper functions for SIR case study plotting
 
+# SIR vector field (same as used internally by EpiAware)
+function sir_vf!(du, u, p, t)
+    S, I, R = u
+    β, γ = p
+    du[1] = -β * S * I
+    du[2] = β * S * I - γ * I
+    du[3] = γ * I
+    return nothing
+end
+
 # Solve SIR ODE with given parameters
 function solve_sir(β, γ, I₀, ts; tspan=(0.0, ts[end]))
     u0 = [1.0 - I₀, I₀, 0.0]
     p = [β, γ]
-    prob = ODEProblem(EpiAware._sir_vf, u0, tspan, p)
+    prob = ODEProblem(sir_vf!, u0, tspan, p)
     solve(prob, Tsit5(); saveat=ts, verbose=false)
 end
 
