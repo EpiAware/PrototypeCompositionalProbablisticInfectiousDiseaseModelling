@@ -923,7 +923,7 @@ $\pi$ represents the priors over each parameter.
 The softplus transformation $\text{softplus}(x) = \log(1 + \exp(x))$ ensures numerical stability: ODE solvers can return small negative values near zero, and softplus smoothly maintains positivity whilst being very close to $x$ when $x > 2$.
 
 The log-scale ascertainment rate is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with damping parameter $\rho$, initial state $\kappa_0$, and innovation standard deviation $\sigma$.
-*Chatzilena et al.* parameterise this as a time-discretised Ornstein-Uhlenbeck process, which can be identified with an AR(1) process.
+*Chatzilena et al.* parameterise this as a time-discretised Ornstein-Uhlenbeck process, equivalent to an AR(1) process.
 Setting $\kappa_t = 0$ for all $t$ gives the deterministic model with direct Poisson link.
 
 #### Latent Model

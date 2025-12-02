@@ -521,7 +521,7 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 
 In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models.
 We recreate the single strain influenza example, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
-We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], demonstrating two observation models: a deterministic model with direct Poisson link, and a stochastic model using `Ascertainment` for time-varying effects parameterised as an AR(1) process (which *Chatzilena et al.* derive from a time-discretised Ornstein-Uhlenbeck process).
+We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], demonstrating two observation models: a deterministic model with direct Poisson link, and a stochastic model using `Ascertainment` for time-varying effects parameterised as an AR(1) process (equivalent to the time-discretised Ornstein-Uhlenbeck process used by *Chatzilena et al.*).
 A softplus transformation ensures numerical stability when the ODE solver returns small negative values near zero.
 
 @fig-sir shows model components and posterior analysis.
