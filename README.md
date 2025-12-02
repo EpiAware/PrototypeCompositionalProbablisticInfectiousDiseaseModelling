@@ -83,3 +83,45 @@ Available tasks:
    ```bash
    quarto render
    ```
+
+## Running Interactively
+
+### Case Studies (Julia)
+
+The case studies in `case-studies.qmd` can be run interactively using Quarto's preview mode:
+
+1. Set up the environment:
+   ```bash
+   task instantiate
+   ```
+
+2. Preview with live reload:
+   ```bash
+   task preview
+   ```
+
+   Or open `case-studies.qmd` directly in VS Code or another editor with Quarto support.
+
+### EpiAwareR Vignettes (R)
+
+The `EpiAwareR/` submodule contains R vignettes demonstrating the R interface to EpiAware:
+
+- `EpiAwareR.Rmd` - Getting started guide
+- `mishra-case-study.Rmd` - Replicating Mishra et al. (2020) COVID-19 analysis
+- `epinow2-comparison.Rmd` - Comparison with EpiNow2 workflows
+
+To run the vignettes interactively:
+
+1. Set up EpiAwareR with Julia backend:
+   ```bash
+   task setup-epiawarer
+   ```
+
+2. Open the vignettes in RStudio or VS Code:
+   ```
+   EpiAwareR/vignettes/EpiAwareR.Rmd
+   EpiAwareR/vignettes/mishra-case-study.Rmd
+   EpiAwareR/vignettes/epinow2-comparison.Rmd
+   ```
+
+3. Run code chunks interactively using your IDE's execution features.

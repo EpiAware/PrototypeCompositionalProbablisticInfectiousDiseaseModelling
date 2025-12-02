@@ -83,3 +83,19 @@ tasks:
     cmds:
       - quarto preview
     interactive: true
+
+  setup-epiawarer:
+    desc: "Set up EpiAwareR R package with Julia backend"
+    deps: [instantiate]
+    cmds:
+      - |
+        Rscript -e '
+        if (!requireNamespace("remotes", quietly = TRUE)) {
+          install.packages("remotes")
+        }
+        remotes::install_local("EpiAwareR", dependencies = TRUE, upgrade = "never")
+        library(EpiAwareR)
+        epiaware_setup_julia()
+        '
+    status:
+      - Rscript -e 'library(EpiAwareR)'
