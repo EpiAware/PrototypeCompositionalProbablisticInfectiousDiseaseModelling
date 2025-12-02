@@ -438,9 +438,9 @@ Panels E-F show posterior predictive distributions for daily cases and time-vary
 *Abbott et al.* [@abbott-epinow2-wellcomeopenres] address real-time estimation of case counts and epidemiological parameters accounting for reporting delays, right-truncation, and day-of-week effects.
 These observation process complexities are common in surveillance data and must be handled appropriately for accurate inference.
 
-Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1.
-We use `broadcast_weekly` to convert the ARIMA(2,1,1) process to piecewise constant weekly values, `LatentDelay` to add incubation period and reporting delay convolutions using double interval censoring [@charniga2024best], and `ascertainment_dayofweek` to wrap the observation model with day-of-week effects using a softmax transformation.
+Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1, extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
 Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
+In code, we use `broadcast_weekly` for the piecewise constant process, `LatentDelay` for the delay convolutions, and `ascertainment_dayofweek` to wrap the observation model with temporal effects.
 
 @fig-figure4 shows model components and posterior analysis.
 Panels A-C show prior predictive checks for the piecewise constant weekly ARIMA process, the renewal model, and the composite observation model with delays and day-of-week effects.
