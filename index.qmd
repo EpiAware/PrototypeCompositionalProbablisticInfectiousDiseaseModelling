@@ -16,11 +16,19 @@ authors:
     orcid: "0000-0003-0645-5367"
     attributes:
       equal-contributor: true
+  - name: "Hong Ge"
+    affiliations:
+      - ref: cambridge
+    orcid: "0000-0001-9421-2677"
   - name: "Kaitlyn E. Johnson"
     affiliations:
       - ref: lshtm
     email: "kaitlyn.johnson@lshtm.ac.uk"
     orcid: "0000-0001-8011-0012"
+  - name: "Anne Cori"
+    affiliations:
+      - ref: imperial
+    orcid: "0000-0002-8443-9162"
   - name: "Sebastian Funk"
     affiliations:
       - ref: lshtm
@@ -30,8 +38,12 @@ authors:
 affiliations:
   - id: cdc
     name: "Center for Forecasting and Outbreak Analysis; Centers for Disease Control, United States of America"
+  - id: cambridge
+    name: "University of Cambridge, United Kingdom"
   - id: lshtm
     name: "Centre for Mathematical Modelling of Infectious Diseases, London School of Hygiene & Tropical Medicine, United Kingdom"
+  - id: imperial
+    name: "MRC Centre for Global Infectious Disease Analysis, School of Public Health, Imperial College London, United Kingdom"
 date: today
 monofont: JuliaMono
 filters:
@@ -201,6 +213,7 @@ This constructor has created the following struct definition.
 ar2
 ```
 
+Prior samples from this model are shown in @fig-arima A.
 Another common latent model is the moving average model
 
 $$Z_t = \epsilon_t + \theta \epsilon_{t-1}, \quad \epsilon_t \sim \text{Normal}(0, \sigma)$$
@@ -215,6 +228,7 @@ ma1 = MA(;
 )
 ```
 
+Prior samples from this process are shown in @fig-arima B.
 A popular combination of these models is the autoregressive moving average (ARMA) model that can have different orders for both the AR and MA components.
 An ARMA(2,1) can be defined as:
 
@@ -235,6 +249,7 @@ The result of this step has been to update the `ar2` struct so that the definiti
 arma21
 ```
 
+The combined model dynamics are shown in @fig-arima C.
 Similarly, autoregressive integrated moving average (ARIMA) models extend ARMA by adding differencing operations that transform the series
 
 $$\Delta Z_t = Z_{t} - Z_{t-1}$$
@@ -250,6 +265,7 @@ We compose the ARMA model with a differencing operation using the `DiffLatentMod
 arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 ```
 
+Prior samples from the full model are shown in @fig-arima D.
 Alternatively, EpiAware provides an `arima()` constructor function that simplifies this specification.
 
 Other latent models extend modelling options through combining models additively, multiplicative scaling, and piecewise processes.
@@ -368,45 +384,94 @@ conditioned_model = gen_model | (; y_obs = y_observed)
 chains = sample(conditioned_model, NUTS(), MCMCThreads(), 2000, 4)
 ```
 
-We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairPlots.jl` [@PairPlots.jl] with the `CairoMakie.jl` [@DanischKrumbiegel2021] backend for visualisation (@fig-arima-demo).
+We can then compare our posterior distributions to the true sampled values from our ARIMA(2, 1, 1) model using `PairPlots.jl` [@PairPlots.jl] with the `CairoMakie.jl` [@DanischKrumbiegel2021] backend for visualisation (@fig-arima E).
 The posterior distributions recover the simulated parameter values.
 
 ```{julia}
 #| output: false
 #| echo: false
 using PairPlots, CairoMakie
-params = [:damp_AR, :ar_init, :θ]
 
-function plot_fit_with_truth(chain, truth, params)
+function latent_sample_plot!(ax, latent_mdl; n_samples=100)
+    samples = mapreduce(hcat, 1:n_samples) do _
+        latent_mdl()
+    end
+    for col in eachcol(samples)
+        lines!(ax, col, color=(:grey, 0.1))
+    end
+    return nothing
+end
 
+function plot_fit_with_truth(fig_position, chain, truth, params)
     params_with_names = mapreduce(param -> namesingroup(chain, param), vcat, params)
     filtered_chains = chain[params_with_names]
-
     filtered_truth = reduce(vcat, truth[params])
     filtered_truth = Dict(
         zip(params_with_names, reduce(vcat, truth[params]))
     )
-
-    f = pairplot(
+    pairplot(fig_position,
         filtered_chains,
-        PairPlots.Truth(
-            filtered_truth,
-            label="True Values"
-        )
+        PairPlots.Truth(filtered_truth, label="True Values")
     )
-    return f
 end
 ```
 
 ```{julia}
 #| echo: false
-#| label: fig-arima-demo
-#| fig-cap: "ARIMA(2,1,1) posterior density showing pairwise relationships between model parameters (AR damping coefficients and MA coefficient) with true parameter values (blue) used to generate the synthetic data. The posterior distributions recover the true parameter values, demonstrating the model's ability to perform inference on autoregressive integrated moving average processes."
-plot_fit_with_truth(
-    chains,
-    simulated_params,
-    params
-)
+#| label: fig-arima
+#| fig-cap: "Prior predictive samples and posterior inference for latent time series models. (A) AR(2) process showing autoregressive dynamics. (B) MA(1) process showing moving average behaviour. (C) ARMA(2,1) combining AR and MA components. (D) ARIMA(2,1,1) with differencing. (E) Posterior density for ARIMA(2,1,1) parameters showing pairwise relationships between AR damping coefficients and MA coefficient, with true parameter values (blue) used to generate synthetic data."
+fig_arima = let
+    n_samples = 100
+    n_timesteps = 20
+
+    # Generate latent models
+    ar_mdl = generate_latent(ar2, n_timesteps)
+    ma_mdl = generate_latent(ma1, n_timesteps)
+    arma_mdl = generate_latent(arma21, n_timesteps)
+    arima_mdl = generate_latent(arima211, n_timesteps)
+
+    fig = Figure(size=(1600, 800))
+
+    # Row 1: Prior predictive samples (left 4 panels)
+    ax_ar = Axis(fig[1, 1]; ylabel="Zₜ", title="AR(2)")
+    ax_ma = Axis(fig[1, 2]; title="MA(1)")
+    ax_arma = Axis(fig[2, 1]; ylabel="Zₜ", xlabel="Time", title="ARMA(2,1)")
+    ax_arima = Axis(fig[2, 2]; xlabel="Time", title="ARIMA(2,1,1)")
+
+    # Prior predictive plots
+    latent_sample_plot!(ax_ar, ar_mdl; n_samples)
+    latent_sample_plot!(ax_ma, ma_mdl; n_samples)
+    latent_sample_plot!(ax_arma, arma_mdl; n_samples)
+    latent_sample_plot!(ax_arima, arima_mdl; n_samples)
+
+    # Sync y-axis limits across all prior predictive panels
+    ylims = (-1.5, 1.5)
+    ylims!(ax_ar, ylims)
+    ylims!(ax_ma, ylims)
+    ylims!(ax_arma, ylims)
+    ylims!(ax_arima, ylims)
+
+    # Pairs plot spanning right 4 panels (columns 3-4, rows 1-2)
+    params = [:damp_AR, :ar_init, :θ]
+    plot_fit_with_truth(fig[1:2, 3:4], chains, simulated_params, params)
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E"],
+        [fig[1, 1], fig[1, 2], fig[2, 1], fig[2, 2], fig[1:2, 3:4]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18,
+            font=:bold,
+            padding=(0, 5, 5, 0),
+            halign=:right)
+    end
+
+    fig
+end
+
+save("figures/fig-arima.pdf", fig_arima)
+save("figures/fig-arima.png", fig_arima)
+
+fig_arima
 ```
 
 
@@ -426,12 +491,12 @@ Our replication composes an AR(2) latent process for log $R_t$, a renewal infect
 In code, `AR` generates the latent log $R_t$ trajectory, `Renewal` computes expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` links expected infections to observed cases with overdispersion.
 The `EpiProblem` container assembles these three components, and inference combines Pathfinder [@zhang2022pathfinder] initialisation with NUTS sampling.
 
-@fig-figure3 shows model components and posterior analysis.
+@fig-mishra shows model components and posterior analysis.
 Panels A-C demonstrate prior predictive checks for each component in isolation: the AR(2) latent process for log $R_t$, the renewal model for latent infections, and the negative binomial observation model.
 Panel D compares the continuous serial interval distribution with its discretised form.
 Panels E-F show posterior predictive distributions for daily cases and time-varying $R_t$, recovering the main finding that $R_t$ in South Korea peaked at approximately 10 before rapidly dropping below 1 in early March 2020.
 
-![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-figure3){#fig-figure3 width=100%}
+![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-mishra){#fig-mishra width=100%}
 
 ## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
 
@@ -442,12 +507,12 @@ Our replication reuses the ARIMA(2,1,1) and negative binomial components from th
 Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
 In code, `broadcast_weekly` converts the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` convolves latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` multiplies expected observations by day-of-week effects via a softmax transformation.
 
-@fig-figure4 shows model components and posterior analysis.
+@fig-epinow2 shows model components and posterior analysis.
 Panels A-C show prior predictive checks for the piecewise constant weekly ARIMA process, the renewal model, and the composite observation model with delays and day-of-week effects.
 Panel D displays the incubation period and reporting delay distributions.
 Panels E-F show posterior predictive distributions, demonstrating that the model explicitly accounts for reporting delays whilst recovering similar $R_t$ dynamics to @sec-example1.
 
-![Model components and posterior analysis for Case Study 2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process. (B) Prior samples from the renewal model. (C) Prior samples from the composite observation model including delays and day-of-week effects. (D) Incubation period and reporting delay distributions. (E) Posterior predictive distribution for daily cases. (F) Posterior predictive distribution for time-varying $R_t$.](figures/fig-figure4){#fig-figure4 width=100%}
+![Model components and posterior analysis for Case Study 2. (A) Prior samples from the piecewise constant by week ARIMA(2,1,1) latent process. (B) Prior samples from the renewal model. (C) Prior samples from the composite observation model including delays and day-of-week effects. (D) Incubation period and reporting delay distributions. (E) Posterior predictive distribution for daily cases. (F) Posterior predictive distribution for time-varying $R_t$.](figures/fig-epinow2){#fig-epinow2 width=100%}
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
