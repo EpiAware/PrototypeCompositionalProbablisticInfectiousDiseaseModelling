@@ -1220,19 +1220,18 @@ fig_sir = let
     lines!(ax21_S, ts, stoch_S_q_vals[:, 3], color=:orange, linewidth=2, label="Stoch")
     band!(ax21_S, ts, stoch_S_q_vals[:, 2], stoch_S_q_vals[:, 4], color=(:orange, 0.3))
 
-    axislegend(ax21_S)
-
     # I compartment (comp=2)
     det_I_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=2)
     stoch_I_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=2)
 
-    lines!(ax21_I, ts, det_I_q_vals[:, 3], color=:blue, linewidth=2, label="Det")
+    lines!(ax21_I, ts, det_I_q_vals[:, 3], color=:blue, linewidth=2)
     band!(ax21_I, ts, det_I_q_vals[:, 2], det_I_q_vals[:, 4], color=(:blue, 0.3))
 
-    lines!(ax21_I, ts, stoch_I_q_vals[:, 3], color=:orange, linewidth=2, label="Stoch")
+    lines!(ax21_I, ts, stoch_I_q_vals[:, 3], color=:orange, linewidth=2)
     band!(ax21_I, ts, stoch_I_q_vals[:, 2], stoch_I_q_vals[:, 4], color=(:orange, 0.3))
 
-    axislegend(ax21_I)
+    # Add legend only once for the stacked panel
+    axislegend(ax21_S)
 
     # Panel E: Combined posterior predictive cases (both models)
     post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue, label_prefix="Det")
