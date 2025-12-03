@@ -1239,28 +1239,21 @@ fig_sir = let
     axislegend(ax22)
 
     # Panel F: Posterior Rt over time (both models)
-    # Calculate Rt = β*S(t) for both models
-    det_Rt = mapreduce(hcat, eachindex(det_posterior_sols)) do i
-        sol = det_posterior_sols[i]
+    # Calculate Rt = β*S(t)/γ = R0*S(t) for both models
+    calculate_Rt = (sols, samples) -> mapreduce(hcat, eachindex(sols)) do i
+        sol = sols[i]
         if sol.retcode == ReturnCode.Success
-            β = deterministic_sir_results.samples[:β][i]
+            β = samples[:β][i]
+            γ = samples[:γ][i]
             S_t = sol[1, :]
-            β .* S_t
+            (β ./ γ) .* S_t
         else
             fill(NaN, length(ts))
         end
     end
 
-    stoch_Rt = mapreduce(hcat, eachindex(stoch_posterior_sols)) do i
-        sol = stoch_posterior_sols[i]
-        if sol.retcode == ReturnCode.Success
-            β = stochastic_sir_results.samples[:β][i]
-            S_t = sol[1, :]
-            β .* S_t
-        else
-            fill(NaN, length(ts))
-        end
-    end
+    det_Rt = calculate_Rt(det_posterior_sols, deterministic_sir_results.samples)
+    stoch_Rt = calculate_Rt(stoch_posterior_sols, stochastic_sir_results.samples)
 
     # Compute quantiles for Rt
     det_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), det_Rt, dims=2)
