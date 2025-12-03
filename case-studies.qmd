@@ -1260,8 +1260,8 @@ fig_sir = let
     for i in det_indices
         sol = det_posterior_sols[i]
         if sol.retcode == ReturnCode.Success
-            lines!(ax21_S, sol.t, sol[1, :], color=(:blue, 0.1))  # S compartment
-            lines!(ax21_I, sol.t, sol[2, :], color=(:blue, 0.1))  # I compartment
+            lines!(ax21_S, sol.t, sol[1, :], color=(:blue, 0.05))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:blue, 0.05))  # I compartment
         end
     end
 
@@ -1269,8 +1269,8 @@ fig_sir = let
     for i in stoch_indices
         sol = stoch_posterior_sols[i]
         if sol.retcode == ReturnCode.Success
-            lines!(ax21_S, sol.t, sol[1, :], color=(:orange, 0.1))  # S compartment
-            lines!(ax21_I, sol.t, sol[2, :], color=(:orange, 0.1))  # I compartment
+            lines!(ax21_S, sol.t, sol[1, :], color=(:orange, 0.05))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:orange, 0.05))  # I compartment
         end
     end
 
