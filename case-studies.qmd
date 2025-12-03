@@ -936,14 +936,15 @@ Unlike the renewal models in previous case studies, the SIR model does not requi
 
 Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
 The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
-Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but we use a more informative prior `Beta(1, 99)` for the initial proportion infected to concentrate prior mass near small outbreak initiations.
+Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but with a tighter scale parameter for the transmission rate (`LogNormal(0, 0.5)`) to reduce prior mass on extreme values.
+We also use a more informative prior `Beta(1, 99)` for the initial proportion infected to concentrate prior mass near small outbreak initiations.
 Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 
 ```{julia}
 #| output: false
 sir_params = SIRParams(
     tspan = (0.0, england_data.ts[end]),
-    infectiousness = LogNormal(0.0, 1.0),
+    infectiousness = LogNormal(0.0, 0.5),
     recovery_rate = Gamma(0.004, 1 / 0.002),
     initial_prop_infected = Beta(1, 99)
 )
