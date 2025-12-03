@@ -1192,7 +1192,7 @@ fig_sir = let
 
     # Prior observation model samples with ascertainment (longer time scale for demonstration)
     prior_ts = 1:(7*10)
-    latent_infections = [500 * (1 + cospi(2 * t / 30.0)) for t in prior_ts]
+    latent_infections = [500 * (1 + 0.3 * cospi(2 * t / 30.0)) for t in prior_ts]
     prior_obs_mdl = generate_observations(transform_ascertainment, missing, latent_infections ./ N)
     prior_obs_samples = mapreduce(hcat, 1:n_samples) do _
         prior_obs_mdl()
