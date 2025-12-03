@@ -869,8 +869,9 @@ fig_epinow2
 <!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
 
 In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models using Stan's ODE solvers.
-We recreate the single strain influenza example, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
-Unlike Stan, we integrate with existing solver libraries from the SciML ecosystem [@rackauckas2017differentialequations] rather than encoding bespoke solvers.
+Their single strain influenza example compares deterministic and stochastic formulations of the SIR model, showing how to perform parameter inference and model comparison for ODEs embedded within a probabilistic programming framework.
+We recreate this example using EpiAware, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+Unlike Stan, we integrate with existing solver libraries from the SciML ecosystem [@rackauckas2017differentialequations] rather than encoding bespoke solvers, allowing us to leverage state-of-the-art numerical methods and automatic solver selection.
 
 ### Data
 
