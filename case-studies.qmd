@@ -1212,25 +1212,24 @@ fig_sir = let
         stochastic_sir_results.samples, ts
     )
 
-    # S compartment (comp=1)
-    det_S_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=1)
-    stoch_S_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=1)
+    # Plot individual posterior trajectories (limit to n_samples to match Panel A)
+    n_post_samples = min(n_samples, length(det_posterior_sols))
 
-    lines!(ax21_S, ts, det_S_q_vals[:, 3], color=:blue, linewidth=2)
-    band!(ax21_S, ts, det_S_q_vals[:, 2], det_S_q_vals[:, 4], color=(:blue, 0.3))
+    # Deterministic model trajectories
+    for sol in det_posterior_sols[1:n_post_samples]
+        if sol.retcode == ReturnCode.Success
+            lines!(ax21_S, sol.t, sol[1, :], color=(:blue, 0.1))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:blue, 0.1))  # I compartment
+        end
+    end
 
-    lines!(ax21_S, ts, stoch_S_q_vals[:, 3], color=:orange, linewidth=2)
-    band!(ax21_S, ts, stoch_S_q_vals[:, 2], stoch_S_q_vals[:, 4], color=(:orange, 0.3))
-
-    # I compartment (comp=2)
-    det_I_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=2)
-    stoch_I_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=2)
-
-    lines!(ax21_I, ts, det_I_q_vals[:, 3], color=:blue, linewidth=2)
-    band!(ax21_I, ts, det_I_q_vals[:, 2], det_I_q_vals[:, 4], color=(:blue, 0.3))
-
-    lines!(ax21_I, ts, stoch_I_q_vals[:, 3], color=:orange, linewidth=2)
-    band!(ax21_I, ts, stoch_I_q_vals[:, 2], stoch_I_q_vals[:, 4], color=(:orange, 0.3))
+    # Stochastic model trajectories
+    for sol in stoch_posterior_sols[1:n_post_samples]
+        if sol.retcode == ReturnCode.Success
+            lines!(ax21_S, sol.t, sol[1, :], color=(:orange, 0.1))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:orange, 0.1))  # I compartment
+        end
+    end
 
     # Panel E: Combined posterior predictive cases (both models)
     post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue)
