@@ -970,8 +970,11 @@ pois = PoissonError()
 transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
 ```
 
-For the stochastic model, we add time-varying ascertainment using `Ascertainment`, which applies the log-scale AR(1) process $\kappa_t$ as a multiplicative adjustment via $\exp(\kappa_t)$.
-We specify the AR process with weakly informative priors: damping near zero (strongly autocorrelated), initial state near zero (minimal baseline adjustment), and small innovation standard deviation.
+For the stochastic model, we add time-varying ascertainment using `Ascertainment`, which wraps an observation model with a latent process.
+Here we reuse the same `AR` latent model type from earlier case studies, but instead of modelling infection dynamics, we apply it to the observation process.
+The AR(1) process $\kappa_t$ operates on the log scale and enters multiplicatively via $\exp(\kappa_t)$.
+We specify weakly informative priors: damping near zero (strongly autocorrelated), initial state near zero (minimal baseline adjustment), and small innovation standard deviation.
+Unlike earlier uses where we called `generate_latent()` directly, `Ascertainment` takes the latent model as an argument and handles generation internally.
 Prior predictive samples (@fig-sir B) show how this modifies expected observations.
 
 ```{julia}
