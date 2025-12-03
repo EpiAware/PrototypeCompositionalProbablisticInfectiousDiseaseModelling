@@ -1239,10 +1239,10 @@ fig_sir = let
     lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
 
     # Panel C: Posterior R0 comparison
-    density!(ax13, stochastic_R0, label="Stochastic",
-             color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
     density!(ax13, deterministic_R0, label="Deterministic",
              color=(:blue, 0.2), strokecolor=:blue, strokewidth=2)
+    density!(ax13, stochastic_R0, label="Stochastic",
+             color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
     axislegend(ax13)
 
     # Panel D: Posterior S and I compartments (both models)
