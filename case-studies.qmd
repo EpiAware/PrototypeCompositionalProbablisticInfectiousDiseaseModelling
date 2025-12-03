@@ -947,6 +947,14 @@ sir_params = SIRParams(
 )
 ```
 
+The SIR differential equations are implemented in the vector field function:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string EpiAware.EpiLatentModels._sir_vf(zeros(3), [1.0, 0.1, 0.0], [0.3, 0.1], 0.0))
+```
+
 The `ODEProcess` composes the parameter model with solver details.
 This follows the standard SciML compositional approach of problem definition composed with solution method [@rackauckas2017differentialequations], specialised here to probabilistically generated SIR parameters.
 The ODE model returns the infected proportion $I(t)/N$; returning proportions rather than counts improves numerical stability across different population sizes.
