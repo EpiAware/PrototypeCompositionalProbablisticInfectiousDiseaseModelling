@@ -967,7 +967,7 @@ We link the infected proportion to observed cases using `TransformObservationMod
 ```{julia}
 #| output: false
 pois = PoissonError()
-transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
+transform_pois = TransformObservationModel(pois, x -> softplus.(N .* x))
 ```
 
 For the stochastic model, we add time-varying ascertainment using `Ascertainment`, which wraps an observation model with a latent process.
