@@ -1016,13 +1016,13 @@ ascertainment_model = Ascertainment(
 transform_ascertainment = @set transform_pois.model = ascertainment_model
 ```
 
-This composition yields the full observation model, which EpiAware uses to generate observations from infections:
+The `Ascertainment` wrapper generates the latent process and applies it to observations:
 
 ```{julia}
 #| echo: false
 #| class-output: julia
-I_t_demo = [0.01 for _ in 1:14]
-print(@code_string generate_observations(transform_ascertainment, missing, I_t_demo))
+Y_t_demo = [100.0 for _ in 1:14]
+print(@code_string generate_observations(ascertainment_model, missing, Y_t_demo))
 ```
 
 ```{julia}
