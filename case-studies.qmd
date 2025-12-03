@@ -958,6 +958,7 @@ print(@code_string EpiAware.EpiLatentModels._sir_vf(zeros(3), [1.0, 0.1, 0.0], [
 The `ODEProcess` composes the parameter model with solver details.
 This follows the standard SciML compositional approach of problem definition composed with solution method [@rackauckas2017differentialequations], specialised here to probabilistically generated SIR parameters.
 The ODE model returns the infected proportion $I(t)/N$; returning proportions rather than counts improves numerical stability across different population sizes.
+We choose a switching ODE solver which switches between explicit (`Tsit5`) and implicit (`Rosenbrock23`) solvers, helping avoid the ODE solver failing when the sampler tries extreme parameter values.
 
 ```{julia}
 #| output: false
