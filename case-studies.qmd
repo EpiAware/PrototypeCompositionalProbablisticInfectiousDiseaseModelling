@@ -1215,7 +1215,7 @@ fig_sir = let
     ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
                 xticks=(ts[1:3:end], t_ticks))
     ax23 = Axis(fig[2, 3]; ylabel="Rt", xlabel="Days",
-                xticks=(ts[1:3:end], t_ticks))
+                xticks=(ts[1:3:end], t_ticks), ylims=(0, 5))
 
     # Panel A: Prior S and I trajectories (sample from priors directly)
     for _ in 1:n_samples
@@ -1248,10 +1248,10 @@ fig_sir = let
         stochastic_sir_results.samples, ts
     )
 
-    # Plot individual posterior trajectories (randomly sample to avoid autocorrelation)
+    # Plot individual posterior trajectories
     n_post_samples = min(n_samples, length(det_posterior_sols))
-    det_indices = rand(1:length(det_posterior_sols), n_post_samples)
-    stoch_indices = rand(1:length(stoch_posterior_sols), n_post_samples)
+    det_indices = 1:n_post_samples
+    stoch_indices = 1:n_post_samples
 
     # Deterministic model trajectories
     for i in det_indices
