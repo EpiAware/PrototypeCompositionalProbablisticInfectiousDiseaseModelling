@@ -1216,10 +1216,10 @@ fig_sir = let
     det_S_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=1)
     stoch_S_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=1)
 
-    lines!(ax21_S, ts, det_S_q_vals[:, 3], color=:blue, linewidth=2, label="Det")
+    lines!(ax21_S, ts, det_S_q_vals[:, 3], color=:blue, linewidth=2)
     band!(ax21_S, ts, det_S_q_vals[:, 2], det_S_q_vals[:, 4], color=(:blue, 0.3))
 
-    lines!(ax21_S, ts, stoch_S_q_vals[:, 3], color=:orange, linewidth=2, label="Stoch")
+    lines!(ax21_S, ts, stoch_S_q_vals[:, 3], color=:orange, linewidth=2)
     band!(ax21_S, ts, stoch_S_q_vals[:, 2], stoch_S_q_vals[:, 4], color=(:orange, 0.3))
 
     # I compartment (comp=2)
@@ -1232,13 +1232,9 @@ fig_sir = let
     lines!(ax21_I, ts, stoch_I_q_vals[:, 3], color=:orange, linewidth=2)
     band!(ax21_I, ts, stoch_I_q_vals[:, 2], stoch_I_q_vals[:, 4], color=(:orange, 0.3))
 
-    # Add legend only once for the stacked panel
-    axislegend(ax21_S)
-
     # Panel E: Combined posterior predictive cases (both models)
-    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue, label_prefix="Det")
-    post_predictive_yt!(ax22, england_data, stoch_posterior_gens; qs, color=:orange, label_prefix="Stoch", show_data=false)
-    axislegend(ax22)
+    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue)
+    post_predictive_yt!(ax22, england_data, stoch_posterior_gens; qs, color=:orange, show_data=false)
 
     # Panel F: Posterior Rt over time (both models)
     # Calculate Rt = β*S(t)/γ = R0*S(t) for both models
@@ -1261,14 +1257,13 @@ fig_sir = let
     det_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), det_Rt, dims=2)
     stoch_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), stoch_Rt, dims=2)
 
-    lines!(ax23, ts, det_Rt_qs[:, 3], color=:blue, linewidth=2, label="Det")
+    lines!(ax23, ts, det_Rt_qs[:, 3], color=:blue, linewidth=2)
     band!(ax23, ts, det_Rt_qs[:, 2], det_Rt_qs[:, 4], color=(:blue, 0.3))
 
-    lines!(ax23, ts, stoch_Rt_qs[:, 3], color=:orange, linewidth=2, label="Stoch")
+    lines!(ax23, ts, stoch_Rt_qs[:, 3], color=:orange, linewidth=2)
     band!(ax23, ts, stoch_Rt_qs[:, 2], stoch_Rt_qs[:, 4], color=(:orange, 0.3))
 
     hlines!(ax23, [1.0], color=:black, linestyle=:dash, linewidth=1)
-    axislegend(ax23)
 
     # Format axes
     ax11_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
