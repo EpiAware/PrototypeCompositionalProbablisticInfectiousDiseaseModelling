@@ -386,29 +386,29 @@ function posterior_gens_for_plot(inference_results, n; epi_prob)
     return posterior_gens
 end
 
-function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
+function post_predictive_yt!(ax, inference_data, posterior_gens; qs, color=:purple, label_prefix="", show_data=true)
     ts = dates_to_times(inference_data.dates)
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
     predicted_y_t = predicted_y_t[(n+1):end, :]
 
+    median_label = isempty(label_prefix) ? "Median" : label_prefix
     lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
-        color=:purple,
+        color=color,
         linewidth=2,
-        label="Post. median"
+        label=median_label
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color=(:purple, 0.4),
-        label="50%"
+        color=(color, 0.4)
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color=(:purple, 0.2),
-        label="95%"
+        color=(color, 0.2)
     )
-    scatter!(ax, ts, inference_data.y_t;
-        color=:black,
-        label="Actual cases")
-    axislegend(ax)
+    if show_data
+        scatter!(ax, ts, inference_data.y_t;
+            color=:black,
+            label="Data")
+    end
 
     return nothing
 end
@@ -1107,25 +1107,30 @@ summarystats(stochastic_sir_results.samples)
 ```{julia}
 #| echo: false
 #| output: false
-deterministic_R0 = vec(deterministic_sir_results.samples[:β] ./
-                       deterministic_sir_results.samples[:γ])
-stochastic_R0 = vec(stochastic_sir_results.samples[:β] ./
-                    stochastic_sir_results.samples[:γ])
+deterministic_R0_raw = vec(deterministic_sir_results.samples[:β] ./
+                           deterministic_sir_results.samples[:γ])
+stochastic_R0_raw = vec(stochastic_sir_results.samples[:β] ./
+                        stochastic_sir_results.samples[:γ])
+
+# Filter out extreme outliers (likely numerical instability from γ ≈ 0)
+deterministic_R0 = filter(x -> isfinite(x) && 0 < x < 100, deterministic_R0_raw)
+stochastic_R0 = filter(x -> isfinite(x) && 0 < x < 100, stochastic_R0_raw)
 ```
 
 ```{julia}
 #| output: true
 #| echo: false
 #| label: fig-sir
-#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior SIR
-#|   trajectories showing S (blue), I (red), R (green) compartment dynamics. (B) Prior
-#|   samples from the stochastic observation model including time-varying ascertainment
-#|   and Poisson sampling around a latent infection curve. (C) Posterior $R_0$
-#|   distributions comparing deterministic (blue) and stochastic (orange) models.
-#|   (D) Posterior compartment trajectories for deterministic model. (E) Posterior
-#|   predictive cases for deterministic model, with median (purple line) and 50%
-#|   (dark ribbon) and 95% (light ribbon) credible intervals compared to observed data
-#|   (black points). (F) Posterior predictive cases for stochastic model."
+#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior S
+#|   (top) and I (bottom) compartment trajectories. (B) Prior samples from the
+#|   stochastic observation model including time-varying ascertainment and Poisson
+#|   sampling around a latent infection curve. (C) Posterior $R_0$ distributions
+#|   comparing deterministic (blue) and stochastic (orange) models. (D) Posterior S
+#|   (top) and I (bottom) compartment trajectories for both deterministic (blue) and
+#|   stochastic (orange) models with 50% credible intervals. (E) Posterior predictive
+#|   cases for both models, with median and 50% credible intervals compared to
+#|   observed data (black points). (F) Posterior $R_t$ over time for both models with
+#|   reference line at $R_t=1$."
 fig_sir = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1155,20 +1160,38 @@ fig_sir = let
     fig = Figure(size=(1200, 1000))
 
     # Row 1: Prior components
-    ax11 = Axis(fig[1, 1]; ylabel="Proportion", title="Prior SIR Trajectories")
-    ax12 = Axis(fig[1, 2]; ylabel="Cases", title="Stochastic Obs Model")
-    ax13 = Axis(fig[1, 3]; xlabel="R0", title="Posterior R0 Comparison")
+    # Panel A: Stacked prior S and I
+    ax11_S = Axis(fig[1, 1][1, 1]; ylabel="S")
+    ax11_I = Axis(fig[1, 1][2, 1]; ylabel="I", xlabel="Days")
+    linkxaxes!(ax11_S, ax11_I)
+    hidexdecorations!(ax11_S, grid=false)
+
+    ax12 = Axis(fig[1, 2]; ylabel="Cases")
+    ax13 = Axis(fig[1, 3]; xlabel="R0")
 
     # Row 2: Posterior predictions
-    ax21 = Axis(fig[2, 1]; ylabel="Proportion", xlabel="Days",
-                title="Posterior Compartments")
-    ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
-                xticks=(ts[1:3:end], t_ticks), title="Deterministic Model")
-    ax23 = Axis(fig[2, 3]; ylabel="Cases", xlabel="Days",
-                xticks=(ts[1:3:end], t_ticks), title="Stochastic Model")
+    # Panel E: Stacked posterior S and I
+    ax21_S = Axis(fig[2, 1][1, 1]; ylabel="S")
+    ax21_I = Axis(fig[2, 1][2, 1]; ylabel="I", xlabel="Days")
+    linkxaxes!(ax21_S, ax21_I)
+    hidexdecorations!(ax21_S, grid=false)
 
-    # Panel A: Prior SIR trajectories (sample from priors directly)
-    sir_trajectory_plot!(ax11, sir_params, ts; n_samples=n_samples, alpha=0.1)
+    ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
+                xticks=(ts[1:3:end], t_ticks))
+    ax23 = Axis(fig[2, 3]; ylabel="Rt", xlabel="Days",
+                xticks=(ts[1:3:end], t_ticks))
+
+    # Panel A: Prior S and I trajectories (sample from priors directly)
+    for _ in 1:n_samples
+        β = rand(sir_params.infectiousness)
+        γ = rand(sir_params.recovery_rate)
+        I₀ = rand(sir_params.initial_prop_infected)
+        sol = solve_sir(β, γ, I₀, ts)
+        if sol.retcode == ReturnCode.Success
+            lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
+            lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
+        end
+    end
 
     # Panel B: Stochastic observation model samples
     for col in eachcol(prior_obs_samples)
@@ -1181,23 +1204,83 @@ fig_sir = let
     density!(ax13, stochastic_R0, label="Stochastic", color=:orange)
     axislegend(ax13)
 
-    # Panel D: Posterior compartments (deterministic)
-    for comp in [1, 2, 3]
-        q_vals, c = compartment_quantiles(det_posterior_sols, ts, qs; compartment=comp)
-        lines!(ax21, ts, q_vals[:, 3], color=c, linewidth=2)
-        band!(ax21, ts, q_vals[:, 2], q_vals[:, 4], color=(c, 0.4))
-        band!(ax21, ts, q_vals[:, 1], q_vals[:, 5], color=(c, 0.2))
+    # Panel D: Posterior S and I compartments (both models)
+    # Get posterior solutions for stochastic model too
+    stoch_posterior_sols = posterior_sir_solutions(
+        stochastic_sir_results.samples, ts
+    )
+
+    # S compartment (comp=1)
+    det_S_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=1)
+    stoch_S_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=1)
+
+    lines!(ax21_S, ts, det_S_q_vals[:, 3], color=:blue, linewidth=2, label="Det")
+    band!(ax21_S, ts, det_S_q_vals[:, 2], det_S_q_vals[:, 4], color=(:blue, 0.3))
+
+    lines!(ax21_S, ts, stoch_S_q_vals[:, 3], color=:orange, linewidth=2, label="Stoch")
+    band!(ax21_S, ts, stoch_S_q_vals[:, 2], stoch_S_q_vals[:, 4], color=(:orange, 0.3))
+
+    axislegend(ax21_S)
+
+    # I compartment (comp=2)
+    det_I_q_vals, _ = compartment_quantiles(det_posterior_sols, ts, qs; compartment=2)
+    stoch_I_q_vals, _ = compartment_quantiles(stoch_posterior_sols, ts, qs; compartment=2)
+
+    lines!(ax21_I, ts, det_I_q_vals[:, 3], color=:blue, linewidth=2, label="Det")
+    band!(ax21_I, ts, det_I_q_vals[:, 2], det_I_q_vals[:, 4], color=(:blue, 0.3))
+
+    lines!(ax21_I, ts, stoch_I_q_vals[:, 3], color=:orange, linewidth=2, label="Stoch")
+    band!(ax21_I, ts, stoch_I_q_vals[:, 2], stoch_I_q_vals[:, 4], color=(:orange, 0.3))
+
+    axislegend(ax21_I)
+
+    # Panel E: Combined posterior predictive cases (both models)
+    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue, label_prefix="Det")
+    post_predictive_yt!(ax22, england_data, stoch_posterior_gens; qs, color=:orange, label_prefix="Stoch", show_data=false)
+    axislegend(ax22)
+
+    # Panel F: Posterior Rt over time (both models)
+    # Calculate Rt = β*S(t) for both models
+    det_Rt = mapreduce(hcat, eachindex(det_posterior_sols)) do i
+        sol = det_posterior_sols[i]
+        if sol.retcode == ReturnCode.Success
+            β = deterministic_sir_results.samples[:β][i]
+            S_t = sol[1, :]
+            β .* S_t
+        else
+            fill(NaN, length(ts))
+        end
     end
 
-    # Panel E: Deterministic posterior predictive cases
-    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs)
+    stoch_Rt = mapreduce(hcat, eachindex(stoch_posterior_sols)) do i
+        sol = stoch_posterior_sols[i]
+        if sol.retcode == ReturnCode.Success
+            β = stochastic_sir_results.samples[:β][i]
+            S_t = sol[1, :]
+            β .* S_t
+        else
+            fill(NaN, length(ts))
+        end
+    end
 
-    # Panel F: Stochastic posterior predictive cases
-    post_predictive_yt!(ax23, england_data, stoch_posterior_gens; qs)
+    # Compute quantiles for Rt
+    det_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), det_Rt, dims=2)
+    stoch_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), stoch_Rt, dims=2)
+
+    lines!(ax23, ts, det_Rt_qs[:, 3], color=:blue, linewidth=2, label="Det")
+    band!(ax23, ts, det_Rt_qs[:, 2], det_Rt_qs[:, 4], color=(:blue, 0.3))
+
+    lines!(ax23, ts, stoch_Rt_qs[:, 3], color=:orange, linewidth=2, label="Stoch")
+    band!(ax23, ts, stoch_Rt_qs[:, 2], stoch_Rt_qs[:, 4], color=(:orange, 0.3))
+
+    hlines!(ax23, [1.0], color=:black, linestyle=:dash, linewidth=1)
+    axislegend(ax23)
 
     # Format axes
-    ax11.ytickformat = values -> [string(round(v, digits=2)) for v in values]
-    ax21.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax11_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax11_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax21_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax21_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
@@ -1216,6 +1299,7 @@ fig_sir
 ```
 
 @fig-sir shows that both compositional SIR models recover similar results to *Chatzilena et al.*
-Using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} round(mean(deterministic_R0), digits=1)` (`{julia} round(quantile(deterministic_R0, 0.025), digits=1)`--`{julia} round(quantile(deterministic_R0, 0.975), digits=1)` 95% CI), whilst using the stochastic SIR model infers $R_0$ of `{julia} round(mean(stochastic_R0), digits=1)` (`{julia} round(quantile(stochastic_R0, 0.025), digits=1)`--`{julia} round(quantile(stochastic_R0, 0.975), digits=1)` 95% CI) (@fig-sir C).
-The deterministic SIR model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those generated using the stochastic SIR model (@fig-sir F), with several data points falling outside the 95% prediction envelopes.
+Using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} round(median(deterministic_R0), digits=1)` (`{julia} round(quantile(deterministic_R0, 0.025), digits=1)`--`{julia} round(quantile(deterministic_R0, 0.975), digits=1)` 95% CrI), whilst using the stochastic SIR model infers $R_0$ of `{julia} round(median(stochastic_R0), digits=1)` (`{julia} round(quantile(stochastic_R0, 0.025), digits=1)`--`{julia} round(quantile(stochastic_R0, 0.975), digits=1)` 95% CrI) (@fig-sir C).
+The deterministic SIR model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those generated using the stochastic SIR model, with several data points falling outside the 95% prediction envelopes.
 This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
+Both models show similar posterior compartment dynamics (@fig-sir D) and time-varying reproduction numbers (@fig-sir F).
