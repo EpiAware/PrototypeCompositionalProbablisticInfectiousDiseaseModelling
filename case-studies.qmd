@@ -970,7 +970,8 @@ pois = PoissonError()
 transform_pois = TransformObservationModel(pois, x -> log1pexp.(N .* x))
 ```
 
-For the stochastic model, we add time-varying ascertainment using `Ascertainment`, an observation model modifier that applies a latent process as a multiplicative adjustment.
+For the stochastic model, we add time-varying ascertainment using `Ascertainment`, which applies the log-scale AR(1) process $\kappa_t$ as a multiplicative adjustment via $\exp(\kappa_t)$.
+We specify the AR process with weakly informative priors: damping near zero (strongly autocorrelated), initial state near zero (minimal baseline adjustment), and small innovation standard deviation.
 Prior predictive samples (@fig-sir B) show how this modifies expected observations.
 
 ```{julia}
@@ -983,8 +984,7 @@ ascertainment_ar = AR(
 
 ascertainment_model = Ascertainment(
     model = pois,
-    latent_model = ascertainment_ar,
-    latent_prefix = "Ascertainment"
+    latent_model = ascertainment_ar
 )
 
 transform_ascertainment = @set transform_pois.model = ascertainment_model
