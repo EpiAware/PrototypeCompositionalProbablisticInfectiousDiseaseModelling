@@ -960,6 +960,15 @@ sir_process = ODEProcess(
 )
 ```
 
+The `ODEProcess` generates infections by solving the ODE system and extracting the infected compartment via `sol2infs`.
+EpiAware composes this into a generative model:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string generate_latent_infs(sir_process, 14))
+```
+
 #### Observation Model
 
 We link the infected proportion to observed cases using `TransformObservationModel`, which applies population scaling and the softplus transformation before passing to the Poisson link.
@@ -991,6 +1000,15 @@ ascertainment_model = Ascertainment(
 )
 
 transform_ascertainment = @set transform_pois.model = ascertainment_model
+```
+
+This composition yields the full observation model, which EpiAware uses to generate observations from infections:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+I_t_demo = [0.01 for _ in 1:14]
+print(@code_string generate_observations(transform_ascertainment, missing, I_t_demo))
 ```
 
 ```{julia}
