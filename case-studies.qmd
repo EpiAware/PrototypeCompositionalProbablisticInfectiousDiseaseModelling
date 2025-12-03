@@ -901,27 +901,27 @@ $$
 \begin{aligned}
 \beta, \gamma, I(0), \kappa_0, \rho, \sigma &\sim \pi(\cdot), \\
 R_0 &= \beta / \gamma, & \text{(Basic reproduction number)} \\
-r_{SI}(t) &= \beta S(t) \frac{I(t)}{N}, & \text{(Infection rate)} \\
+r_{SI}(t) &= \beta S(t) I(t), & \text{(Infection rate)} \\
 r_{IR}(t) &= \gamma I(t), & \text{(Recovery rate)} \\
 \frac{dS}{dt} &= -r_{SI}(t), \\
 \frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
 \frac{dR}{dt} &= r_{IR}(t), \\
 \epsilon_t &\sim \text{Normal}(0, \sigma^2), & \text{(Observation innovations)} \\
 \kappa_{t} &= \rho \kappa_{t-1} + \epsilon_t, & \text{(Ascertainment process)} \\
-\lambda_t &= \text{softplus}(I(t))\exp(\kappa_t), & \text{(Expected observations)} \\
+\lambda_t &= \text{softplus}(N \cdot I(t))\exp(\kappa_t), & \text{(Expected observations)} \\
 Y_t &\sim \text{Poisson}(\lambda_t). & \text{(Observation link)}
 \end{aligned}
 $$
 
 Here we connect a continuous time model, where we index continuously evolving variables using $(t)$, to daily incrementing processes which we index with a subscript $t$.
-The population variables $S(t)$, $I(t)$, and $R(t)$ represent susceptible, infected, and recovered individuals at time $t$.
+The population variables $S(t)$, $I(t)$, and $R(t)$ represent proportions of the total population $N$ that are susceptible, infected, and recovered at time $t$.
 The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
 The basic reproduction number $R_0$ characterises transmission potential, assumed constant in this model.
 All individuals are assumed to be either susceptible or infected at the beginning of the outbreak, therefore only $I(0)$ is needed to define the initial conditions.
 We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
 $\pi$ represents the priors over each parameter.
 
-The softplus transformation $\text{softplus}(x) = \log(1 + \exp(x))$ ensures numerical stability: ODE solvers can return small negative values near zero, and softplus smoothly maintains positivity whilst being very close to $x$ when $x > 2$.
+The softplus transformation $\text{softplus}(x) = \log(1 + \exp(x))$ ensures numerical stability when scaling the infected proportion $I(t)$ to counts using population size $N$, smoothly maintaining positivity even when ODE solvers return small negative values near zero.
 
 The log-scale ascertainment rate is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with damping parameter $\rho$, initial state $\kappa_0$, and innovation standard deviation $\sigma$.
 *Chatzilena et al.* parameterise this as a time-discretised Ornstein-Uhlenbeck process, equivalent to an AR(1) process.
