@@ -964,7 +964,11 @@ The ODE model returns the infected proportion $I(t)/N$; returning proportions ra
 sir_process = ODEProcess(
     params = sir_params,
     sol2infs = sol -> sol[2, :],
-    solver_options = Dict(:verbose => false, :saveat => england_data.ts)
+    solver_options = Dict(
+        :alg => AutoTsit5(Rosenbrock23()),
+        :verbose => false,
+        :saveat => england_data.ts
+    )
 )
 ```
 
