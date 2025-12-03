@@ -1248,11 +1248,14 @@ fig_sir = let
         stochastic_sir_results.samples, ts
     )
 
-    # Plot individual posterior trajectories (limit to n_samples to match Panel A)
+    # Plot individual posterior trajectories (randomly sample to avoid autocorrelation)
     n_post_samples = min(n_samples, length(det_posterior_sols))
+    det_indices = rand(1:length(det_posterior_sols), n_post_samples)
+    stoch_indices = rand(1:length(stoch_posterior_sols), n_post_samples)
 
     # Deterministic model trajectories
-    for sol in det_posterior_sols[1:n_post_samples]
+    for i in det_indices
+        sol = det_posterior_sols[i]
         if sol.retcode == ReturnCode.Success
             lines!(ax21_S, sol.t, sol[1, :], color=(:blue, 0.1))  # S compartment
             lines!(ax21_I, sol.t, sol[2, :], color=(:blue, 0.1))  # I compartment
@@ -1260,7 +1263,8 @@ fig_sir = let
     end
 
     # Stochastic model trajectories
-    for sol in stoch_posterior_sols[1:n_post_samples]
+    for i in stoch_indices
+        sol = stoch_posterior_sols[i]
         if sol.retcode == ReturnCode.Success
             lines!(ax21_S, sol.t, sol[1, :], color=(:orange, 0.1))  # S compartment
             lines!(ax21_I, sol.t, sol[2, :], color=(:orange, 0.1))  # I compartment
