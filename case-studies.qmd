@@ -140,7 +140,9 @@ This means that we determine the initial condition of the latent infecteds befor
 
 #### Latent Model
 
-We reuse the AR(2) model `ar2` defined in the main text (see Domain-Specific Language Structure section), which has the appropriate priors from _Mishra et al_.
+We reuse the AR(2) model `ar2` defined in the Setup section, which has the appropriate priors from _Mishra et al_.
+The `init_priors=[Normal(0, 0.2), Normal(0, 0.2)]` represent the initial states Z₀ and Z₋₁ of the log reproduction number process.
+On the natural scale, this prior for initial R values has approximate mean 1 and standard deviation 0.2.
 Prior predictive samples (@fig-mishra A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
 
 ```{julia}
@@ -563,10 +565,20 @@ The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on r
 
 #### Latent Model
 
-We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section above but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
+We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section but modify it to better reflect outbreak dynamics.
+
 ```{julia}
 #| output: false
-weekly_arima211 = broadcast_weekly(arima211)
+arima211_outbreak = @set arima211.init_prior = Normal(0.3, 0.3)
+```
+
+The `latent_init` prior of `Normal(0.3, 0.3)` for the initial log reproduction number Z₁ corresponds on the natural scale to R₁ with approximate mean 1.4 and standard deviation 0.4, favouring growing epidemics more appropriate for the COVID-19 outbreak context.
+
+We then broadcast this modified ARIMA process to a weekly timescale, as discussed in more detail in the following section.
+
+```{julia}
+#| output: false
+weekly_arima211 = broadcast_weekly(arima211_outbreak)
 ```
 
 This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
@@ -769,25 +781,28 @@ summarystats(epinow2_results.samples)
 #| output: false
 #| echo: false
 #| eval: false
+# Additional model diagnostics to check for convergence and parameter relationships
 using PairPlots, StatsPlots
 
 # Define parameter filtering
 param_names = names(epinow2_results.samples)
 is_noise_param(name) = occursin("ϵ_t[", string(name))
 is_latent_traj(name) = occursin("Z_t[", string(name))
+is_dayofweek_param(name) = occursin("DayofWeek", string(name))
 
-# Structural parameters for pairplot (exclude noise and trajectories, keep first 2 noise as examples)
+# Structural parameters (exclude noise and trajectories, keep first 2 noise as examples, exclude day-of-week)
 structural_params = filter(param_names) do name
     if is_noise_param(name)
         return occursin("ϵ_t[1]", string(name)) || occursin("ϵ_t[2]", string(name))
     end
-    return !is_latent_traj(name)
+    return !is_latent_traj(name) && !is_dayofweek_param(name)
 end
+
+# Pairplot
 pairplot(epinow2_results.samples[structural_params])
 
-# Noise parameters for trace plots
-noise_params = filter(is_noise_param, param_names)
-plot(epinow2_results.samples[noise_params])
+# Trace plot - same params as pairplot
+StatsPlots.plot(epinow2_results.samples[structural_params])
 ```
 
 We see the model has converged and the summary statistics are similar to @sec-example1.
