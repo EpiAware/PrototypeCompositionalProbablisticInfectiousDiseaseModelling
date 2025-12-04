@@ -140,7 +140,17 @@ This means that we determine the initial condition of the latent infecteds befor
 
 #### Latent Model
 
-We reuse the AR(2) model `ar2` defined in the Setup section, which has the appropriate priors from _Mishra et al_.
+We reuse the AR(2) model `ar2` defined in the Setup section, but update the first damping coefficient prior ρ₁ to match _Mishra et al_.
+They specify ρ₁ ~ N(0.8, 0.05) constrained to [0,1], reflecting strong autocorrelation in the log reproduction number process.
+
+```{julia}
+#| output: false
+ar2_mishra = @set ar2.damp_prior = arraydist([
+    truncated(Normal(0.8, 0.05), 0, 1),
+    truncated(Normal(0.1, 0.05), 0, 1)
+])
+```
+
 The `init_priors=[Normal(0, 0.2), Normal(0, 0.2)]` represent the initial states Z₀ and Z₋₁ of the log reproduction number process.
 On the natural scale, this prior for initial R values has approximate mean 1 and standard deviation 0.2.
 Prior predictive samples (@fig-mishra A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
@@ -150,7 +160,7 @@ Prior predictive samples (@fig-mishra A) show that *a priori* these priors assig
 #| output: false
 using CairoMakie
 
-ar_mdl = generate_latent(ar2, 50)
+ar_mdl = generate_latent(ar2_mishra, 50)
 
 function ar_sample_plot!(ax, ar_mdl; n_samples=100)
     ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -299,7 +309,7 @@ We now compose the three model components into an `EpiProblem`, which defines th
 #| output: false
 tspan = (45, 80)
 mishra = EpiProblem(epi_model = renewal,
-    latent_model = ar2,
+    latent_model = ar2_mishra,
     observation_model = negbin,
     tspan = tspan)
 ```
