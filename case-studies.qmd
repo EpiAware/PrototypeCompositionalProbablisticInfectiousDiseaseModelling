@@ -1035,31 +1035,14 @@ print(@code_string generate_observations(ascertainment_model, missing, Y_t_demo)
 
 # Helper functions for SIR case study plotting
 
-# SIR vector field (same as used internally by EpiAware)
-function sir_vf!(du, u, p, t)
-    S, I, R = u
-    β, γ = p
-    du[1] = -β * S * I
-    du[2] = β * S * I - γ * I
-    du[3] = γ * I
-    return nothing
-end
-
-# Solve SIR ODE with given parameters
-function solve_sir(β, γ, I₀, ts; tspan=(0.0, ts[end]))
-    u0 = [1.0 - I₀, I₀, 0.0]
-    p = [β, γ]
-    prob = ODEProblem(sir_vf!, u0, tspan, p)
-    solve(prob, Tsit5(); saveat=ts, verbose=false)
-end
+# Calculate R0 from SIR samples
+sir_R0(samples) = vec(samples[:β] ./ samples[:γ])
 
 # Plot prior SIR trajectories by sampling from priors
-function sir_trajectory_plot!(ax, sir_params, ts; n_samples=100, alpha=0.1)
+function sir_trajectory_plot!(ax, sir_process, ts; n_samples=100, alpha=0.1)
+    ode_mdl = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
     for _ in 1:n_samples
-        β = rand(sir_params.infectiousness)
-        γ = rand(sir_params.recovery_rate)
-        I₀ = rand(sir_params.initial_prop_infected)
-        sol = solve_sir(β, γ, I₀, ts)
+        sol = ode_mdl()
         if sol.retcode == ReturnCode.Success
             lines!(ax, sol.t, sol[1, :], color=(:blue, alpha))
             lines!(ax, sol.t, sol[2, :], color=(:red, alpha))
@@ -1070,12 +1053,13 @@ function sir_trajectory_plot!(ax, sir_params, ts; n_samples=100, alpha=0.1)
 end
 
 # Generate posterior ODE solutions from chain samples
-function posterior_sir_solutions(samples, ts)
+function posterior_sir_solutions(sir_process, samples, ts)
     β_samples = vec(samples[:β])
     γ_samples = vec(samples[:γ])
     I₀_samples = vec(samples[:I₀])
+    ode_mdl = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
     map(eachindex(β_samples)) do i
-        solve_sir(β_samples[i], γ_samples[i], I₀_samples[i], ts)
+        (ode_mdl | (β = β_samples[i], γ = γ_samples[i], I₀ = I₀_samples[i]))()
     end
 end
 
@@ -1147,14 +1131,8 @@ summarystats(stochastic_sir_results.samples)
 ```{julia}
 #| echo: false
 #| output: false
-deterministic_R0_raw = vec(deterministic_sir_results.samples[:β] ./
-                           deterministic_sir_results.samples[:γ])
-stochastic_R0_raw = vec(stochastic_sir_results.samples[:β] ./
-                        stochastic_sir_results.samples[:γ])
-
-# Filter out extreme outliers (likely numerical instability from γ ≈ 0)
-deterministic_R0 = filter(x -> isfinite(x) && 0 < x < 100, deterministic_R0_raw)
-stochastic_R0 = filter(x -> isfinite(x) && 0 < x < 100, stochastic_R0_raw)
+deterministic_R0_raw = sir_R0(deterministic_sir_results.samples)
+stochastic_R0_raw = sir_R0(stochastic_sir_results.samples)
 ```
 
 ```{julia}
@@ -1187,12 +1165,12 @@ fig_sir = let
 
     # Generate posterior ODE solutions from chain samples
     det_posterior_sols = posterior_sir_solutions(
-        deterministic_sir_results.samples, ts
+        sir_process, deterministic_sir_results.samples, ts
     )
 
     # Prior observation model samples with ascertainment (longer time scale for demonstration)
     prior_ts = 1:(7*10)
-    latent_infections = [500 * (1 + 0.3 * cospi(2 * t / 30.0)) for t in prior_ts]
+    latent_infections = [250 * (1 + 0.3 * cospi(2 * t / 30.0)) for t in prior_ts]
     prior_obs_mdl = generate_observations(transform_ascertainment, missing, latent_infections ./ N)
     prior_obs_samples = mapreduce(hcat, 1:n_samples) do _
         prior_obs_mdl()
@@ -1218,16 +1196,14 @@ fig_sir = let
     hidexdecorations!(ax21_S, grid=false)
 
     ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
-                xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π/4)
+        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
     ax23 = Axis(fig[2, 3]; ylabel="Rt", xlabel="Days",
-                xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π/4)
+        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
 
     # Panel A: Prior S and I trajectories (sample from priors directly)
+    ode_mdl_prior = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
     for _ in 1:n_samples
-        β = rand(sir_params.infectiousness)
-        γ = rand(sir_params.recovery_rate)
-        I₀ = rand(sir_params.initial_prop_infected)
-        sol = solve_sir(β, γ, I₀, ts)
+        sol = ode_mdl_prior()
         if sol.retcode == ReturnCode.Success
             lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
             lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
@@ -1242,15 +1218,15 @@ fig_sir = let
 
     # Panel C: Posterior R0 comparison
     density!(ax13, deterministic_R0, label="Deterministic",
-             color=(:blue, 0.2), strokecolor=:blue, strokewidth=2)
+        color=(:blue, 0.2), strokecolor=:blue, strokewidth=2)
     density!(ax13, stochastic_R0, label="Stochastic",
-             color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
+        color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
     axislegend(ax13)
 
     # Panel D: Posterior S and I compartments (both models)
     # Get posterior solutions for stochastic model too
     stoch_posterior_sols = posterior_sir_solutions(
-        stochastic_sir_results.samples, ts
+        sir_process, stochastic_sir_results.samples, ts
     )
 
     # Plot individual posterior trajectories
