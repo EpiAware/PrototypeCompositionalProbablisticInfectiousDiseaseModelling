@@ -680,6 +680,7 @@ reporting_distribution = LogNormal(0.58, 0.47)
 ```
 
 The `LatentDelay` struct uses double interval censoring @charniga2024best to convert continuous delay models into pmfs and stacks with the temporal modifier model.
+@fig-epinow2 D compares the continuous delay distributions with their discretised pmf representations.
 We compose two delay layers sequentially:
 
 ```{julia}
@@ -762,6 +763,31 @@ Here is the summarised posterior:
 
 ```{julia}
 summarystats(epinow2_results.samples)
+```
+
+```{julia}
+#| output: false
+#| echo: false
+#| eval: false
+using PairPlots, StatsPlots
+
+# Define parameter filtering
+param_names = names(epinow2_results.samples)
+is_noise_param(name) = occursin("ϵ_t[", string(name))
+is_latent_traj(name) = occursin("Z_t[", string(name))
+
+# Structural parameters for pairplot (exclude noise and trajectories, keep first 2 noise as examples)
+structural_params = filter(param_names) do name
+    if is_noise_param(name)
+        return occursin("ϵ_t[1]", string(name)) || occursin("ϵ_t[2]", string(name))
+    end
+    return !is_latent_traj(name)
+end
+pairplot(epinow2_results.samples[structural_params])
+
+# Noise parameters for trace plots
+noise_params = filter(is_noise_param, param_names)
+plot(epinow2_results.samples[noise_params])
 ```
 
 We see the model has converged and the summary statistics are similar to @sec-example1.
@@ -1145,8 +1171,8 @@ summarystats(stochastic_sir_results.samples)
 ```{julia}
 #| echo: false
 #| output: false
-deterministic_R0_raw = sir_R0(deterministic_sir_results.samples)
-stochastic_R0_raw = sir_R0(stochastic_sir_results.samples)
+deterministic_R0 = sir_R0(deterministic_sir_results.samples)
+stochastic_R0 = sir_R0(stochastic_sir_results.samples)
 ```
 
 ```{julia}
