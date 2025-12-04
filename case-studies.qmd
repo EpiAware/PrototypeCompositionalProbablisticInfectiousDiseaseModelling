@@ -327,7 +327,7 @@ We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder v
 #| output: false
 using ReverseDiff
 inference_method = EpiMethod(
-    pre_sampler_steps=[ManyPathfinder(nruns=5, maxiters=100)],
+    pre_sampler_steps=[ManyPathfinder(nruns=3, maxiters=100)],
     sampler=NUTSampler(
         target_acceptance=0.9,
         adtype=AutoReverseDiff(compile=true),
