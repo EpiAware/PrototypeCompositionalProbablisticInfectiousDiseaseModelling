@@ -1038,6 +1038,20 @@ print(@code_string generate_observations(ascertainment_model, missing, Y_t_demo)
 # Calculate R0 from SIR samples
 sir_R0(samples) = vec(samples[:β] ./ samples[:γ])
 
+# Calculate Rt over time from posterior ODE solutions
+function calculate_Rt(sols, samples)
+    R0_samples = sir_R0(samples)
+    mapreduce(hcat, eachindex(sols)) do i
+        sol = sols[i]
+        if sol.retcode == ReturnCode.Success
+            S_t = sol[1, :]
+            R0_samples[i] .* S_t
+        else
+            fill(NaN, length(sol.t))
+        end
+    end
+end
+
 # Plot prior SIR trajectories by sampling from priors
 function sir_trajectory_plot!(ax, sir_process, ts; n_samples=100, alpha=0.1)
     ode_mdl = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
@@ -1258,18 +1272,6 @@ fig_sir = let
 
     # Panel F: Posterior Rt over time (both models)
     # Calculate Rt = β*S(t)/γ = R0*S(t) for both models
-    calculate_Rt = (sols, samples) -> mapreduce(hcat, eachindex(sols)) do i
-        sol = sols[i]
-        if sol.retcode == ReturnCode.Success
-            β = samples[:β][i]
-            γ = samples[:γ][i]
-            S_t = sol[1, :]
-            (β ./ γ) .* S_t
-        else
-            fill(NaN, length(ts))
-        end
-    end
-
     det_Rt = calculate_Rt(det_posterior_sols, deterministic_sir_results.samples)
     stoch_Rt = calculate_Rt(stoch_posterior_sols, stochastic_sir_results.samples)
 
