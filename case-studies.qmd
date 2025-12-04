@@ -140,7 +140,19 @@ This means that we determine the initial condition of the latent infecteds befor
 
 #### Latent Model
 
-We reuse the AR(2) model `ar2` defined in the main text (see Domain-Specific Language Structure section), which has the appropriate priors from _Mishra et al_.
+We reuse the AR(2) model `ar2` defined in the Setup section, but update the first damping coefficient prior ρ₁ to match _Mishra et al_.
+They specify ρ₁ ~ N(0.8, 0.05) constrained to [0,1], reflecting strong autocorrelation in the log reproduction number process.
+
+```{julia}
+#| output: false
+ar2_mishra = @set ar2.damp_prior = arraydist([
+    truncated(Normal(0.8, 0.05), 0, 1),
+    truncated(Normal(0.1, 0.05), 0, 1)
+])
+```
+
+The `init_priors=[Normal(0, 0.2), Normal(0, 0.2)]` represent the initial states Z₀ and Z₋₁ of the log reproduction number process.
+On the natural scale, this prior for initial R values has approximate mean 1 and standard deviation 0.2.
 Prior predictive samples (@fig-mishra A) show that *a priori* these priors assign a few percent chance of achieving very high $R_t$ values, i.e. $R_t \sim 10-1000$ is not excluded.
 
 ```{julia}
@@ -148,7 +160,7 @@ Prior predictive samples (@fig-mishra A) show that *a priori* these priors assig
 #| output: false
 using CairoMakie
 
-ar_mdl = generate_latent(ar2, 50)
+ar_mdl = generate_latent(ar2_mishra, 50)
 
 function ar_sample_plot!(ax, ar_mdl; n_samples=100)
     ar_mdl_samples = mapreduce(hcat, 1:n_samples) do _
@@ -297,7 +309,7 @@ We now compose the three model components into an `EpiProblem`, which defines th
 #| output: false
 tspan = (45, 80)
 mishra = EpiProblem(epi_model = renewal,
-    latent_model = ar2,
+    latent_model = ar2_mishra,
     observation_model = negbin,
     tspan = tspan)
 ```
@@ -327,7 +339,7 @@ We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder v
 #| output: false
 using ReverseDiff
 inference_method = EpiMethod(
-    pre_sampler_steps=[ManyPathfinder(nruns=5, maxiters=100)],
+    pre_sampler_steps=[ManyPathfinder(nruns=3, maxiters=100)],
     sampler=NUTSampler(
         target_acceptance=0.9,
         adtype=AutoReverseDiff(compile=true),
@@ -386,29 +398,29 @@ function posterior_gens_for_plot(inference_results, n; epi_prob)
     return posterior_gens
 end
 
-function post_predictive_yt!(ax, inference_data, posterior_gens; qs)
+function post_predictive_yt!(ax, inference_data, posterior_gens; qs, color=:purple, label_prefix="", show_data=true)
     ts = dates_to_times(inference_data.dates)
     predicted_y_t = generated_quantiles(posterior_gens, :generated_y_t, qs)
     n = count(row -> any(ismissing.(row)), eachrow(predicted_y_t))
     predicted_y_t = predicted_y_t[(n+1):end, :]
 
+    median_label = isempty(label_prefix) ? "Median" : label_prefix
     lines!(ax, ts[(n+1):end], predicted_y_t[:, 3];
-        color=:purple,
+        color=color,
         linewidth=2,
-        label="Post. median"
+        label=median_label
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 2], predicted_y_t[:, 4];
-        color=(:purple, 0.4),
-        label="50%"
+        color=(color, 0.4)
     )
     band!(ax, ts[(n+1):end], predicted_y_t[:, 1], predicted_y_t[:, 5];
-        color=(:purple, 0.2),
-        label="95%"
+        color=(color, 0.2)
     )
-    scatter!(ax, ts, inference_data.y_t;
-        color=:black,
-        label="Actual cases")
-    axislegend(ax)
+    if show_data
+        scatter!(ax, ts, inference_data.y_t;
+            color=:black,
+            label="Data")
+    end
 
     return nothing
 end
@@ -563,10 +575,20 @@ The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on r
 
 #### Latent Model
 
-We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section above but modify it to be piecewise constant by week using the `broadcast_weekly` modifier.
+We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section but modify it to better reflect outbreak dynamics.
+
 ```{julia}
 #| output: false
-weekly_arima211 = broadcast_weekly(arima211)
+arima211_outbreak = @set arima211.init_prior = Normal(0.3, 0.3)
+```
+
+The `latent_init` prior of `Normal(0.3, 0.3)` for the initial log reproduction number Z₁ corresponds on the natural scale to R₁ with approximate mean 1.4 and standard deviation 0.4, favouring growing epidemics more appropriate for the COVID-19 outbreak context.
+
+We then broadcast this modified ARIMA process to a weekly timescale, as discussed in more detail in the following section.
+
+```{julia}
+#| output: false
+weekly_arima211 = broadcast_weekly(arima211_outbreak)
 ```
 
 This approach models the log reproduction number as constant within each week whilst allowing weekly changes to follow the ARIMA(2,1,1) process.
@@ -680,6 +702,7 @@ reporting_distribution = LogNormal(0.58, 0.47)
 ```
 
 The `LatentDelay` struct uses double interval censoring @charniga2024best to convert continuous delay models into pmfs and stacks with the temporal modifier model.
+@fig-epinow2 D compares the continuous delay distributions with their discretised pmf representations.
 We compose two delay layers sequentially:
 
 ```{julia}
@@ -764,6 +787,34 @@ Here is the summarised posterior:
 summarystats(epinow2_results.samples)
 ```
 
+```{julia}
+#| output: false
+#| echo: false
+#| eval: false
+# Additional model diagnostics to check for convergence and parameter relationships
+using PairPlots, StatsPlots
+
+# Define parameter filtering
+param_names = names(epinow2_results.samples)
+is_noise_param(name) = occursin("ϵ_t[", string(name))
+is_latent_traj(name) = occursin("Z_t[", string(name))
+is_dayofweek_param(name) = occursin("DayofWeek", string(name))
+
+# Structural parameters (exclude noise and trajectories, keep first 2 noise as examples, exclude day-of-week)
+structural_params = filter(param_names) do name
+    if is_noise_param(name)
+        return occursin("ϵ_t[1]", string(name)) || occursin("ϵ_t[2]", string(name))
+    end
+    return !is_latent_traj(name) && !is_dayofweek_param(name)
+end
+
+# Pairplot
+pairplot(epinow2_results.samples[structural_params])
+
+# Trace plot - same params as pairplot
+StatsPlots.plot(epinow2_results.samples[structural_params])
+```
+
 We see the model has converged and the summary statistics are similar to @sec-example1.
 @fig-epinow2 shows that the compositional model recovers similar $R_t$ dynamics to @sec-example1 (@fig-epinow2 F), whilst explicitly accounting for reporting delays (@fig-epinow2 D) and day-of-week effects that help disentangle true transmission changes from reporting artifacts (@fig-epinow2 E).
 
@@ -807,12 +858,14 @@ fig_epinow2 = let
     )
     ax22 = Axis(fig[2, 2];
         ylabel="Daily cases",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
+        xticks=(ts[1:14:end], t_ticks[1:14:end]),
+        xticklabelrotation=π/4
     )
     ax23 = Axis(fig[2, 3];
         yscale=log10,
         ylabel="Time varying Rₜ",
-        xticks=(ts[1:14:end], t_ticks[1:14:end])
+        xticks=(ts[1:14:end], t_ticks[1:14:end]),
+        xticklabelrotation=π/4
     )
 
     arima_sample_plot!(ax11, weekly_arima211_mdl; n_samples)
@@ -863,3 +916,453 @@ save("figures/fig-epinow2.png", fig_epinow2)
 
 fig_epinow2
 ```
+
+## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
+
+<!-- Reference: https://www.sciencedirect.com/science/article/pii/S1755436519300325 -->
+
+In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models using Stan's ODE solvers.
+Their single strain influenza example compares deterministic and stochastic formulations of the SIR model, showing how to perform parameter inference and model comparison for ODEs embedded within a probabilistic programming framework.
+We recreate this example using EpiAware, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+Unlike Stan, we integrate with existing solver libraries from the SciML ecosystem [@rackauckas2017differentialequations] rather than encoding bespoke solvers, allowing us to leverage state-of-the-art numerical methods and automatic solver selection.
+
+### Data
+
+The analysis uses data from an influenza outbreak in an English boarding school, reported in the British Medical Journal in 1978.
+Of the 763 children at the school, 512 became ill over 14 days.
+We accessed this data using the R package `outbreaks` [@jombart2020outbreaks].
+
+```{julia}
+#| output: false
+using OrdinaryDiffEqTsit5, OrdinaryDiffEqRosenbrock, SciMLSensitivity, LogExpFunctions
+
+N = 763
+datapath = "data/influenza_england_1978_school.csv"
+england_data = @chain datapath begin
+    CSV.read(DataFrame)
+    @transform(:ts = :date - minimum(:date))
+    @transform(@byrow :ts = Dates.value(:ts) + 1.0)
+    (y_t = _.in_bed, dates = _.date, ts = _.ts)
+end
+```
+
+### Model
+
+The mathematical description of the model is:
+
+$$
+\begin{aligned}
+\beta, \gamma, I(0), \kappa_0, \rho, \sigma &\sim \pi(\cdot), \\
+R_0 &= \beta / \gamma, & \text{(Basic reproduction number)} \\
+r_{SI}(t) &= \beta S(t) I(t), & \text{(Infection rate)} \\
+r_{IR}(t) &= \gamma I(t), & \text{(Recovery rate)} \\
+\frac{dS}{dt} &= -r_{SI}(t), \\
+\frac{dI}{dt} &= r_{SI}(t) - r_{IR}(t), \\
+\frac{dR}{dt} &= r_{IR}(t), \\
+\epsilon_t &\sim \text{Normal}(0, \sigma^2), & \text{(Observation innovations)} \\
+\kappa_{t} &= \rho \kappa_{t-1} + \epsilon_t, & \text{(Ascertainment process)} \\
+\lambda_t &= \text{softplus}(N \cdot I(t))\exp(\kappa_t), & \text{(Expected observations)} \\
+Y_t &\sim \text{Poisson}(\lambda_t). & \text{(Observation link)}
+\end{aligned}
+$$
+
+Here we connect a continuous time model, where we index continuously evolving variables using $(t)$, to daily incrementing processes which we index with a subscript $t$.
+The population variables $S(t)$, $I(t)$, and $R(t)$ represent proportions of the total population $N$ that are susceptible, infected, and recovered at time $t$.
+The transmission rate $\beta$ governs infection spread, whilst the recovery rate $\gamma$ determines infectious period duration.
+The basic reproduction number $R_0$ characterises transmission potential, assumed constant in this model.
+All individuals are assumed to be either susceptible or infected at the beginning of the outbreak, therefore only $I(0)$ is needed to define the initial conditions.
+We follow *Chatzilena et al.* and treat the number "in bed" as a proxy for the infected compartment.
+$\pi$ represents the priors over each parameter.
+
+The softplus transformation $\text{softplus}(x) = \log(1 + \exp(x))$ ensures numerical stability when scaling the infected proportion $I(t)$ to counts using population size $N$, smoothly maintaining positivity even when ODE solvers return small negative values near zero.
+
+The log-scale ascertainment rate is represented as an autoregressive AR(1) process $\kappa_t$ on daily increments, with damping parameter $\rho$, initial state $\kappa_0$, and innovation standard deviation $\sigma$.
+*Chatzilena et al.* parameterise this as a time-discretised Ornstein-Uhlenbeck process, equivalent to an AR(1) process.
+Setting $\kappa_t = 0$ for all $t$ gives the deterministic model with direct Poisson link.
+The aim of the stochastic component is to absorb noise generated by model mis-specification, improving robustness when the SIR model is an approximation to more complex transmission dynamics.
+
+#### Latent Model
+
+Unlike the renewal models in previous case studies, the SIR model does not require a time-varying latent process for $R_t$ as transmission dynamics are fully determined by the ODE parameters.
+
+#### Infection Generating Process
+
+Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
+The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
+Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but with a tighter scale parameter for the transmission rate (`LogNormal(0, 0.5)`) to reduce prior mass on extreme values.
+We also use a more informative prior `Beta(1, 99)` for the initial proportion infected to concentrate prior mass near small outbreak initiations.
+Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
+
+```{julia}
+#| output: false
+sir_params = SIRParams(
+    tspan = (0.0, england_data.ts[end]),
+    infectiousness = LogNormal(0.0, 0.5),
+    recovery_rate = Gamma(0.004, 1 / 0.002),
+    initial_prop_infected = Beta(1, 99)
+)
+```
+
+The SIR differential equations are implemented in the vector field function:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string EpiAware.EpiLatentModels._sir_vf(zeros(3), [1.0, 0.1, 0.0], [0.3, 0.1], 0.0))
+```
+
+The `ODEProcess` composes the parameter model with solver details.
+This follows the standard SciML compositional approach of problem definition composed with solution method [@rackauckas2017differentialequations], specialised here to probabilistically generated SIR parameters.
+The ODE model returns the infected proportion $I(t)/N$; returning proportions rather than counts improves numerical stability across different population sizes.
+We choose a switching ODE solver which switches between explicit (`Tsit5`) and implicit (`Rosenbrock23`) solvers, helping avoid the ODE solver failing when the sampler tries extreme parameter values.
+
+```{julia}
+#| output: false
+sir_process = ODEProcess(
+    params = sir_params,
+    sol2infs = sol -> sol[2, :],
+    solver_options = Dict(
+        :alg => AutoTsit5(Rosenbrock23()),
+        :verbose => false,
+        :saveat => england_data.ts
+    )
+)
+```
+
+The `ODEProcess` generates infections by solving the ODE system and extracting the infected compartment via `sol2infs`.
+EpiAware composes this into a generative model:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+print(@code_string generate_latent_infs(sir_process, 14))
+```
+
+#### Observation Model
+
+We link the infected proportion to observed cases using `TransformObservationModel`, which applies population scaling and the softplus transformation before passing to the Poisson link.
+
+```{julia}
+#| output: false
+pois = PoissonError()
+transform_pois = TransformObservationModel(pois, x -> softplus.(N .* x))
+```
+
+For the stochastic model, we add time-varying ascertainment using `Ascertainment`, which wraps an observation model with a latent process.
+Here we reuse the same `AR` latent model type from earlier case studies, but instead of modelling infection dynamics, we apply it to the observation process.
+The AR(1) process $\kappa_t$ operates on the log scale and enters multiplicatively via $\exp(\kappa_t)$.
+We specify weakly informative priors: damping near zero (strongly autocorrelated), initial state near zero (minimal baseline adjustment), and small innovation standard deviation.
+Unlike earlier uses where we called `generate_latent()` directly, `Ascertainment` takes the latent model as an argument and handles generation internally.
+Prior predictive samples (@fig-sir B) show how this modifies expected observations.
+
+```{julia}
+#| output: false
+ascertainment_ar = AR(
+    damp_priors = [HalfNormal(0.005)],
+    init_priors = [Normal(0, 0.001)],
+    ϵ_t = HierarchicalNormal(std_prior = HalfNormal(0.02))
+)
+
+ascertainment_model = Ascertainment(
+    model = pois,
+    latent_model = ascertainment_ar
+)
+
+transform_ascertainment = @set transform_pois.model = ascertainment_model
+```
+
+The `Ascertainment` wrapper generates the latent process and applies it to observations:
+
+```{julia}
+#| echo: false
+#| class-output: julia
+Y_t_demo = [100.0 for _ in 1:14]
+print(@code_string generate_observations(ascertainment_model, missing, Y_t_demo))
+```
+
+```{julia}
+#| echo: false
+#| output: false
+
+# Helper functions for SIR case study plotting
+
+# Calculate R0 from SIR samples
+sir_R0(samples) = vec(samples[:β] ./ samples[:γ])
+
+# Calculate Rt over time from posterior ODE solutions
+function calculate_Rt(sols, samples)
+    R0_samples = sir_R0(samples)
+    mapreduce(hcat, eachindex(sols)) do i
+        sol = sols[i]
+        if sol.retcode == ReturnCode.Success
+            S_t = sol[1, :]
+            R0_samples[i] .* S_t
+        else
+            fill(NaN, length(sol.t))
+        end
+    end
+end
+
+# Plot prior SIR trajectories by sampling from priors
+function sir_trajectory_plot!(ax, sir_process, ts; n_samples=100, alpha=0.1)
+    ode_mdl = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
+    for _ in 1:n_samples
+        sol = ode_mdl()
+        if sol.retcode == ReturnCode.Success
+            lines!(ax, sol.t, sol[1, :], color=(:blue, alpha))
+            lines!(ax, sol.t, sol[2, :], color=(:red, alpha))
+            lines!(ax, sol.t, sol[3, :], color=(:green, alpha))
+        end
+    end
+    return nothing
+end
+
+# Generate posterior ODE solutions from chain samples
+function posterior_sir_solutions(sir_process, samples, ts)
+    β_samples = vec(samples[:β])
+    γ_samples = vec(samples[:γ])
+    I₀_samples = vec(samples[:I₀])
+    ode_mdl = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
+    map(eachindex(β_samples)) do i
+        (ode_mdl | (β = β_samples[i], γ = γ_samples[i], I₀ = I₀_samples[i]))()
+    end
+end
+
+# Compute quantiles across posterior ODE solutions for a compartment
+function compartment_quantiles(posterior_sols, ts, qs; compartment=2)
+    colors = [:blue, :red, :green]
+    compartment_mat = mapreduce(hcat, posterior_sols) do sol
+        sol.retcode == ReturnCode.Success ? sol[compartment, :] : fill(NaN, length(ts))
+    end
+    q_vals = mapreduce(hcat, qs) do q
+        map(eachrow(compartment_mat)) do row
+            valid = filter(!isnan, row)
+            length(valid) > 0 ? quantile(valid, q) : NaN
+        end
+    end
+    (q_vals, colors[compartment])
+end
+```
+
+### Fitting to Data
+
+We compose both models using `EpiProblem`. Just as we swap lower-level model components (e.g., replacing a Poisson with an `Ascertainment`-wrapped Poisson), we can swap components at the `EpiProblem` level to compare modelling assumptions whilst keeping other parts fixed.
+We reuse the same `inference_method` defined in @sec-example1.
+The only additional requirement for ODE-based models is making `SciMLSensitivity` available for reverse-mode automatic differentiation through the ODE solutions.
+
+```{julia}
+#| output: false
+tspan = (1, length(england_data.y_t))
+deterministic_sir = EpiProblem(
+    epi_model = sir_process,
+    latent_model = Null(),
+    observation_model = transform_pois,
+    tspan = tspan
+)
+
+stochastic_sir = @set deterministic_sir.observation_model = transform_ascertainment
+```
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: true
+deterministic_sir_mdl = generate_epiaware(deterministic_sir, england_data)
+deterministic_sir_results = apply_method(
+    deterministic_sir_mdl, inference_method, england_data
+)
+```
+
+```{julia}
+summarystats(deterministic_sir_results.samples)
+```
+
+```{julia}
+#| output: false
+#| julia:
+#|   cache:
+#|     enabled: true
+stochastic_sir_mdl = generate_epiaware(stochastic_sir, england_data)
+stochastic_sir_results = apply_method(
+    stochastic_sir_mdl, inference_method, england_data
+)
+```
+
+```{julia}
+summarystats(stochastic_sir_results.samples)
+```
+
+```{julia}
+#| echo: false
+#| output: false
+deterministic_R0 = sir_R0(deterministic_sir_results.samples)
+stochastic_R0 = sir_R0(stochastic_sir_results.samples)
+```
+
+```{julia}
+#| output: true
+#| echo: false
+#| label: fig-sir
+#| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior S
+#|   (top) and I (bottom) compartment trajectories. (B) Prior samples from the
+#|   stochastic observation model including time-varying ascertainment and Poisson
+#|   sampling around a latent infection curve. (C) Posterior $R_0$ distributions
+#|   comparing deterministic (blue) and stochastic (orange) models. (D) Posterior S
+#|   (top) and I (bottom) compartment trajectories for both deterministic (blue) and
+#|   stochastic (orange) models with 50% credible intervals. (E) Posterior predictive
+#|   cases for both models, with median and 50% credible intervals compared to
+#|   observed data (black points). (F) Posterior $R_t$ over time for both models with
+#|   reference line at $R_t=1$."
+fig_sir = let
+    qs = [0.025, 0.25, 0.5, 0.75, 0.975]
+    n_samples = 100
+    ts = england_data.ts
+    t_ticks = string.(england_data.dates[1:3:end])
+
+    # Generate posterior samples for both models
+    det_posterior_gens = posterior_gens_for_plot(
+        deterministic_sir_results, length(ts); epi_prob=deterministic_sir
+    )
+    stoch_posterior_gens = posterior_gens_for_plot(
+        stochastic_sir_results, length(ts); epi_prob=stochastic_sir
+    )
+
+    # Generate posterior ODE solutions from chain samples
+    det_posterior_sols = posterior_sir_solutions(
+        sir_process, deterministic_sir_results.samples, ts
+    )
+
+    # Prior observation model samples with ascertainment (longer time scale for demonstration)
+    prior_ts = 1:(7*10)
+    latent_infections = [250 * (1 + 0.3 * cospi(2 * t / 30.0)) for t in prior_ts]
+    prior_obs_mdl = generate_observations(transform_ascertainment, missing, latent_infections ./ N)
+    prior_obs_samples = mapreduce(hcat, 1:n_samples) do _
+        prior_obs_mdl()
+    end
+
+    fig = Figure(size=(1200, 1000))
+
+    # Row 1: Prior components
+    # Panel A: Stacked prior S and I
+    ax11_S = Axis(fig[1, 1][1, 1]; ylabel="S")
+    ax11_I = Axis(fig[1, 1][2, 1]; ylabel="I", xlabel="Days")
+    linkxaxes!(ax11_S, ax11_I)
+    hidexdecorations!(ax11_S, grid=false)
+
+    ax12 = Axis(fig[1, 2]; ylabel="Cases")
+    ax13 = Axis(fig[1, 3]; xlabel="R0")
+
+    # Row 2: Posterior predictions
+    # Panel E: Stacked posterior S and I
+    ax21_S = Axis(fig[2, 1][1, 1]; ylabel="S")
+    ax21_I = Axis(fig[2, 1][2, 1]; ylabel="I", xlabel="Days")
+    linkxaxes!(ax21_S, ax21_I)
+    hidexdecorations!(ax21_S, grid=false)
+
+    ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
+        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
+    ax23 = Axis(fig[2, 3]; ylabel="Rt", xlabel="Days",
+        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
+
+    # Panel A: Prior S and I trajectories (sample from priors directly)
+    ode_mdl_prior = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
+    for _ in 1:n_samples
+        sol = ode_mdl_prior()
+        if sol.retcode == ReturnCode.Success
+            lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
+            lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
+        end
+    end
+
+    # Panel B: Stochastic observation model samples
+    for col in eachcol(prior_obs_samples)
+        scatter!(ax12, prior_ts, col; color=(:grey, 0.2), markersize=3)
+    end
+    lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
+
+    # Panel C: Posterior R0 comparison
+    density!(ax13, deterministic_R0, label="Deterministic",
+        color=(:blue, 0.2), strokecolor=:blue, strokewidth=2)
+    density!(ax13, stochastic_R0, label="Stochastic",
+        color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
+    axislegend(ax13)
+
+    # Panel D: Posterior S and I compartments (both models)
+    # Get posterior solutions for stochastic model too
+    stoch_posterior_sols = posterior_sir_solutions(
+        sir_process, stochastic_sir_results.samples, ts
+    )
+
+    # Plot individual posterior trajectories
+    n_post_samples = min(n_samples, length(det_posterior_sols))
+    det_indices = 1:n_post_samples
+    stoch_indices = 1:n_post_samples
+
+    # Deterministic model trajectories (plot first)
+    for i in det_indices
+        sol = det_posterior_sols[i]
+        if sol.retcode == ReturnCode.Success
+            lines!(ax21_S, sol.t, sol[1, :], color=(:blue, 0.05))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:blue, 0.05))  # I compartment
+        end
+    end
+
+    # Stochastic model trajectories (plot second so they appear on top)
+    for i in stoch_indices
+        sol = stoch_posterior_sols[i]
+        if sol.retcode == ReturnCode.Success
+            lines!(ax21_S, sol.t, sol[1, :], color=(:orange, 0.05))  # S compartment
+            lines!(ax21_I, sol.t, sol[2, :], color=(:orange, 0.05))  # I compartment
+        end
+    end
+
+    # Panel E: Combined posterior predictive cases (both models)
+    post_predictive_yt!(ax22, england_data, det_posterior_gens; qs, color=:blue)
+    post_predictive_yt!(ax22, england_data, stoch_posterior_gens; qs, color=:orange, show_data=false)
+
+    # Panel F: Posterior Rt over time (both models)
+    # Calculate Rt = β*S(t)/γ = R0*S(t) for both models
+    det_Rt = calculate_Rt(det_posterior_sols, deterministic_sir_results.samples)
+    stoch_Rt = calculate_Rt(stoch_posterior_sols, stochastic_sir_results.samples)
+
+    # Compute quantiles for Rt
+    det_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), det_Rt, dims=2)
+    stoch_Rt_qs = mapslices(x -> quantile(filter(!isnan, x), qs), stoch_Rt, dims=2)
+
+    lines!(ax23, ts, det_Rt_qs[:, 3], color=:blue, linewidth=2)
+    band!(ax23, ts, det_Rt_qs[:, 2], det_Rt_qs[:, 4], color=(:blue, 0.3))
+
+    lines!(ax23, ts, stoch_Rt_qs[:, 3], color=:orange, linewidth=2)
+    band!(ax23, ts, stoch_Rt_qs[:, 2], stoch_Rt_qs[:, 4], color=(:orange, 0.3))
+
+    hlines!(ax23, [1.0], color=:black, linestyle=:dash, linewidth=1)
+    ylims!(ax23, 0, 5)
+
+    # Format axes
+    ax11_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax11_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax21_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax21_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+
+    # Add panel labels
+    for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
+        [fig[1, 1], fig[1, 2], fig[1, 3], fig[2, 1], fig[2, 2], fig[2, 3]])
+        Label(layout[1, 1, TopLeft()], label,
+            fontsize=18, font=:bold, padding=(0, 5, 5, 0), halign=:right)
+    end
+
+    fig
+end
+
+save("figures/fig-sir.pdf", fig_sir)
+save("figures/fig-sir.png", fig_sir)
+
+fig_sir
+```
+
+@fig-sir shows that both compositional SIR models recover similar results to *Chatzilena et al.*
+Using the deterministic SIR model infers a reproductive number ($R_0$) of `{julia} round(median(deterministic_R0), digits=1)` (`{julia} round(quantile(deterministic_R0, 0.025), digits=1)`--`{julia} round(quantile(deterministic_R0, 0.975), digits=1)` 95% CrI), whilst using the stochastic SIR model infers $R_0$ of `{julia} round(median(stochastic_R0), digits=1)` (`{julia} round(quantile(stochastic_R0, 0.025), digits=1)`--`{julia} round(quantile(stochastic_R0, 0.975), digits=1)` 95% CrI) (@fig-sir C).
+The deterministic SIR model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those generated using the stochastic SIR model, with several data points falling outside the 95% prediction envelopes.
+This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
+Both models show similar posterior compartment dynamics (@fig-sir D) and time-varying reproduction numbers (@fig-sir F).
