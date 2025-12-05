@@ -673,16 +673,132 @@ fig_arima
 # Case Studies {#sec-case-studies}
 
 We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
-Each case study shows how complex models are built by composing reusable components, with full implementation details provided in the Supplementary Information.
+Each case study shows how complex models are built by composing reusable components (@fig-case-studies), with full implementation details provided in the Supplementary Information.
 The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], demonstrating cross-ecosystem accessibility.
 
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+
+```{mermaid}
+%%| label: fig-case-studies
+%%| fig-cap: "Model structure for the ARIMA example and three case studies showing component reuse. The ARIMA Example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) with Exp transformation and Poisson observation. Mishra et al. reuses the AR(2) component for modelling time-varying Rt combined with a Renewal infection process and Negative Binomial observation. EpiNow2 extends this by reusing the full ARIMA structure with weekly broadcasting, adding Latent Delay for reporting delays and day-of-week ascertainment effects. Chatzilena et al. demonstrates an alternative infection process using a SIR ODE with Softplus transformation, scaled by population size N, and AR(1)-based time-varying ascertainment. Dashed arrows indicate component reuse. Colours indicate component types: statistical models (orange), infection processes (blue), epidemiological parameters (purple), observation modifiers (red), broadcasting operations (peach), transformations (white), and observation models (green)."
+%%| fig-width: 8
+
+flowchart LR
+    %% Class definitions
+    classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
+    classDef statistical fill:#ff9900,stroke:#333,stroke-width:1px,color:black
+    classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:1px,color:black
+    classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:1px,color:black
+    classDef observation fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black
+    classDef broadcast fill:#ffe6cc,stroke:#333,stroke-width:1px,color:black
+    classDef transform fill:#ffffff,stroke:#333,stroke-width:1px,color:black
+
+    %% Panel B: Case Study 1 - Mishra
+    subgraph B["Mishra et al."]
+        direction TB
+        B_Exp["Exp"]:::transform
+        B_Rt["Rt"]:::epiLatent
+        B_GT["Generation Time"]:::epiLatent
+        B_Renewal["Renewal"]:::infection
+        B_Infections["Infections"]
+        B_Obs["Negative Binomial"]:::observation
+
+        B_Exp --> B_Rt
+        B_Rt --> B_Renewal
+        B_GT --> B_Renewal
+        B_Renewal --> B_Infections
+        B_Infections --> B_Obs
+    end
+
+    %% Panel C: Case Study 2 - EpiNow2
+    subgraph C["EpiNow2"]
+        direction TB
+        C_Broadcast["Broadcast"]:::broadcast
+        C_Weekly["Weekly"]:::broadcast
+        C_Exp["Exp"]:::transform
+        C_Rt["Rt"]:::epiLatent
+        C_GT["Generation Time"]:::epiLatent
+        C_Renewal["Renewal"]:::infection
+        C_Infections["Infections"]
+        C_Delay["Delay"]:::epiLatent
+        C_LatentDelay["Latent Delay"]:::observationModifier
+        C_RE["Random Effect"]:::statistical
+        C_AscBroadcast["Broadcast"]:::broadcast
+        C_AscDaily["Daily"]:::broadcast
+        C_Obs["Negative Binomial"]:::observation
+
+        C_Broadcast --> C_Weekly
+        C_Weekly --> C_Exp
+        C_Exp --> C_Rt
+        C_Rt --> C_Renewal
+        C_GT --> C_Renewal
+        C_Renewal --> C_Infections
+        C_Infections --> C_LatentDelay
+        C_Delay --> C_LatentDelay
+        C_LatentDelay --> C_AscBroadcast
+        C_RE --> C_AscBroadcast
+        C_AscBroadcast --> C_AscDaily
+        C_AscDaily --> C_Obs
+    end
+
+    %% Panel D: Case Study 3 - Chatzilena et al.
+    subgraph D["Chatzilena et al."]
+        direction TB
+        D_SIR["SIR ODE"]:::infection
+        D_Incidence["Incidence"]
+        D_N["N"]:::epiLatent
+        D_Softplus["Softplus"]:::transform
+        D_ScaleN["Scale by N"]:::observationModifier
+        D_AR["AR(1)"]:::statistical
+        D_Exp["Exp"]:::transform
+        D_Ascertainment["Ascertainment"]:::observationModifier
+        D_Obs["Poisson"]:::observation
+
+        D_SIR --> D_Incidence
+        D_Incidence --> D_Softplus
+        D_Softplus --> D_ScaleN
+        D_N --> D_ScaleN
+        D_ScaleN --> D_Ascertainment
+        D_AR --> D_Exp
+        D_Exp --> D_Ascertainment
+        D_Ascertainment --> D_Obs
+    end
+
+    %% Panel A: ARIMA Construction
+    subgraph A["ARIMA Example"]
+        direction LR
+        A_AR["AR(2)"]:::statistical
+        A_MA["MA(1)"]:::statistical
+        A_ARMA["ARMA"]:::statistical
+        A_DIFF["Differencing"]:::statistical
+        A_ARIMA["ARIMA"]:::statistical
+        A_Exp["Exp"]:::transform
+        A_Obs["Poisson"]:::observation
+
+        A_AR --> A_ARMA
+        A_MA --> A_ARMA
+        A_ARMA --> A_DIFF
+        A_DIFF --> A_ARIMA
+        A_ARIMA --> A_Exp
+        A_Exp --> A_Obs
+    end
+
+    %% Cross-panel connections showing component reuse
+    A_AR -.-> B_Exp
+    A_ARIMA -.-> C_Broadcast
+
+    %% Style panels
+    style A fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style B fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style C fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style D fill:#f9f9f9,stroke:#333,stroke-width:1px
+```
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
 *Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
-Our replication composes an AR(2) latent process for log $R_t$, a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
+Our replication composes an AR(2) latent process for log $R_t$ (reusing the AR component from @fig-case-studies), a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
 We use `AR` to generate the latent log $R_t$ trajectory, `Renewal` to compute expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` to link expected infections to observed cases with overdispersion.
 We assemble these components and use Pathfinder [@zhang2022pathfinder] to initialise NUTS sampling.
 
@@ -697,7 +813,7 @@ Panels E-F show posterior predictive distributions for daily cases and time-vary
 
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely used package for real-time situational awareness in infectious disease surveillance, estimating case counts and epidemiological parameters whilst accounting for reporting delays, right-truncation, and day-of-week effects.
 
-Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1, extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
+Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1 (as shown in @fig-case-studies), extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
 Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
 We use `broadcast_weekly` to convert the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` to convolve latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` to multiply expected observations by day-of-week effects via a softmax transformation.
 
@@ -711,7 +827,7 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
 In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models.
-We recreate the single strain influenza example using data from @jombart2020outbreaks, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies.
+We recreate the single strain influenza example using data from @jombart2020outbreaks, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies (@fig-case-studies).
 We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], demonstrating two observation models: a deterministic model with direct Poisson link, and a stochastic model using `Ascertainment` for time-varying effects parameterised as an AR(1) process (equivalent to the time-discretised Ornstein-Uhlenbeck process used by *Chatzilena et al.*).
 The aim of the stochastic component is to absorb noise generated by model mis-specification, improving robustness when the SIR model is an approximation to more complex transmission dynamics.
 A softplus transformation ensures numerical stability when the ODE solver returns small negative values near zero.
