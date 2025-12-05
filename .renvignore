@@ -1,0 +1,2 @@
+# Ignore Julia submodules - their R files are for Julia documentation, not this project
+EpiAware/
