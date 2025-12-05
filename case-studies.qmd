@@ -1366,3 +1366,8 @@ Using the deterministic SIR model infers a reproductive number ($R_0$) of `{juli
 The deterministic SIR model posterior predictive trajectories (@fig-sir E) appear less well calibrated than those generated using the stochastic SIR model, with several data points falling outside the 95% prediction envelopes.
 This indicates that the flexible observation model used in the stochastic SIR model is compensating for model misspecification in the deterministic SIR model.
 Both models show similar posterior compartment dynamics (@fig-sir D) and time-varying reproduction numbers (@fig-sir F).
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
