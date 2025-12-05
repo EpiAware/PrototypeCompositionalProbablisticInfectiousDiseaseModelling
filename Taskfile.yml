@@ -84,16 +84,22 @@ tasks:
       - quarto preview
     interactive: true
 
+  renv-restore:
+    desc: "Restore R environment from renv.lock"
+    cmds:
+      - Rscript -e 'renv::restore()'
+    sources:
+      - renv.lock
+    status:
+      - Rscript -e 'stopifnot(renv::status()$synchronized)'
+
   setup-epiawarer:
     desc: "Set up EpiAwareR R package with Julia backend"
-    deps: [instantiate]
+    deps: [instantiate, renv-restore]
     cmds:
       - |
         Rscript -e '
-        if (!requireNamespace("remotes", quietly = TRUE)) {
-          install.packages("remotes")
-        }
-        remotes::install_local("EpiAwareR", dependencies = TRUE, upgrade = "never")
+        remotes::install_local("EpiAwareR", dependencies = FALSE, upgrade = "never")
         library(EpiAwareR)
         epiaware_setup_julia()
         '
