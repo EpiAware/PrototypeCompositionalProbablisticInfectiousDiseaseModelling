@@ -118,17 +118,12 @@ The `EpiAwareR/` submodule contains R vignettes demonstrating the R interface to
 
 To run the vignettes interactively:
 
-1. Restore R dependencies (managed via renv):
-   ```bash
-   task renv-restore
-   ```
-
-2. Set up EpiAwareR with Julia backend:
+1. Set up EpiAwareR with Julia backend:
    ```bash
    task setup-epiawarer
    ```
 
-3. Open the vignettes in RStudio or VS Code:
+2. Open the vignettes in RStudio or VS Code:
    ```
    EpiAwareR/vignettes/EpiAwareR.Rmd
    EpiAwareR/vignettes/mishra-case-study.Rmd
