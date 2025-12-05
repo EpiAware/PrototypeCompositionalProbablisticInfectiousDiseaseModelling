@@ -333,13 +333,12 @@ mishra_mdl = generate_epiaware(mishra, training_data)
 ```
 
 Following the same compositional pattern as our modelling DSL, we also support composing inference approaches using `EpiMethod`, which, for example, can combine pre-sampling steps with sampling algorithms.
-We use the No U-Turns (NUTS) sampler with batched implementation of pathfinder variational inference @zhang2022pathfinder that returns the single pathfinder route with maximum estimated evidence lower bound to estimate the intialise the sampler.
+We use the No U-Turns (NUTS) sampler @hoffman2014no.
 
 ```{julia}
 #| output: false
 using ReverseDiff
 inference_method = EpiMethod(
-    pre_sampler_steps=[ManyPathfinder(nruns=3, maxiters=100)],
     sampler=NUTSampler(
         target_acceptance=0.9,
         adtype=AutoReverseDiff(compile=true),
