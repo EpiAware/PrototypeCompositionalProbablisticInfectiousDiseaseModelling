@@ -340,16 +340,17 @@ println("\n```")
 The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
 This recursion through `@submodel` enables arbitrary composition while maintaining separation between components.
 
-To demonstrate fitting these submodels we first create a model that uses our ARIMA(2,1,1) model as submodel combining it with a normal observation error process.
+To demonstrate fitting these submodels we first create a model that uses our ARIMA(2,1,1) model as submodel combining it with a Poisson observation model.
+The Poisson distribution is a simple count likelihood commonly used for epidemiological data.
+We use the log-parameterised `LogPoisson` distribution which means we are modelling the growth rate using our ARIMA process.
 
 ```{julia}
 #| output: false
-using DynamicPPL, Turing, LinearAlgebra
+using DynamicPPL, Turing
 
 @model function arima_with_obs(arima_spec, n_timesteps)
     @submodel Z_t = generate_latent(arima_spec, n_timesteps)
-    σ_obs ~ truncated(Normal(0.0, 0.001), 0, Inf)
-    y_obs ~ MvNormal(Z_t, σ_obs * I)
+    y_obs ~ product_distribution(LogPoisson.(Z_t))
     return y_obs
 end
 ```
@@ -358,7 +359,7 @@ We can then generate synthetic data with fixed parameters which we sample from t
 
 ```{julia}
 #| output: false
-n_timesteps = 20
+n_timesteps = 40
 gen_model = arima_with_obs(arima211, n_timesteps)
 ```
 
@@ -449,11 +450,11 @@ fig_arima = let
     latent_sample_plot!(ax_arima, arima_mdl; n_samples)
 
     # Sync y-axis limits across all prior predictive panels
-    ylims = (-1.5, 1.5)
-    ylims!(ax_ar, ylims)
-    ylims!(ax_ma, ylims)
-    ylims!(ax_arma, ylims)
-    ylims!(ax_arima, ylims)
+    limits = (-1.5, 1.5)
+    Makie.ylims!(ax_ar, limits)
+    Makie.ylims!(ax_ma, limits)
+    Makie.ylims!(ax_arma, limits)
+    Makie.ylims!(ax_arima, limits)
 
     # Pairs plot spanning right 4 panels (columns 3-4, rows 1-2)
     params = [:damp_AR, :ar_init, :θ]
