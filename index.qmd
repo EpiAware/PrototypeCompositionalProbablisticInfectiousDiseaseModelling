@@ -65,6 +65,20 @@ using Random
 Random.seed!(1234)
 ```
 
+## Author Summary
+
+When infectious disease outbreaks occur, mathematical models help synthesise available data to inform public health decisions.
+However, building these models is time-consuming because components developed for one outbreak cannot easily be reused for another.
+Current approaches either chain together separate models, which loses statistical information, or create large monolithic models that are difficult to adapt.
+This means that at the start of outbreaks, modellers must rebuild models from scratch even when many underlying processes like reporting delays or contact patterns remain similar.
+
+We developed a system that allows disease models to be built from reusable components, similar to assembling structures from building blocks.
+Each component encapsulates a specific process such as how infections spread, how symptoms are reported, or how data are observed and can be swapped or combined whilst maintaining statistical rigour.
+We validated this approach by recreating three published epidemiological analyses using shared components across different scenarios.
+
+This work establishes requirements for composable modelling systems and demonstrates their feasibility through practical applications.
+Such systems could enable faster response to emerging infectious disease threats by allowing researchers to adapt existing components rather than starting from scratch, and could lower barriers for domain experts to contribute specialised knowledge directly to model development.
+
 # Introduction {#sec-introduction}
 
 Modelling infectious disease dynamics can be a valuable tool for synthesising information and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
