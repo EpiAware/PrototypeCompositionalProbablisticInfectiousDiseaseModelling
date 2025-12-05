@@ -76,6 +76,9 @@ jobs:
           version: "1.8.24"
           tinytex: true
 
+      - name: Install Quarto extensions
+        run: quarto install chromium
+
       - name: Validate Quarto project
         run: quarto check
 

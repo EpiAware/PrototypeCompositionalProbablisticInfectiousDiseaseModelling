@@ -165,13 +165,189 @@ This structure enables integration of diverse data sources by allowing researche
 To demonstrate cross-ecosystem accessibility, we also developed EpiAwareR [@EpiAwareR], an R interface to the prototype using JuliaCall [@JuliaCall].
 This enables R users to access the compositional modelling framework without requiring Julia programming knowledge.
 
-@fig-schematic demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
+@fig-composable demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
 Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
 The schematic also highlights two examples of component reuse.
 The incubation period model appears in all three applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
 This highlights how components developed for one application could be incorporated into others when they share common underlying processes.
 
-![Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance).](figures/compositional-schematic.png){#fig-schematic}
+```{mermaid}
+%%| label: fig-composable
+%%| fig-cap: "Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance)."
+%%|
+%%| fig-width: 7
+%%{
+  init: {
+    'flowchart': {
+      'diagramPadding': 60,
+      'htmlLabels': true,
+      'curve': 'basis',
+      'padding': 25
+    },
+    'themeVariables': {
+        'fontSize': '30px'
+      }
+  }
+}%%
+
+flowchart TB
+    %% Class definitions
+    classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
+    classDef observation fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black
+    classDef statistical fill:#ff9900,stroke:#333,stroke-width:1px,color:black
+    classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:1px,color:black
+    classDef infectionModifier fill:#ffd966,stroke:#333,stroke-width:1px,color:black,shape:hexagon
+    classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:1px,color:black,shape:hexagon
+    classDef observationModel fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black,shape:doubleoctagon
+    classDef economic fill:#d0e0e3,stroke:#333,stroke-width:1px,color:black
+    classDef behavioural fill:#b4a7d6,stroke:#333,stroke-width:1px,color:black
+    classDef application fill:#ea9999,stroke:#333,stroke-width:1px,color:black
+    classDef title fill:none,stroke:#333,stroke-width:1px,color:black,font-weight:bold
+    classDef strata stroke:#666,stroke-width:1px,stroke-dasharray:5 5,font-size:20px, fill:none,color:black
+    classDef sharedModel stroke:#6600cc,stroke-width:3px,stroke-dasharray:5 5,fill:#f3e5f5,color:black
+
+    %% Legend at the top
+    subgraph Legend[" "]
+        direction LR
+        Legend_Title["Legend: "]:::title
+        Legend_Infection["Infection Process"]:::infection
+        Legend_Statistical["Statistical Model"]:::statistical
+        Legend_ObservationModel["Observation Model"]:::observationModel
+        Legend_ObservationModifier["Observation Modifier"]:::observationModifier
+        Legend_EpiLatent["Epidemiological Latent Process"]:::epiLatent
+        Legend_SharedModel["Shared Model"]:::sharedModel
+    end
+
+    %% Top row: Applications
+    subgraph TopRow[" "]
+        direction LR
+
+        %% Early Outbreak Analysis
+        subgraph EarlyOutbreak[" "]
+            direction LR
+            EOA_Title["Early Outbreak Analysis (WP4a)"]:::title
+            EOA_GP["Gaussian Process"]:::statistical
+            EOA_RP["Renewal Process"]:::infection
+            EOA_Infections["Infections"]
+            EOA_IncubationRef["Incubation Period"]:::sharedModel
+            EOA_RD["Reporting Delay"]:::observationModifier
+            EOA_Asc["Ascertainment"]:::observationModifier
+            EOA_RT["Right Truncation"]:::observationModifier
+            EOA_OM["Case Reports"]:::observationModel
+
+            %% Connections
+            EOA_GP -.-> EOA_RP
+            EOA_RP ==> EOA_Infections
+            EOA_Infections --> EOA_IncubationRef
+            EOA_IncubationRef --> EOA_RD
+            EOA_RD --> EOA_Asc
+            EOA_Asc --> EOA_RT
+            EOA_RT --> EOA_OM
+        end
+
+        %% Within-host Biomarker Modelling
+        subgraph BiomarkerModelling[" "]
+            direction LR
+            BM_Title["Biomarker Modelling (WP4b.i)"]:::title
+            BM_RP["Renewal Process"]:::infection
+            BM_Infections["Infections"]
+            BM_ViralKineticsRef["Viral Kinetics"]:::sharedModel
+            BM_IncubationRef["Incubation Period"]:::sharedModel
+            BM_VL["Viral Load"]:::epiLatent
+            BM_OM1["PCR Testing"]:::observationModel
+            BM_OM2["Symptom Onset Data"]:::observationModel
+
+            %% Connections
+            BM_RP ==> BM_Infections
+            BM_Infections --> BM_ViralKineticsRef
+            BM_Infections --> BM_IncubationRef
+            BM_ViralKineticsRef --> BM_VL
+            BM_VL --> BM_OM1
+            BM_IncubationRef --> BM_OM2
+        end
+
+    %% Wastewater Analysis
+    subgraph Wastewater[" "]
+        direction LR
+        WW_Title["Wastewater Surveillance (WP4b.ii)"]:::title
+
+            WW_RP["Renewal Process"]:::infection
+            WW_Infections["Infections"]
+            WW_IncubationRef["Incubation Period"]:::sharedModel
+            WW_ViralKineticsRef["Viral Kinetics"]:::sharedModel
+            WW_Shedding["Viral Shedding"]:::epiLatent
+            WW_EnvDeg["Environmental Decay"]:::observationModifier
+            WW_RD["Reporting Delay"]:::observationModifier
+            WW_Asc["Ascertainment"]:::observationModifier
+            WW_RT["Right Truncation"]:::observationModifier
+            WW_OM1["Wastewater Signal"]:::observationModel
+            WW_OM2["Case Reports"]:::observationModel
+
+            %% Connections
+            WW_RP ==> WW_Infections
+            WW_Infections --> WW_ViralKineticsRef
+            WW_Infections --> WW_IncubationRef
+            WW_ViralKineticsRef --> WW_Shedding
+            WW_Shedding --> WW_EnvDeg
+            WW_EnvDeg --> WW_OM1
+            WW_IncubationRef --> WW_RD
+            WW_RD --> WW_Asc
+            WW_Asc --> WW_RT
+            WW_RT --> WW_OM2
+        end
+    end
+
+    %% Bottom row: Shared Models
+    subgraph BottomRow[" "]
+        direction LR
+
+        %% Shared Incubation Period Model
+        subgraph SharedIncubation[" "]
+            direction TB
+            SIP_Title["Shared Incubation Period Model"]:::title
+            SIP_Infections["Infections"]
+            SIP_Delay["Delay"]:::observationModifier
+            SIP_Ascertainment["Ascertainment"]:::observationModifier
+            SIP_Onset["Symptom Onset"]:::observationModel
+
+            %% Internal connections
+            SIP_Infections --> SIP_Delay
+            SIP_Delay --> SIP_Ascertainment
+            SIP_Ascertainment --> SIP_Onset
+        end
+
+        %% Shared Viral Kinetics Model
+        subgraph SharedViralKinetics[" "]
+            direction TB
+            SVK_Title["Shared Viral Kinetics Model"]:::title
+            SVK_Infection["Infection Time"]
+            SVK_VL["Viral Load Trajectory"]:::epiLatent
+            SVK_Peak["Peak Viral Load"]:::epiLatent
+            SVK_Shedding["Viral Shedding"]:::epiLatent
+
+            %% Internal connections
+            SVK_Infection --> SVK_VL
+            SVK_VL --> SVK_Peak
+            SVK_VL --> SVK_Shedding
+        end
+    end
+
+    %% Style for legend
+    style Legend fill:#f5f5f5,stroke:#333,stroke-width:1px,color:black,padding:10px
+
+    %% Style for main sections
+    style TopRow fill:none,stroke:none
+    style BottomRow fill:none,stroke:none
+
+    %% Style for application subgraphs
+    style EarlyOutbreak fill:none,stroke:#333,stroke-width:1px,color:black,padding:15px
+    style BiomarkerModelling fill:none,stroke:#333,stroke-width:1px,color:black,padding:15px
+    style Wastewater fill:none,stroke:#333,stroke-width:1px,color:black,padding:15px
+
+    %% Style for shared model subgraphs (highlighted with purple border and light fill)
+    style SharedIncubation fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
+    style SharedViralKinetics fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
+```
 
 ## Domain-Specific Language Structure {#sec-dsl}
 
@@ -643,23 +819,23 @@ By lowering technical barriers, compositional frameworks could enable interdisci
 Such frameworks are also likely key for enabling, and increasing the robustness of, large language model assisted model construction, especially in resource-constrained settings where such capabilities could prove most valuable.
 Given the unpredictable nature of future infectious disease threats such adaptable modelling capabilities that can incorporate diverse data sources and domain expertise are needed for future public health decision making.
 
-## Acknowledgements
+## Acknowledgements {.appendix}
 
 We thank the epiforecasts team for helpful comments and suggestions.
 We thank Poppy for growling as needed.
 
-## Data and Software Availability
+## Data and Software Availability {.appendix}
 
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
-## Funding Information
+## Funding Information {.appendix}
 
 We acknowledge the financial support from CDC Grant NU38FT00008 (K.J., S.A, S.F.).
 This project was made possible by cooperative agreement CDC-RFA-FT-23-0069 from the CDC's Center for Forecasting and Outbreak Analytics.
 Its contents are solely the responsibility of the authors and do not necessarily represent the official views of the Centers for Disease Control and Prevention.
 We acknowledge the financial support from Wellcome 210758/Z/18/Z (S.F.).
 
-## AI Disclosure
+## AI Disclosure {.appendix}
 
 Claude Sonnet 4.5 (https://www.anthropic.com/claude/sonnet) and Claude Opus 4.5 (https://www.anthropic.com/claude/opus) were used to assist with preparation of the manuscript text and as part of code review for the EpiAware and EpiAwareR packages and the analysis applying them to the case studies presented here.
 
