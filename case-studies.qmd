@@ -339,7 +339,7 @@ We use the No U-Turns (NUTS) sampler @hoffman2014no.
 #| output: false
 using ReverseDiff
 inference_method = EpiMethod(
-    pre_sampler_steps=[],
+    pre_sampler_steps=AbstractEpiOptMethod[],
     sampler=NUTSampler(
         target_acceptance=0.9,
         adtype=AutoReverseDiff(compile=true),
