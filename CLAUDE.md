@@ -11,6 +11,9 @@ git submodule update --init --recursive
 
 # Set up Julia environment (run in Julia REPL)
 using Pkg; Pkg.activate("."); Pkg.instantiate()
+
+# Restore R environment for EpiAwareR (in terminal)
+Rscript -e 'renv::restore()'
 ```
 
 ### Main Development Tasks
@@ -50,6 +53,12 @@ task repl
 
 # Install Quarto extensions
 task install-extensions
+
+# Restore R environment from renv.lock
+task renv-restore
+
+# Set up EpiAwareR with Julia backend
+task setup-epiawarer
 
 # List all available tasks
 task --list
@@ -96,7 +105,8 @@ EpiAware/src/
 **Key Design Principle**: "Swap-in/swap-out" model components allow users to compose different epidemiological models from reusable parts rather than building monolithic implementations.
 
 ### Dependencies Management
-- **Main project**: Uses local path dependency to EpiAware submodule
+- **Julia (main project)**: Uses local path dependency to EpiAware submodule via `Project.toml`/`Manifest.toml`
+- **R (EpiAwareR)**: Managed via `renv` with lockfile at `renv.lock`
 - **EpiAware package**: Strict version compatibility constraints in `Project.toml`
 - **Core dependencies**: Turing.jl, DynamicPPL, Distributions.jl, OrdinaryDiffEq.jl
 

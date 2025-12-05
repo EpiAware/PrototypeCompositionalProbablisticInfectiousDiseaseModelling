@@ -31,7 +31,11 @@ Follow the instructions at [quarto.org](https://quarto.org/docs/get-started/) to
 
 Follow the instructions at [juliaup](https://github.com/JuliaLang/juliaup) to install Julia using the official Julia version manager.
 
-### 3. Task (Optional)
+### 3. R (Optional, for EpiAwareR)
+
+Install [R](https://cran.r-project.org/) (version 4.0.0 or higher) if you want to run the EpiAwareR vignettes.
+
+### 4. Task (Optional)
 
 Install [Task](https://taskfile.dev/installation/) for automated workflow management.
 
@@ -52,6 +56,8 @@ Available tasks:
 - `task preview` - Preview document with live reload
 - `task repl` - Launch Julia REPL with project environment
 - `task install-extensions` - Install Quarto extensions
+- `task renv-restore` - Restore R environment from renv.lock
+- `task setup-epiawarer` - Set up EpiAwareR with Julia backend
 - `task --list` - Show all available tasks
 
 ### Manual Execution
@@ -112,16 +118,21 @@ The `EpiAwareR/` submodule contains R vignettes demonstrating the R interface to
 
 To run the vignettes interactively:
 
-1. Set up EpiAwareR with Julia backend:
+1. Restore R dependencies (managed via renv):
+   ```bash
+   task renv-restore
+   ```
+
+2. Set up EpiAwareR with Julia backend:
    ```bash
    task setup-epiawarer
    ```
 
-2. Open the vignettes in RStudio or VS Code:
+3. Open the vignettes in RStudio or VS Code:
    ```
    EpiAwareR/vignettes/EpiAwareR.Rmd
    EpiAwareR/vignettes/mishra-case-study.Rmd
    EpiAwareR/vignettes/epinow2-comparison.Rmd
    ```
 
-3. Run code chunks interactively using your IDE's execution features.
+4. Run code chunks interactively using your IDE's execution features.
