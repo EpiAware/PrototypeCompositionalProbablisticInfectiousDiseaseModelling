@@ -140,6 +140,9 @@ EpiAware/src/
 - Academic citation style (PLOS Computational Biology)
 - Reference integration in Quarto documents
 
+### Submission Materials
+- `cover-letter.md`: Cover letter for PLOS Computational Biology submission, explaining scope fit for Epidemiology & Public Health section
+
 ## Resources Directory
 
 The `resources/` directory contains research materials, literature, and supporting documentation. See `resources/CLAUDE.md` for detailed guidance on the contents and organisation.
