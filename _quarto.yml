@@ -16,7 +16,8 @@ format:
     documentclass: article
     geometry: margin=1in
     fontsize: 11pt
-    linestretch: 1.5
+    linestretch: 1
+    linenumbers: false
     keep-tex: false
     number-sections: true
     colorlinks: true
