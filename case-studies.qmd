@@ -1269,16 +1269,14 @@ fig_sir = let
 
     # Panel A: Prior S and I trajectories (sample from priors directly)
     ode_mdl_prior = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
-    prior_R0 = Float64[]
-    for _ in 1:1000
+    # Sample prior R0 directly from the prior distributions
+    prior_R0 = rand(sir_params.infectiousness, 1000) ./
+               rand(sir_params.recovery_rate, 1000)
+    for _ in 1:n_samples
         sol = ode_mdl_prior()
         if sol.retcode == ReturnCode.Success
-            β, γ = sol.prob.p
-            push!(prior_R0, β / γ)
-            if length(prior_R0) <= n_samples
-                lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
-                lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
-            end
+            lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
+            lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
         end
     end
 
