@@ -163,7 +163,7 @@ The backend layer aims to handle the automated bookkeeping of stratification, in
 This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
 
 To demonstrate cross-ecosystem accessibility, we also developed EpiAwareR [@EpiAwareR], an R interface to the prototype using JuliaCall [@JuliaCall].
-This enables R users to access the compositional modelling framework without requiring Julia programming knowledge.
+This enables R users to access the compositional modelling framework without requiring Julia programming knowledge, specifying models using familiar R syntax while gaining access to the full composable component library.
 
 @fig-composable demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
 Three example applications wastewater surveillance, biomarker modelling, and early outbreak analysis each compose models from components of different types.
@@ -662,7 +662,7 @@ fig_arima
 
 We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
 Each case study shows how complex models are built by composing reusable components (@fig-case-studies), with full implementation details provided in the Supplementary Information.
-The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], demonstrating cross-ecosystem accessibility.
+The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
 
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
