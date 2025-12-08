@@ -65,7 +65,7 @@ using Random
 Random.seed!(1234)
 ```
 
-## Author Summary
+## Author Summary {.unnumbered}
 
 When infectious disease outbreaks occur, mathematical models help synthesise available data to inform public health decisions.
 However, building these models is time-consuming because components developed for one outbreak cannot easily be reused for another.
