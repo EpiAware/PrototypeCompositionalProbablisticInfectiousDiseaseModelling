@@ -97,7 +97,7 @@ They show how solutions to the renewal equation, when combined with a negative b
 ### Data
 
 _Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
-This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
+This data is curated by the `covidregionaldata` R package [@Palmer2021], but we have saved the South Korean data locally.
 
 ```{julia}
 #| output: false

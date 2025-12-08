@@ -211,7 +211,7 @@ The `EpiProblem` structure is a top-level container assembling these components 
 It holds an infection process (`epi_model`), a latent process (`latent_model`), an observation process (`observation_model`), and a time span for inference or simulation.
 The latent model generates time-varying epidemiological parameters, the infection model uses these parameters to simulate disease transmission and generate infections, and the observation model links these latent infections to observed data through measurement processes.
 However, this is just the top-level structure: each submodel can itself contain any of these abstract types, enabling flexible composition such as observation models that include latent processes for time-varying ascertainment.
-Structures can be modified in place using tools like `Accessors.jl`, enabling both model iteration and patterns such as partially pooled models that update low-level priors based on grouping structures.
+Structures can be modified in place using tools like `Accessors.jl` [@Accessors.jl], enabling both model iteration and patterns such as partially pooled models that update low-level priors based on grouping structures.
 The abstract type system enables shared methods across all model components, such as print methods (shown below) for displaying model specifications or functions for visualising model directed acyclic graphs.
 This approach also allows for the creation of mappings between submodels such as one to one, one to many, and many to many mappings so that, for example, a single infection process can be linked to multiple observations models by specifying a mapping model.
 
@@ -314,7 +314,7 @@ Unit tests are used to ensure concrete implementations satisfy interface require
 This approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
 The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like the No U-Turn Sampler (NUTS) [@hoffman2014nuts].
-These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` operations such as parameter fixing, model conditioning, and posterior predictive sampling.
+These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` [@tarek2020dynamicppl] operations such as parameter fixing, model conditioning, and posterior predictive sampling.
 Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom `Turing.jl`.
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
