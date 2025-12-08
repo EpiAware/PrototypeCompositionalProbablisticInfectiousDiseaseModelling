@@ -1286,12 +1286,13 @@ fig_sir = let
     end
     lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
 
-    # Panel C: Prior and posterior R0 comparison
-    density!(ax13, prior_R0, label="Prior",
-        color=(:grey, 0.3), strokecolor=:black, strokewidth=2, bandwidth=0.5)
-    density!(ax13, deterministic_R0, label="Deterministic",
+    # Panel C: Prior and posterior R0 comparison (filter to 0-10 range)
+    R0_filter = x -> filter(v -> 0 < v < 10, x)
+    density!(ax13, R0_filter(prior_R0), label="Prior",
+        color=(:grey, 0.3), strokecolor=:black, strokewidth=2)
+    density!(ax13, R0_filter(deterministic_R0), label="Deterministic",
         color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
-    density!(ax13, stochastic_R0, label="Stochastic",
+    density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
         color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
     axislegend(ax13)
 
