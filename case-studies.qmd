@@ -1353,6 +1353,7 @@ fig_sir = let
     ax11_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
     ax21_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
     ax21_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=1)) for v in values]
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],
