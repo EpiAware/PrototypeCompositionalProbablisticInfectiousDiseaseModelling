@@ -1208,8 +1208,9 @@ stochastic_R0 = sir_R0(stochastic_sir_results.samples)
 #| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior S
 #|   (top) and I (bottom) compartment trajectories. (B) Prior samples from the
 #|   stochastic observation model including time-varying ascertainment and Poisson
-#|   sampling around a latent infection curve. (C) Posterior $R_0$ distributions
-#|   comparing deterministic (blue) and stochastic (orange) models. (D) Posterior S
+#|   sampling around a latent infection curve. (C) Prior (grey) and posterior $R_0$
+#|   distributions comparing deterministic (blue) and stochastic (orange) models.
+#|   (D) Posterior S
 #|   (top) and I (bottom) compartment trajectories for both deterministic (blue) and
 #|   stochastic (orange) models with 50% credible intervals. (E) Posterior predictive
 #|   cases for both models, with median and 50% credible intervals compared to
@@ -1268,9 +1269,12 @@ fig_sir = let
 
     # Panel A: Prior S and I trajectories (sample from priors directly)
     ode_mdl_prior = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
+    prior_R0 = Float64[]
     for _ in 1:n_samples
         sol = ode_mdl_prior()
         if sol.retcode == ReturnCode.Success
+            β, γ = sol.prob.p
+            push!(prior_R0, β / γ)
             lines!(ax11_S, sol.t, sol[1, :], color=(:red, 0.1))  # S compartment
             lines!(ax11_I, sol.t, sol[2, :], color=(:green, 0.1))  # I compartment
         end
@@ -1282,7 +1286,9 @@ fig_sir = let
     end
     lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
 
-    # Panel C: Posterior R0 comparison
+    # Panel C: Prior and posterior R0 comparison
+    density!(ax13, prior_R0, label="Prior",
+        color=(:grey, 0.3), strokecolor=:black, strokewidth=2)
     density!(ax13, deterministic_R0, label="Deterministic",
         color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
     density!(ax13, stochastic_R0, label="Stochastic",
