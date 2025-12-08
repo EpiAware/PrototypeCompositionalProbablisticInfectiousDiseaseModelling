@@ -126,17 +126,15 @@ The key insight underlying these approaches is the separation of structural synt
 For the CIS example above, composability would allow the observation model linking prevalence surveys to underlying infection dynamics to be developed once and shared as a reusable submodel.
 Approaches to combining such submodels, such as Markov melding [@goudie2019markov] and cut likelihoods [@plummer2015cuts], could then enable proper uncertainty propagation from initial surveillance estimates through to policy-relevant analyses, avoiding the implicit assumptions and cascading biases inherent in current pipeline approaches.
 
-This paper presents a prototype that combines the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
-Our approach enables "LEGO-like" model decisions through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
-The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends.
-We implement this as a domain-specific language operating intended to be implemented as optional package extensions [@juliapackageextensions].
+In this paper, we first identify requirements for composable infectious disease modelling based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling.
+We then present a prototype that addresses these requirements, combining the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
+Our approach enables "LEGO-like" model construction through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
+The prototype supports composability beyond ordinary differential equations, accommodating mixed equation types and the potential for different computational backends, implemented as a domain-specific language intended to be implemented as optional package extensions [@juliapackageextensions].
 We demonstrate our approach using an autoregressive model example to illustrate the proposed compositional pattern and component swapping capabilities.
 Through three case studies using the prototype, we show how components can be reused across different models: the first is inspired by @mishra2020covid; the second reuses components from the first, along with new elements, inspired by @epinow2; the third is inspired by @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
 Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
 
-# Prototype implementation {#sec-approach}
-
-## Requirements for composable infectious disease modelling {#sec-requirements}
+# Requirements for composable infectious disease modelling {#sec-requirements}
 
 Based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling [@gelman2020bayesian], we identify the following requirements for composable infectious disease modelling.
 
@@ -160,7 +158,7 @@ As there are a range of different potential ways to express infectious disease m
 Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches [@philipps2025ude].
 
-## Our approach {#sec-design}
+# Our approach {#sec-approach}
 
 Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
 We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
