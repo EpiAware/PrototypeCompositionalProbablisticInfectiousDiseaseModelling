@@ -1,6 +1,6 @@
 # A prototype for compositional probabilistic infectious disease modelling
 
-[![Render and Deploy Quarto Paper](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml/badge.svg)](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml)
+[![Render and Deploy Quarto Paper](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml/badge.svg?branch=main)](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml)
 [![Citation](https://img.shields.io/badge/Cite-CFF-blue)](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/blob/main/CITATION.cff)
 
 ## Abstract
