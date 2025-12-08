@@ -1289,11 +1289,11 @@ fig_sir = let
     # Panel C: Prior and posterior R0 comparison (filter to 0-8 range)
     R0_filter = x -> filter(v -> 0 < v < 8, x)
     density!(ax13, R0_filter(prior_R0), label="Prior",
-        color=(:grey, 0.3), strokecolor=:black, strokewidth=2, boundary=(0, 8))
+        color=(:grey, 0.3), strokecolor=:black, strokewidth=2)
     density!(ax13, R0_filter(deterministic_R0), label="Deterministic",
-        color=(:blue, 0.5), strokecolor=:blue, strokewidth=2, boundary=(0, 8))
+        color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
     density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
-        color=(:orange, 0.5), strokecolor=:orange, strokewidth=2, boundary=(0, 8))
+        color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
     xlims!(ax13, 0, 8)
     axislegend(ax13)
 
