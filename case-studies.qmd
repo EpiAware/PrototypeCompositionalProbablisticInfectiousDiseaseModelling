@@ -28,7 +28,7 @@ Random.seed!(1234)
 This supplementary document contains the full implementation details for the case studies presented in the main text.
 The code here demonstrates how our prototype compositional modelling DSL recreates and extends existing epidemiological models.
 
-## Required Definitions
+## Required definitions
 
 We first define the latent models that are reused across case studies.
 These definitions mirror those in the main text.
@@ -73,12 +73,13 @@ arma21 = @set ar2.ϵ_t = ma1
 arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 ```
 
-# Case Studies {#sec-case-studies}
+# Case studies {#sec-case-studies}
 
 We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
+The EpiAwareR package vignettes provide step-by-step R implementations showing how R users can compose the same models using familiar syntax.
 
 All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
@@ -96,7 +97,7 @@ They show how solutions to the renewal equation, when combined with a negative b
 ### Data
 
 _Mishra et al_ used daily reported test-confirmed cases of COVID-19 in South Korea between January to July 2020.
-This data is curated by the [`covidregionaldata`](https://github.com/epiforecasts/covidregionaldata) package, but we have saved the South Korean data locally.
+This data is curated by the `covidregionaldata` R package [@Palmer2021], but we have saved the South Korean data locally.
 
 ```{julia}
 #| output: false
@@ -138,7 +139,7 @@ $$
 
 This means that we determine the initial condition of the latent infecteds before $t=0$, $I_{-1}, I_{-2}, \dots, I_{-n+1}$ jointly with sampling $R_1$ where $n$ is the maximum support value of the $g_t$ pmf.
 
-#### Latent Model
+#### Latent model
 
 We reuse the AR(2) model `ar2` defined in the Setup section, but update the first damping coefficient prior ρ₁ to match _Mishra et al_.
 They specify ρ₁ ~ N(0.8, 0.05) constrained to [0,1], reflecting strong autocorrelation in the log reproduction number process.
@@ -173,7 +174,7 @@ function ar_sample_plot!(ax, ar_mdl; n_samples=100)
 end
 ```
 
-#### Infection Generating Process
+#### Infection generating process
 
 The renewal equation requires a discrete generation time pmf $g_t$.
 Our prototype provides a constructor that converts continuous distributions into the required discrete pmf using double interval censoring @charniga2024best.
@@ -256,7 +257,7 @@ end
 
 The full infection generating process, that is the model defined in @sec-example1 without the link to case data, can be constructed by passing samples of $Z_t$ into the renewal model sampler.
 
-#### Observation Model
+#### Observation model
 
 In *Mishra et al* the overdispersion parameter $\phi$ sets the relationship between the mean and variance of the negative binomial errors.
 We default to a prior on $\sqrt{1/\phi}$ (referred to as the cluster factor) because this quantity is approximately the coefficient of variation of the observation noise and, therefore, is easier to reason on *a priori* beliefs.
@@ -301,7 +302,7 @@ function neg_bin_obs_plot!(ax, negbin_mdl; n_samples)
 end
 ```
 
-### Fitting to Data
+### Fitting to data
 
 We now compose the three model components into an `EpiProblem`, which defines the complete generative model for the time range `tspan`.
 
@@ -527,7 +528,7 @@ fig_mishra
 
 @fig-mishra shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
 
-## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
+## EpiNow2: Estimate real-time case counts and time-varying epidemiological parameters {#sec-example2}
 
 In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
@@ -573,7 +574,7 @@ $g_t$ is the generation time distribution pmf, $\eta_t$ is the incubation period
 $S_t$ represents symptom onsets (infections convolved with incubation period) and $D_t$ represents delayed case reports (symptom onsets convolved with reporting delay).
 The vector $\omega = [\omega_0,\dots,\omega_6]$ encodes day-of-week effects on reporting.
 
-#### Latent Model
+#### Latent model
 
 We reuse the ARIMA(2,1,1) model `arima211` defined in the Setup section but modify it to better reflect outbreak dynamics.
 
@@ -613,7 +614,7 @@ function arima_sample_plot!(ax, arima_mdl; n_samples=100)
 end
 ```
 
-#### Infection Generating Process
+#### Infection generating process
 
 Unlike @sec-example1 where the serial interval distribution was used (as in _Mishra et al_), `EpiNow2` uses the generation time distribution, which represents the time between successive infections in a transmission chain.
 Whilst the serial interval (time between symptom onsets) is often used as a proxy for the generation time because it is more readily observable, using the serial interval can be problematic @park2023inferring and is primarily done in practice when generation time estimates are unavailable, particularly early in an outbreak @zhao2020preliminary.
@@ -647,7 +648,7 @@ renewal_mdl = let
 end
 ```
 
-#### Observation Model
+#### Observation model
 
 We build the observation model through the composition of modular components reusing the negative binomial link observation model (`negbin`) from @sec-example1, and then layer additional modelling components on top.
 We start by adding a day of the week ascertainment model using the `ascertainment_dayofweek` helper function.
@@ -731,7 +732,7 @@ function delay_dow_sample_plot!(ax, obs_mdl, latent_infections; n_samples=100)
 end
 ```
 
-### Fitting to Data
+### Fitting to data
 
 We compose these modelling subcomponents into one `EpiProblem` model. The delay padding accounts for the combined length of the incubation period and reporting delay pmfs, allowing the model to properly account for infections that have occurred but not yet been observed by the end of the training period.
 
@@ -774,7 +775,7 @@ We reuse the same `inference_method` defined in @sec-example1..
 #| output: false
 #| julia:
 #|   cache:
-#|     enabled: false
+#|     enabled: true
 epinow2_results = apply_method(epinow2_mdl,
     inference_method,
     italy_training_data
@@ -981,15 +982,15 @@ The log-scale ascertainment rate is represented as an autoregressive AR(1) proce
 Setting $\kappa_t = 0$ for all $t$ gives the deterministic model with direct Poisson link.
 The aim of the stochastic component is to absorb noise generated by model mis-specification, improving robustness when the SIR model is an approximation to more complex transmission dynamics.
 
-#### Latent Model
+#### Latent model
 
 Unlike the renewal models in previous case studies, the SIR model does not require a time-varying latent process for $R_t$ as transmission dynamics are fully determined by the ODE parameters.
 
-#### Infection Generating Process
+#### Infection generating process
 
 Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
 The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
-Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but with a tighter scale parameter for the transmission rate (`LogNormal(0, 0.5)`) to reduce prior mass on extreme values.
+Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but with a tighter prior for the transmission rate (`LogNormal(0.5, 0.25)`) to reduce prior mass on extreme values.
 We also use a more informative prior `Beta(1, 99)` for the initial proportion infected to concentrate prior mass near small outbreak initiations.
 Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 
@@ -997,7 +998,7 @@ Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 #| output: false
 sir_params = SIRParams(
     tspan = (0.0, england_data.ts[end]),
-    infectiousness = LogNormal(0.0, 0.5),
+    infectiousness = LogNormal(0.5, 0.25),
     recovery_rate = Gamma(0.004, 1 / 0.002),
     initial_prop_infected = Beta(1, 99)
 )
@@ -1038,7 +1039,7 @@ EpiAware composes this into a generative model:
 print(@code_string generate_latent_infs(sir_process, 14))
 ```
 
-#### Observation Model
+#### Observation model
 
 We link the infected proportion to observed cases using `TransformObservationModel`, which applies population scaling and the softplus transformation before passing to the Poisson link.
 
@@ -1144,7 +1145,7 @@ function compartment_quantiles(posterior_sols, ts, qs; compartment=2)
 end
 ```
 
-### Fitting to Data
+### Fitting to data
 
 We compose both models using `EpiProblem`. Just as we swap lower-level model components (e.g., replacing a Poisson with an `Ascertainment`-wrapped Poisson), we can swap components at the `EpiProblem` level to compare modelling assumptions whilst keeping other parts fixed.
 We reuse the same `inference_method` defined in @sec-example1.
@@ -1207,13 +1208,14 @@ stochastic_R0 = sir_R0(stochastic_sir_results.samples)
 #| fig-cap: "Model components and posterior analysis for @sec-example3. (A) Prior S
 #|   (top) and I (bottom) compartment trajectories. (B) Prior samples from the
 #|   stochastic observation model including time-varying ascertainment and Poisson
-#|   sampling around a latent infection curve. (C) Posterior $R_0$ distributions
-#|   comparing deterministic (blue) and stochastic (orange) models. (D) Posterior S
+#|   sampling around a latent infection curve. (C) Prior (grey) and posterior $R_0$
+#|   distributions comparing deterministic (blue) and stochastic (orange) models.
+#|   (D) Posterior S
 #|   (top) and I (bottom) compartment trajectories for both deterministic (blue) and
 #|   stochastic (orange) models with 50% credible intervals. (E) Posterior predictive
 #|   cases for both models, with median and 50% credible intervals compared to
-#|   observed data (black points). (F) Posterior $R_t$ over time for both models with
-#|   reference line at $R_t=1$."
+#|   observed data (black points). (F) Posterior $R_t$ over time on a log scale for
+#|   both models with reference line at $R_t=1$."
 fig_sir = let
     qs = [0.025, 0.25, 0.5, 0.75, 0.975]
     n_samples = 100
@@ -1263,10 +1265,13 @@ fig_sir = let
     ax22 = Axis(fig[2, 2]; ylabel="Cases", xlabel="Days",
         xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
     ax23 = Axis(fig[2, 3]; ylabel="Rt", xlabel="Days",
-        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4)
+        xticks=(ts[1:3:end], t_ticks), xticklabelrotation=π / 4, yscale=log10)
 
     # Panel A: Prior S and I trajectories (sample from priors directly)
     ode_mdl_prior = EpiAware.EpiInfModels._generate_ode_solution(sir_process, 0)
+    # Sample prior R0 directly from the prior distributions
+    prior_R0 = rand(sir_params.infectiousness, 1000) ./
+               rand(sir_params.recovery_rate, 1000)
     for _ in 1:n_samples
         sol = ode_mdl_prior()
         if sol.retcode == ReturnCode.Success
@@ -1281,11 +1286,15 @@ fig_sir = let
     end
     lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
 
-    # Panel C: Posterior R0 comparison
-    density!(ax13, deterministic_R0, label="Deterministic",
-        color=(:blue, 0.2), strokecolor=:blue, strokewidth=2)
-    density!(ax13, stochastic_R0, label="Stochastic",
-        color=(:orange, 0.2), strokecolor=:orange, strokewidth=2)
+    # Panel C: Prior and posterior R0 comparison (filter to 0-8 range)
+    R0_filter = x -> filter(v -> 0 < v < 8, x)
+    density!(ax13, R0_filter(prior_R0), label="Prior",
+        color=(:grey, 0.3), strokecolor=:black, strokewidth=2)
+    density!(ax13, R0_filter(deterministic_R0), label="Deterministic",
+        color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
+    density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
+        color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
+    xlims!(ax13, 0, 8)
     axislegend(ax13)
 
     # Panel D: Posterior S and I compartments (both models)
@@ -1337,7 +1346,7 @@ fig_sir = let
     band!(ax23, ts, stoch_Rt_qs[:, 2], stoch_Rt_qs[:, 4], color=(:orange, 0.3))
 
     hlines!(ax23, [1.0], color=:black, linestyle=:dash, linewidth=1)
-    ylims!(ax23, 0, 5)
+    ylims!(ax23, 0.1, 5)
 
     # Format axes
     ax11_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
