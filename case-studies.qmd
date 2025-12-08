@@ -1294,6 +1294,9 @@ fig_sir = let
         color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
     density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
         color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
+    xmin, xmax = xlims(ax13)
+    xmin < 0 && xlims!(ax13, 0, xmax)
+    xmax > 10 && xlims!(ax13, xmin, 10)
     axislegend(ax13)
 
     # Panel D: Posterior S and I compartments (both models)
