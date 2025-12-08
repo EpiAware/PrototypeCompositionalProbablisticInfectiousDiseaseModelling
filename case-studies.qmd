@@ -1337,7 +1337,7 @@ fig_sir = let
     band!(ax23, ts, stoch_Rt_qs[:, 2], stoch_Rt_qs[:, 4], color=(:orange, 0.3))
 
     hlines!(ax23, [1.0], color=:black, linestyle=:dash, linewidth=1)
-    ylims!(ax23, 0.1, 10)
+    ylims!(ax23, 0.1, 5)
 
     # Format axes
     ax11_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
