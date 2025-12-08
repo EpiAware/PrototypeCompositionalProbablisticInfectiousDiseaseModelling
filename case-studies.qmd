@@ -79,6 +79,7 @@ We demonstrate how our prototype compositional modelling DSL can recreate and ex
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
+The EpiAwareR package vignettes provide step-by-step R implementations showing how R users can compose the same models using familiar syntax.
 
 All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
