@@ -175,21 +175,9 @@ This highlights how components developed for one application could be incorporat
 %%| label: fig-composable
 %%| fig-cap: "Demonstration of composability showing how three applications share common components. Colours correspond to component types: infection processes (blue), statistical processes (orange), infection modifiers (yellow), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Two shared submodels are highlighted with purple borders and background fill: the Incubation Period model (reused across all applications) and the Within-host Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance)."
 %%|
-%%| fig-width: 7
-%%{
-  init: {
-    'flowchart': {
-      'diagramPadding': 60,
-      'htmlLabels': true,
-      'curve': 'basis',
-      'padding': 25
-    },
-    'themeVariables': {
-        'fontSize': '30px'
-      }
-  }
-}%%
+%%| fig-width: 10
 
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'fontFamily': 'arial'}, 'flowchart': {'diagramPadding': 60, 'htmlLabels': true, 'curve': 'basis', 'padding': 25}}}%%
 flowchart TB
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
@@ -681,8 +669,9 @@ All code and data for reproducing the analyses are available at: [https://github
 ```{mermaid}
 %%| label: fig-case-studies
 %%| fig-cap: "Model structure for the ARIMA example and three case studies showing component reuse. The ARIMA Example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) with Exp transformation and Poisson observation. Mishra et al. reuses the AR(2) component for modelling time-varying Rt combined with a Renewal infection process and Negative Binomial observation. EpiNow2 extends this by reusing the full ARIMA structure with weekly broadcasting, adding Latent Delay for reporting delays and day-of-week ascertainment effects. Chatzilena et al. demonstrates an alternative infection process using a SIR ODE with Softplus transformation, scaled by population size N, and AR(1)-based time-varying ascertainment. Dashed arrows indicate component reuse. Colours indicate component types: statistical models (orange), infection processes (blue), epidemiological parameters (purple), observation modifiers (red), broadcasting operations (peach), transformations (white), and observation models (green)."
-%%| fig-width: 8
+%%| fig-width: 10
 
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'fontFamily': 'arial'}}}%%
 flowchart LR
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
