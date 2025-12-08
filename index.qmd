@@ -134,9 +134,9 @@ We demonstrate our approach using an autoregressive model example to illustrate 
 Through three case studies using the prototype, we show how components can be reused across different models: the first is inspired by @mishra2020covid; the second reuses components from the first, along with new elements, inspired by @epinow2; the third is inspired by @chatzilena2019contemporary, again reusing components, alongside the use of an ODE.
 Finally, we discuss alternative design approaches, evaluate the strengths and limitations of our compositional approach, and identify key areas for future development.
 
-# Prototype Implementation {#sec-approach}
+# Prototype implementation {#sec-approach}
 
-## Requirements for Composable Infectious Disease Modelling {#sec-requirements}
+## Requirements for composable infectious disease modelling {#sec-requirements}
 
 Based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling [@gelman2020bayesian], we identify the following requirements for composable infectious disease modelling.
 
@@ -187,7 +187,7 @@ This highlights how components developed for one application could be incorporat
 
 ![Demonstration of composability showing how four applications share common components. Colours correspond to component types: infection processes and latent infection quantities (light blue), statistical processes (orange), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Four shared submodels are highlighted with purple dashed borders: the Latent Infection model (GP and Renewal, reused across all applications), the Incubation Period model (reused across all applications), the Case Observation model (reporting delay, ascertainment, and right truncation, shared between Early Outbreak Analysis and Wastewater Surveillance), and the Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance). Applications reference these shared models via matching purple dashed boxes. The Incubation Period Estimation application demonstrates how shared models can be calibrated from independent data sources.](figures/fig-composable.png){#fig-composable width="100%"}
 
-## Domain-Specific Language Structure {#sec-dsl}
+## Domain-specific language structure {#sec-dsl}
 
 <!-- Reference to Panel A of Figure 1 -->
 
@@ -305,7 +305,7 @@ This approach enables representation of arbitrary latent processes through compo
 
 <!-- -->
 
-## Backend Implementation: Turing Interface {#sec-backend}
+## Backend implementation: Turing interface {#sec-backend}
 
 <!-- Reference to Panel D of Figure 1 -->
 
@@ -508,7 +508,7 @@ fig_arima
 ```
 
 
-# Case Studies {#sec-case-studies}
+# Case studies {#sec-case-studies}
 
 We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
 Each case study shows how complex models are built by composing reusable components (@fig-case-studies), with full implementation details provided in the Supplementary Information.
@@ -533,7 +533,7 @@ Panels E-F show posterior predictive distributions for daily cases and time-vary
 
 ![Model components and posterior analysis for Case Study 1. (A) Prior samples from the AR(2) latent process for log $R_t$ over 50 days. (B) Prior samples from the renewal model conditional on a fixed $R_t$ trajectory. (C) Prior samples from the negative binomial observation model around a latent infection curve. (D) Comparison of the continuous serial interval distribution with its discretised pmf. (E) Posterior predictive distribution for daily cases with 50% and 95% credible intervals. (F) Posterior predictive distribution for time-varying $R_t$ on a log scale.](figures/fig-mishra){#fig-mishra width=100%}
 
-## EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters {#sec-example2}
+## EpiNow2: Estimate real-time case counts and time-varying epidemiological parameters {#sec-example2}
 
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely used package for real-time situational awareness in infectious disease surveillance, estimating case counts and epidemiological parameters whilst accounting for reporting delays, right-truncation, and day-of-week effects.
 
@@ -669,18 +669,18 @@ Given the unpredictable nature of future infectious disease threats such adaptab
 We thank the epiforecasts team for helpful comments and suggestions.
 We thank Poppy for growling as needed.
 
-## Data and Software Availability {.appendix}
+## Data and software availability {.appendix}
 
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
-## Funding Information {.appendix}
+## Funding information {.appendix}
 
 We acknowledge the financial support from CDC Grant NU38FT00008 (K.J., S.A, S.F.).
 This project was made possible by cooperative agreement CDC-RFA-FT-23-0069 from the CDC's Center for Forecasting and Outbreak Analytics.
 Its contents are solely the responsibility of the authors and do not necessarily represent the official views of the Centers for Disease Control and Prevention.
 We acknowledge the financial support from Wellcome 210758/Z/18/Z (S.F.).
 
-## AI Disclosure {.appendix}
+## AI disclosure {.appendix}
 
 Claude Sonnet 4.5 (https://www.anthropic.com/claude/sonnet) and Claude Opus 4.5 (https://www.anthropic.com/claude/opus) were used to assist with preparation of the manuscript text and as part of code review for the EpiAware and EpiAwareR packages and the analysis applying them to the case studies presented here.
 
