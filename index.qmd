@@ -616,10 +616,10 @@ fig_arima = let
     fig = Figure(size=(1600, 800))
 
     # Row 1: Prior predictive samples (left 4 panels)
-    ax_ar = Axis(fig[1, 1]; ylabel="Zₜ", title="AR(2)")
-    ax_ma = Axis(fig[1, 2]; title="MA(1)")
-    ax_arma = Axis(fig[2, 1]; ylabel="Zₜ", xlabel="Time", title="ARMA(2,1)")
-    ax_arima = Axis(fig[2, 2]; xlabel="Time", title="ARIMA(2,1,1)")
+    ax_ar = Axis(fig[1, 1]; ylabel="Zₜ")
+    ax_ma = Axis(fig[1, 2])
+    ax_arma = Axis(fig[2, 1]; ylabel="Zₜ", xlabel="Time")
+    ax_arima = Axis(fig[2, 2]; xlabel="Time")
 
     # Prior predictive plots
     latent_sample_plot!(ax_ar, ar_mdl; n_samples)
