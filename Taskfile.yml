@@ -5,6 +5,29 @@ tasks:
     desc: "Render all documents"
     deps: [render-index]
 
+  render-mermaid:
+    desc: "Render mermaid diagrams to HTML for screenshots"
+    cmds:
+      - quarto render figures/fig-composable.qmd --to html
+      - quarto render figures/fig-case-studies.qmd --to html
+      - echo ""
+      - echo "=========================================="
+      - echo "MANUAL STEP REQUIRED"
+      - echo "=========================================="
+      - echo "Open the HTML files in a browser and take screenshots:"
+      - echo "  - figures/fig-composable.html -> figures/fig-composable.png"
+      - echo "  - figures/fig-case-studies.html -> figures/fig-case-studies.png"
+      - echo "=========================================="
+    sources:
+      - figures/fig-composable.qmd
+      - figures/fig-case-studies.qmd
+    generates:
+      - figures/fig-composable.html
+      - figures/fig-case-studies.html
+    status:
+      - test -f figures/fig-composable.html
+      - test -f figures/fig-case-studies.html
+
   render-case-studies:
     desc: "Render case studies (generates figures)"
     deps: [instantiate, install-extensions]

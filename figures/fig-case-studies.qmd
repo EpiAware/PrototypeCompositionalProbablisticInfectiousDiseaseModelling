@@ -1,0 +1,128 @@
+---
+format:
+  html: default
+---
+
+```{mermaid}
+%%| fig-width: 10
+
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '26px', 'fontFamily': 'arial', 'lineColor': '#333'}}}%%
+flowchart LR
+    %% Class definitions
+    classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
+    classDef statistical fill:#ff9900,stroke:#333,stroke-width:1px,color:black
+    classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:1px,color:black
+    classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:1px,color:black
+    classDef observation fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black
+    classDef broadcast fill:#ffe6cc,stroke:#333,stroke-width:1px,color:black
+    classDef transform fill:#ffffff,stroke:#333,stroke-width:1px,color:black
+    classDef title fill:none,stroke:#333,stroke-width:1px,color:black,font-weight:bold
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black
+
+    %% Panel B: Case Study 1 - Mishra
+    subgraph B[" "]
+        B_Title["Mishra et al."]:::title
+        direction TB
+        B_Exp["Exp"]:::transform
+        B_Rt["Rt"]:::epiLatent
+        B_GT["Generation Time"]:::epiLatent
+        B_Renewal["Renewal"]:::infection
+        B_Infections["Infections"]:::infection
+        B_Obs["Negative Binomial"]:::observation
+
+        B_Exp --> B_Rt
+        B_Rt --> B_Renewal
+        B_GT --> B_Renewal
+        B_Renewal --> B_Infections
+        B_Infections --> B_Obs
+    end
+
+    %% Panel C: Case Study 2 - EpiNow2
+    subgraph C[" "]
+        C_Title["EpiNow2"]:::title
+        direction TB
+        C_Broadcast["Broadcast"]:::broadcast
+        C_Weekly["Weekly"]:::broadcast
+        C_Exp["Exp"]:::transform
+        C_Rt["Rt"]:::epiLatent
+        C_GT["Generation Time"]:::epiLatent
+        C_Renewal["Renewal"]:::infection
+        C_Infections["Infections"]:::infection
+        C_Delay["Delay"]:::epiLatent
+        C_LatentDelay["Latent Delay"]:::observationModifier
+        C_RE["Random Effect"]:::statistical
+        C_AscBroadcast["Broadcast"]:::broadcast
+        C_AscDaily["Daily"]:::broadcast
+        C_Obs["Negative Binomial"]:::observation
+
+        C_Broadcast --> C_Weekly
+        C_Weekly --> C_Exp
+        C_Exp --> C_Rt
+        C_Rt --> C_Renewal
+        C_GT --> C_Renewal
+        C_Renewal --> C_Infections
+        C_Infections --> C_LatentDelay
+        C_Delay --> C_LatentDelay
+        C_LatentDelay --> C_AscBroadcast
+        C_RE --> C_AscBroadcast
+        C_AscBroadcast --> C_AscDaily
+        C_AscDaily --> C_Obs
+    end
+
+    %% Panel D: Case Study 3 - Chatzilena et al.
+    subgraph D[" "]
+        D_Title["Chatzilena et al."]:::title
+        direction TB
+        D_SIR["SIR ODE"]:::infection
+        D_Incidence["Incidence"]:::infection
+        D_N["N"]:::epiLatent
+        D_Softplus["Softplus"]:::transform
+        D_ScaleN["Scale by N"]:::observationModifier
+        D_AR["AR(1)"]:::statistical
+        D_Exp["Exp"]:::transform
+        D_Ascertainment["Ascertainment"]:::observationModifier
+        D_Obs["Poisson"]:::observation
+
+        D_SIR --> D_Incidence
+        D_Incidence --> D_Softplus
+        D_Softplus --> D_ScaleN
+        D_N --> D_ScaleN
+        D_ScaleN --> D_Ascertainment
+        D_AR --> D_Exp
+        D_Exp --> D_Ascertainment
+        D_Ascertainment --> D_Obs
+    end
+
+    %% Panel A: ARIMA Construction
+    subgraph A[" "]
+        A_Title["ARIMA example"]:::title
+        direction LR
+        A_AR["AR(2)"]:::statistical
+        A_MA["MA(1)"]:::statistical
+        A_ARMA["ARMA"]:::statistical
+        A_DIFF["Differencing"]:::statistical
+        A_ARIMA["ARIMA"]:::statistical
+        A_Exp["Exp"]:::transform
+        A_Obs["Poisson"]:::observation
+
+        A_AR --> A_ARMA
+        A_MA --> A_ARMA
+        A_ARMA --> A_DIFF
+        A_DIFF --> A_ARIMA
+        A_ARIMA --> A_Exp
+        A_Exp --> A_Obs
+    end
+
+    %% Cross-panel connections showing component reuse
+    A_AR -.-> B_Exp
+    A_ARIMA -.-> C_Broadcast
+
+    %% Style panels
+    style A fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style B fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style C fill:#f9f9f9,stroke:#333,stroke-width:1px
+    style D fill:#f9f9f9,stroke:#333,stroke-width:1px
+
+    %% Thicker lines for all connections
+    linkStyle default stroke:#333,stroke-width:2px
+```
