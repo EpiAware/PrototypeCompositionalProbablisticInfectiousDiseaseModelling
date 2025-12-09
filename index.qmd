@@ -304,27 +304,27 @@ This approach enables representation of arbitrary latent processes through compo
 
 <!-- -->
 
-## Backend implementation: Turing interface {#sec-backend}
+## Backend implementation: `Turing.jl` interface {#sec-backend}
 
 <!-- Reference to Panel D of Figure 1 -->
 
-Our DSL translates to Turing models through generate functions that dispatch on abstract type hierarchies.
+Our DSL translates to `Turing.jl` models through generate functions that dispatch on abstract type hierarchies.
 Each abstract type (`AbstractLatentModel`, `AbstractEpiModel`, `AbstractObservationModel`) has a generate function interface that concrete model types must implement a method to dispatch upon.
 When a generate function receives a model component, Julia's multiple dispatch automatically selects the appropriate implementation based on the component's type, producing `Turing.jl` [@fjelde2025turin] code using the `@model` macro.
 Unit tests are used to ensure concrete implementations satisfy interface requirements, enabling all components to interoperate correctly regardless of which specific model types are composed together.
 This approach means new model types integrate seamlessly without modifying existing code, and users can swap components to compare modelling assumptions whilst keeping other parts of the model fixed.
 
-The generated Turing models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying Turing's suite of algorithms including gradient-based methods like the No U-Turn Sampler (NUTS) [@hoffman2014nuts].
-These are standard Turing models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` [@tarek2020dynamicppl] operations such as parameter fixing, model conditioning, and posterior predictive sampling.
-Generated components can be used directly as standalone models or nested within other Turing models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom `Turing.jl`.
+The generated `Turing.jl` models serve dual purposes: simulation by sampling from prior distributions, or inference by conditioning on observed data and applying `Turing.jl`'s suite of algorithms including gradient-based methods like the No U-Turn Sampler (NUTS) [@hoffman2014nuts].
+These are standard `Turing.jl` models with no special constraints beyond those imposed by the `Turing.jl` framework itself, supporting all `DynamicPPL.jl` [@tarek2020dynamicppl] operations such as parameter fixing, model conditioning, and posterior predictive sampling.
+Generated components can be used directly as standalone models or nested within other `Turing.jl` models using the `@submodel` macro, enabling incremental adoption where only parts of a model use the compositional framework whilst other parts use custom `Turing.jl`.
 
 Many computational components are backend-agnostic, containing no probabilistic programming constructs and therefore portable to other frameworks.
 For example, we use a common pattern, `accumulate_scan`, which builds on the base accumulate function to model iterative temporal processes through step functions.
 These step functions are structs built on the `AbstractAccumulationStep` interface that implement a callable (a struct that can be invoked like a function) defining the single-step update rule.
 Mathematical utilities such as functions for converting between reproduction numbers and growth rates, discretising continuous delay distributions, and reparameterising observation error models are similarly backend-agnostic.
-This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
+This separation enables a package extension pattern where standard Julia packages provide domain-specific functionality (e.g. `CensoredDistributions.jl` [@censoreddistributions2025]) whilst the compositional layer is added as an optional extension, allowing users to adopt the framework incrementally without requiring their entire workflow to commit to the compositional approach.
 
-Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a Turing model using the `generate_latent` function and multiple dispatch, which generates the following `Turing.jl` model:
+Returning to our example from the DSL section, the autoregressive process can be mapped from its high-level representation to a `Turing.jl` model using the `generate_latent` function and multiple dispatch, which generates the following `Turing.jl` model:
 
 ```{julia}
 #| output: false
@@ -340,7 +340,7 @@ print(@code_string EpiAwareBase.generate_latent(ar2, 50))
 println("\n```")
 ```
 
-The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided. The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state.
+The key line `@submodel ε_t = generate_latent(latent_model.ε_t, n - p)` enables composition by delegating to whatever error model was provided (here, the MA(1) component). The AR dynamics are implemented through a custom accumulation step that maintains the autoregressive state.
 ```{julia}
 #| echo: false
 #| output: asis
@@ -364,12 +364,11 @@ print(@code_string generate_latent(arima211, 50))
 println("\n```")
 ```
 
-The DiffLatentModel's `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summing.
+The `DiffLatentModel`'s `@submodel diff_latent = generate_latent(latent_model.model, n - d)` calls the ARMA model, which in turn calls its composed AR and MA components, then applies differencing through cumulative summation.
 This recursion through `@submodel` enables arbitrary composition while maintaining separation between components.
 
-To demonstrate fitting these submodels we first create a model that uses our ARIMA(2,1,1) model as submodel combining it with a Poisson observation model.
-The Poisson distribution is a simple count likelihood commonly used for epidemiological data.
-We use the log-parameterised `LogPoisson` distribution which means we are modelling the growth rate using our ARIMA process.
+To demonstrate fitting, we combine our ARIMA(2,1,1) with a log-parameterised Poisson observation model, modelling the growth rate using our ARIMA process.
+From here we use `Turing.jl` functionality directly to illustrate the interoperability between our DSL and the underlying PPL.
 
 ```{julia}
 #| output: false
@@ -509,10 +508,15 @@ fig_arima
 
 # Case studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
-Each case study shows how complex models are built by composing reusable components (@fig-case-studies), with full implementation details provided in the Supplementary Information.
-The first two case studies have been replicated using the `EpiAwareR` R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
+We demonstrate our prototype compositional modelling DSL by recreating three published epidemiological analyses: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
 
+@fig-case-studies shows the model structure for the ARIMA example and each case study, illustrating how complex models are built by composing reusable components.
+The ARIMA example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) as discussed in the last section.
+Dashed arrows indicate component reuse across case studies: Mishra et al. reuses the AR(2) component for modelling the time-varying reproduction number, whilst the EpiNow2 replication reuses the full ARIMA structure with additional components for reporting delays and day-of-week effects.
+Chatzilena et al. demonstrates an alternative infection process using an SIR ODE rather than a renewal model.
+
+We provide an overview of each case study in the following subsections, with full implementation details in the Supplementary Information.
+The first two case studies have also been replicated using the `EpiAwareR` R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
 ![Model structure for the ARIMA example and three case studies showing component reuse. The ARIMA Example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) with Exp transformation and Poisson observation. Mishra et al. reuses the AR(2) component for modelling time-varying Rt combined with a Renewal infection process and Negative Binomial observation. EpiNow2 extends this by reusing the full ARIMA structure with weekly broadcasting, adding Latent Delay for reporting delays and day-of-week ascertainment effects. Chatzilena et al. demonstrates an alternative infection process using a SIR ODE with Softplus transformation, scaled by population size N, and AR(1)-based time-varying ascertainment. Dashed arrows indicate component reuse. Colours indicate component types: statistical models (orange), infection processes and latent infection quantities (light blue), epidemiological parameters (purple), observation modifiers (red), broadcasting operations (peach), transformations (white), and observation models (green).](figures/fig-case-studies.png){#fig-case-studies width="100%"}
@@ -597,7 +601,7 @@ A strength of the Julia [@Julia-2017] ecosystem for compositional work is that d
 However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
 Users may not know whether problems originate in `Turing.jl`, our prototype DSL, or elsewhere in the ecosystem, and even once located, it can be difficult to determine who is responsible for resolving them.
 There are also additional technical barriers within the `Turing.jl` ecosystem.
-The Turing PPL DSL is not fully stable and since developing this prototype, the `@submodel` macro has changed syntax and become a function with breaking changes in how it handles prefixes and in how it manages variables within a submodel, meaning our current prototype implementation is not compatible with the latest `Turing.jl` release.
+The `Turing.jl` PPL DSL is not fully stable and since developing this prototype, the `@submodel` macro has changed syntax and become a function with breaking changes in how it handles prefixes and in how it manages variables within a submodel, meaning our current prototype implementation is not compatible with the latest `Turing.jl` release.
 However, some of these changes do allow for potentially more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
 Other recent changes in `Turing.jl`, such as the primary workflow for observed data being to condition and fix with no argument for observations, impact how data is conditioned on the model. This means not having to pass observations through layers of the model, making it easier to build composable models.
 Further flexibility in conditioning on submodels at the `Turing.jl` level could simplify our DSL layer or enable new workflows, such as fixing the infection process to known values whilst inferring observation model parameters.
