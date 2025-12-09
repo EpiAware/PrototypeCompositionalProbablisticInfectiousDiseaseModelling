@@ -1295,7 +1295,7 @@ fig_sir = let
     density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
         color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
     xlims!(ax13, 0, 6)
-    axislegend(ax13)
+    axislegend(ax13, position=:lt)
 
     # Panel D: Posterior S and I compartments (both models)
     # Get posterior solutions for stochastic model too

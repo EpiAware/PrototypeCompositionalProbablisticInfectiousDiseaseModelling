@@ -508,12 +508,8 @@ fig_arima
 
 # Case studies {#sec-case-studies}
 
-We demonstrate our prototype compositional modelling DSL by recreating three published epidemiological analyses: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
-
-@fig-case-studies shows the model structure for the ARIMA example and each case study, illustrating how complex models are built by composing reusable components.
-The ARIMA example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) as discussed in the last section.
-Dashed arrows indicate component reuse across case studies: Mishra et al. reuses the AR(2) component for modelling the time-varying reproduction number, whilst the EpiNow2 replication reuses the full ARIMA structure with additional components for reporting delays and day-of-week effects.
-Chatzilena et al. demonstrates an alternative infection process using an SIR ODE rather than a renewal model.
+We demonstrate our prototype compositional modelling DSL by recreating three published epidemiological analyses (@fig-case-studies): "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
+Dashed arrows in @fig-case-studies indicate component reuse: Mishra et al. reuses the AR(2) component, the EpiNow2 replication reuses the full ARIMA structure, and Chatzilena et al. demonstrates an alternative SIR ODE infection process.
 
 We provide an overview of each case study in the following subsections, with full implementation details in the Supplementary Information.
 The first two case studies have also been replicated using the `EpiAwareR` R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
@@ -525,7 +521,7 @@ All code and data for reproducing the analyses are available at: [https://github
 
 *Mishra et al.* [@mishra2020covid] estimate time-varying effective reproduction numbers ($R_t$, the average number of secondary infections caused by an infected individual at time $t$) from case data by combining the renewal equation with a negative binomial observation model.
 
-Our replication composes an AR(2) latent process for log $R_t$ (reusing the AR component from @fig-case-studies), a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
+Our replication composes an AR(2) latent process for log $R_t$ (@fig-case-studies), a renewal infection process [@cori2013new] using a discretised serial interval distribution [@wallinga2007generation], and a negative binomial observation model for case counts.
 We use `AR` to generate the latent log $R_t$ trajectory, `Renewal` to compute expected infections via the renewal equation $I_t = R_t \sum_{s} g_s I_{t-s}$, and `NegativeBinomialError` to link expected infections to observed cases with overdispersion.
 We assemble these components and use Pathfinder [@zhang2022pathfinder] to initialise NUTS sampling.
 
@@ -540,7 +536,7 @@ Panels E-F show posterior predictive distributions for daily cases and time-vary
 
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely used package for real-time situational awareness in infectious disease surveillance, estimating case counts and epidemiological parameters whilst accounting for reporting delays, right-truncation, and day-of-week effects.
 
-Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1 (as shown in @fig-case-studies), extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects.
+Our replication reuses the ARIMA(2,1,1) and negative binomial components from the main text and @sec-example1, extending them with piecewise constant weekly $R_t$ values, incubation period and reporting delay convolutions [@charniga2024best], and day-of-week reporting effects (@fig-case-studies).
 Unlike @sec-example1 which uses the serial interval, this case study uses the generation time distribution; whilst serial intervals are often used as a proxy, this can be problematic [@park2023inferring] and is primarily done when generation time estimates are unavailable [@zhao2020preliminary].
 We use `broadcast_weekly` to convert the ARIMA(2,1,1) process to piecewise constant weekly $R_t$ values, `LatentDelay` to convolve latent infections with incubation period and reporting delay distributions, and `ascertainment_dayofweek` to multiply expected observations by day-of-week effects via a softmax transformation.
 
@@ -553,11 +549,11 @@ Panels E-F show posterior predictive distributions, demonstrating that the model
 
 ## Contemporary statistical inference for infectious disease models using Stan {#sec-example3}
 
-In _Contemporary statistical inference for infectious disease models using Stan_, *Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models.
-We recreate the single strain influenza example using data from @jombart2020outbreaks, introducing the SIR model as an alternative infection generating process to the renewal model used in the previous case studies (@fig-case-studies).
-We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], demonstrating two observation models: a deterministic model with direct Poisson link, and a stochastic model using `Ascertainment` for time-varying effects parameterised as an AR(1) process (equivalent to the time-discretised Ornstein-Uhlenbeck process used by *Chatzilena et al.*).
-The aim of the stochastic component is to absorb noise generated by model mis-specification, improving robustness when the SIR model is an approximation to more complex transmission dynamics.
-A softplus transformation ensures numerical stability when the ODE solver returns small negative values near zero.
+*Chatzilena et al.* [@chatzilena2019contemporary] demonstrate Bayesian inference for compartmental disease models using Stan, fitting an SIR model to single strain influenza outbreak data with both a simple Poisson observation model and a stochastic model with time-varying ascertainment to account for model misspecification and observation error.
+
+Our replication introduces the SIR model as an alternative infection generating process to the renewal model used in the previous case studies (@fig-case-studies).
+We compose an SIR compartmental model using `ODEProcess` from the SciML ecosystem [@rackauckas2017differentialequations], a Poisson observation model, and a stochastic observation model using `Ascertainment` for time-varying effects parameterised as an AR(1) process.
+We use a softplus transformation to ensure numerical stability when the ODE solver returns small negative values.
 
 @fig-sir shows model components and posterior analysis.
 Panels A-B demonstrate prior predictive checks for the SIR dynamics and stochastic observation model including time-varying ascertainment.
