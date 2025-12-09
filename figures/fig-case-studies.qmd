@@ -6,7 +6,7 @@ format:
 ```{mermaid}
 %%| fig-width: 10
 
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '26px', 'fontFamily': 'arial', 'lineColor': '#333'}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '38px', 'fontFamily': 'arial', 'lineColor': '#333'}}}%%
 flowchart LR
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black

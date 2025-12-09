@@ -139,46 +139,46 @@ Finally, we discuss alternative design approaches, evaluate the strengths and li
 
 Based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling [@gelman2020bayesian], we identify the following requirements for composable infectious disease modelling.
 
-Modelling infectious disease dynamics requires quantifying uncertainty at every level because decisions should account for incomplete knowledge about individual infection risk, transmission dynamics, and observation processes.
+Modelling infectious disease dynamics requires quantifying uncertainty at every level because decisions should account for incomplete knowledge about individual infection risk, transmission dynamics, and observation processes [@swallow2022chall].
 A clear separation between distinct model components, infection processes, observation processes, and latent dynamics is also key as these allows reasoning on each of these components separately.
-Because diseases affect populations heterogeneously across age, location, and risk groups, the framework needs to be able to support arbitrary stratification schemes for all components.
+Because diseases affect populations heterogeneously across age, location, and risk groups [@heesterbeek15_modeling], the framework needs to be able to support arbitrary stratification schemes for all components.
 These stratified models should also remain data-agnostic as this allows the model to be generalised to different datasets, tested based on just its prior specification, and used for forecasting.
 Similarly, the book work of supporting multiple strata needs to be abstracted from the user to make the system easier to use but at the same time they need to be able to model relationships between strata to support partial pooling of parameters for sparse data settings.
 To allow for models to be validated, the framework should support nesting models within models and programming over model structure itself, allowing simple components to compose into sophisticated models while remaining individually interrogable for debugging, validation, and mechanistic understanding.
 Treating models as a collection of submodels in this way also enables staged inference, enabling one model's outputs to serve as another's inputs with proper uncertainty propagation as formalised in Markov melding [@goudie2019markov] and cut likelihoods [@plummer2015cuts].
 Model specifications should serve dual purposes, supporting both forward simulation for prior predictive checks and forecasting, and inference when conditioned on observed data, without requiring separate implementations [@gelman2020bayesian].
 This compositional approach requires a clear, concise modelling language so that it can be used by a wide pool of users and so that model specifications can be written quickly but with clarity.
-Supporting modern inference methods is important so that complex models can be fit and this necessitates gradient computation throughout via automatic differentiation.
+Supporting modern inference methods is important so that complex models can be fit.
+This will generally necessitate gradient computation throughout via automatic differentiation.
 It is also important to allow for a wide range of inference methods so that the best approach for a given model/data combination can be used.
-This means supporting abstract back-ends that seamlessly switch between inference approaches.
+This means supporting abstract back-ends to allow seamlessly switching between inference approaches.
 
 We also need to have model components that encapsulate both structure and prior distributions so that domain experts can contribute specialised knowledge: a virologist's understanding of within-host dynamics, an epidemiologist's of contact patterns, a clinician's of disease progression insights without reviewing the entire modelling framework.
 Standardised interfaces between components are needed to allow individual components to work together, to support handling of multiple strata, and to allow for proper uncertainty propagation.
-Such interfaces also enable large language models to serve as model construction agents, composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
+Such interfaces would also enable large language models to serve as model construction agents, composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
 As there are a range of different potential ways to express infectious disease models including ordinary differential equations, agent-based models, network models, stochastic processes, and discrete time models these all need to be supported both independently and in combination.
 Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
 Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches [@philipps2025ude].
 
 # Our approach {#sec-approach}
 
-Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed.
+Meeting these requirements requires programming with probabilities, for which probabilistic programming languages are designed [@vandemeent2018introduction].
 We also need a probabilistic programming language that supports automatic differentiation for modern inference, the ability to program over model structure itself to enable model nesting and composition, and access to as wide an ecosystem as possible to avoid lock-in and enable integration with existing scientific computing tools.
-As far as we are aware, only probabilistic programming languages built in Julia [@Julia-2017] provide the metaprogramming capabilities needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
-Metaprogramming is the ability to write code that generates or manipulates other code, enabling the creation of custom domain-specific syntax and automated code transformations.
-Among Julia's options, `Turing.jl` [@fjelde2025turin] best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and its implementation as a light abstraction layer (a simplified interface that hides complex implementation details whilst enabling access to underlying functionality) on top of the wider Julia ecosystem.
-Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch (programming paradigm where function behaviour is determined by the types of all arguments rather than just the first, enabling automatic selection of the most specific implementation for given inputs) for clean component composition, and accessing the mature SciML ecosystem [@SciML] for differential equations, neural networks [@philipps2025ude], and other scientific computing tools.
+As far as we are aware, only probabilistic programming languages built in Julia [@Julia-2017] provide the metaprogramming capabilities (writing code that generates or manipulates other code) needed to create domain-specific abstractions that can handle arbitrary stratification, standardised interfaces between components, and programming over the model structure.
+Among Julia's PPL options, `Turing.jl` [@fjelde2025turin] best meets our requirements with mature submodel support for nesting models within models, extensive inference algorithm choices, and its implementation as a light abstraction layer (a simplified interface that hides complex implementation details whilst enabling access to underlying functionality) on top of the wider Julia ecosystem.
+Additional benefits of Julia include eliminating the two-language problem, leveraging multiple dispatch (a programming paradigm where function behaviour is determined by the types of all arguments rather than just the first, enabling automatic selection of the most specific implementation for given inputs) for clean component composition, and accessing the mature SciML ecosystem [@SciML] for differential equations, neural networks [@innes2018flux;@philipps2025ude], and other scientific computing tools.
 
-Our approach uses a two-layer architecture with a high-level domain-specific language for epidemiological modelling and a low-level implementation using `Turing.jl`.
+Our approach uses a two-layer architecture with a high-level domain-specific language (DSL) for epidemiological modelling and a low-level implementation using `Turing.jl`.
 Though importantly we are not locked in to this choice as the DSL is agnostic of the backend used.
 This separation enables incremental adoption without rebuilding existing models to use our DSL, with all components remaining functional as standalone tools outside the compositional framework.
-The domain-specific language layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the low-level details of all framework elements.
+The DSL layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the low-level details of all framework elements.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
 
-To demonstrate cross-ecosystem accessibility, we also developed EpiAwareR [@EpiAwareR], an R interface to the prototype using JuliaCall [@JuliaCall].
+To demonstrate cross-ecosystem accessibility, we also developed `EpiAwareR` [@EpiAwareR], an R interface to the prototype using `JuliaCall` [@JuliaCall].
 This enables R users to access the compositional modelling framework without requiring Julia programming knowledge, specifying models using familiar R syntax while gaining access to the full composable component library.
 
-@fig-composable demonstrates how these compositional principles could enable component reuse across different epidemiological applications.
+@fig-composable demonstrates how our proposed approach could enable component reuse across different epidemiological applications.
 Four example applications (wastewater surveillance, biomarker modelling, early outbreak analysis, and incubation period estimation) each compose models from components of different types.
 The schematic also highlights two examples of component reuse.
 The incubation period model appears in all four applications, and the within-host viral kinetics model is shared between biomarker modelling and wastewater surveillance.
@@ -190,10 +190,10 @@ This highlights how components developed for one application could be incorporat
 
 <!-- Reference to Panel A of Figure 1 -->
 
-Our prototype domain-specific language builds on Julia's type system to enable composable epidemiological modelling through two key design patterns.
+Our prototype DSL builds on Julia's type system to enable composable epidemiological modelling through two key design patterns.
 First, abstract types define interfaces that implementations must follow, analogous to contracts specifying what operations a model component must support rather than how it implements them.
 All model components inherit from a parent `AbstractModel` type, establishing a common foundation whilst allowing specialised behaviour through subtypes.
-Second, structures (data containers that group related variables and their types together) contain other structures as fields, a struct-in-struct pattern that allows complex models to be built by nesting simpler components.
+Second, structures (data containers that group related variables and their types together) contain other structures as fields, a struct-in-struct pattern, similar to the approach used in `SpeedyWeather.jl` [@speedyweather2024], that allows complex models to be built by nesting simpler components.
 This pattern enables models to be assembled like building blocks whilst maintaining clear boundaries between different epidemiological processes.
 
 We organise model components into three abstract type hierarchies, each of which inherits from `AbstractModel`, corresponding to distinct epidemiological processes.
@@ -511,7 +511,7 @@ fig_arima
 
 We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models through three case studies: "On the derivation of the renewal equation from an age-dependent branching process" [@mishra2020covid], "EpiNow2: Estimate Real-Time Case Counts and Time-Varying Epidemiological Parameters" [@abbott-epinow2-wellcomeopenres], and "Contemporary statistical inference for infectious disease models using Stan" [@chatzilena2019contemporary].
 Each case study shows how complex models are built by composing reusable components (@fig-case-studies), with full implementation details provided in the Supplementary Information.
-The first two case studies have been replicated using the EpiAwareR R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
+The first two case studies have been replicated using the `EpiAwareR` R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
 
 All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
 
@@ -578,8 +578,8 @@ The approach reduces implementation barriers for methodological advances and ena
 For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement the existing infection, latent, and observation models.
 This modularity also enables interdisciplinary collaboration.
 Domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to understand the full modelling framework or probabilistic programming details.
-The EpiAwareR R interface [@EpiAwareR] demonstrates that our frameworks can bridge software ecosystems.
-Similar interfaces could be built for other languages using existing Julia bridges such as JuliaCall [@PythonCall.jl] for Python.
+The `EpiAwareR` R interface [@EpiAwareR] demonstrates that our frameworks can bridge software ecosystems.
+Similar interfaces could be built for other languages using existing Julia bridges such as `PythonCall.jl` [@PythonCall.jl] for Python.
 Standardised interfaces should also allow large language models to compose models programmatically with validation methods ensuring correctness.
 However, a clear limitation is that this is just a prototype and not designed for ongoing use or adoption.
 For example, we only partially implemented support for automated mappings between latent and observed states, which remains challenging to do well.
@@ -681,7 +681,7 @@ We acknowledge the financial support from Wellcome 210758/Z/18/Z (S.F.).
 
 ## AI disclosure {.appendix}
 
-Claude Sonnet 4.5 (https://www.anthropic.com/claude/sonnet) and Claude Opus 4.5 (https://www.anthropic.com/claude/opus) were used to assist with preparation of the manuscript text and as part of code review for the EpiAware and EpiAwareR packages and the analysis applying them to the case studies presented here.
+Claude Sonnet 4.5 (https://www.anthropic.com/claude/sonnet) and Claude Opus 4.5 (https://www.anthropic.com/claude/opus) were used to assist with preparation of the manuscript text and as part of code review for the `EpiAware` and `EpiAwareR` packages and the analysis applying them to the case studies presented here.
 
 # References {.unnumbered}
 
