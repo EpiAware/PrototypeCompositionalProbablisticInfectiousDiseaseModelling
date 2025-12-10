@@ -1,5 +1,5 @@
 ---
-title: "A prototype for compositional probabilistic infectious disease modelling"
+title: "The case for composable probabilistic infectious disease models"
 authors:
   - name: "Sam Abbott"
     affiliations:
