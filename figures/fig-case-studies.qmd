@@ -6,7 +6,7 @@ format:
 ```{mermaid}
 %%| fig-width: 24
 
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '64px', 'fontFamily': 'arial', 'lineColor': '#333'}, 'flowchart': {'htmlLabels': false, 'nodeSpacing': 160, 'rankSpacing': 160, 'padding': 40}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '64px', 'fontFamily': 'arial', 'lineColor': '#333'}, 'flowchart': {'htmlLabels': false, 'nodeSpacing': 80, 'rankSpacing': 80, 'padding': 40}}}%%
 flowchart LR
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:6px,color:black,padding:20px
