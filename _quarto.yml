@@ -38,6 +38,7 @@ format:
         \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=1.0\textwidth,keepaspectratio]{#2}}
         \makeatother
   ipynb: default
+  docx: default
 
 bibliography: references.bib
 csl: https://www.zotero.org/styles/plos-computational-biology

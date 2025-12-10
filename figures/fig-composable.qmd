@@ -4,175 +4,177 @@ format:
 ---
 
 ```{mermaid}
-%%| fig-width: 10
+%%| fig-width: 24
 
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '38px', 'fontFamily': 'arial', 'lineColor': '#333'}, 'flowchart': {'diagramPadding': 60, 'htmlLabels': true, 'curve': 'basis', 'padding': 25}}}%%
-flowchart TB
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '64px', 'fontFamily': 'arial', 'lineColor': '#333'}, 'flowchart': {'diagramPadding': 60, 'htmlLabels': false, 'nodeSpacing': 80, 'rankSpacing': 80, 'padding': 40}}}%%
+flowchart LR
     %% Class definitions
-    classDef infection fill:#9fc5e8,stroke:#333,stroke-width:1px,color:black
-    classDef observation fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black
-    classDef statistical fill:#ff9900,stroke:#333,stroke-width:1px,color:black
-    classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:1px,color:black
-    classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:1px,color:black
-    classDef observationModel fill:#b6d7a8,stroke:#333,stroke-width:1px,color:black
-    classDef title fill:none,stroke:#333,stroke-width:1px,color:black,font-weight:bold
-    classDef sharedModel stroke:#6600cc,stroke-width:3px,stroke-dasharray:5 5,fill:#f3e5f5,color:black
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black
+    classDef infection fill:#9fc5e8,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef observation fill:#b6d7a8,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef statistical fill:#ff9900,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef observationModel fill:#b6d7a8,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef title fill:none,stroke:none,color:black,font-weight:bold
+    classDef sharedModel stroke:#6600cc,stroke-width:6px,stroke-dasharray:5 5,fill:#f3e5f5,color:black,padding:20px
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:6px,color:black,padding:20px
 
-    %% Top row: Applications
-    subgraph TopRow[" "]
-        direction LR
+    %% ===== ROW 1: Shared Models =====
+    subgraph SharedModelsRow[" "]
+        direction TB
 
-        %% Early Outbreak Analysis
-        subgraph EarlyOutbreak[" "]
-            direction LR
-            EOA_Title["Early Outbreak Analysis"]:::title
-            EOA_InfectionRef["Latent Infection"]:::sharedModel
-            EOA_Infections["Infections"]:::infection
-            EOA_IncubationRef["Incubation Period"]:::sharedModel
-            EOA_CaseObsRef["Case Observation"]:::sharedModel
-
-            %% Connections
-            EOA_InfectionRef ==> EOA_Infections
-            EOA_Infections --> EOA_IncubationRef
-            EOA_IncubationRef --> EOA_CaseObsRef
-        end
-
-        %% Within-host Biomarker Modelling
-        subgraph BiomarkerModelling[" "]
-            direction LR
-            BM_Title["Biomarker Modelling"]:::title
-            BM_InfectionRef["Latent Infection"]:::sharedModel
-            BM_Infections["Infections"]:::infection
-            BM_ViralKineticsRef["Viral Kinetics"]:::sharedModel
-            BM_IncubationRef["Incubation Period"]:::sharedModel
-            BM_VL["Viral Load"]:::epiLatent
-            BM_OM1["PCR Testing"]:::observationModel
-            BM_OM2["Symptom Onset Data"]:::observationModel
-
-            %% Connections
-            BM_InfectionRef ==> BM_Infections
-            BM_Infections --> BM_ViralKineticsRef
-            BM_Infections --> BM_IncubationRef
-            BM_ViralKineticsRef --> BM_VL
-            BM_VL --> BM_OM1
-            BM_IncubationRef --> BM_OM2
-        end
-
-    %% Wastewater Analysis
-    subgraph Wastewater[" "]
-        direction LR
-        WW_Title["Wastewater Surveillance"]:::title
-            WW_InfectionRef["Latent Infection"]:::sharedModel
-            WW_Infections["Infections"]:::infection
-            WW_IncubationRef["Incubation Period"]:::sharedModel
-            WW_ViralKineticsRef["Viral Kinetics"]:::sharedModel
-            WW_Shedding["Viral Shedding"]:::epiLatent
-            WW_EnvDeg["Environmental Decay"]:::observationModifier
-            WW_OM1["Wastewater Signal"]:::observationModel
-            WW_CaseObsRef["Case Observation"]:::sharedModel
-
-            %% Connections
-            WW_InfectionRef ==> WW_Infections
-            WW_Infections --> WW_ViralKineticsRef
-            WW_Infections --> WW_IncubationRef
-            WW_ViralKineticsRef --> WW_Shedding
-            WW_Shedding --> WW_EnvDeg
-            WW_EnvDeg --> WW_OM1
-            WW_IncubationRef --> WW_CaseObsRef
-        end
-
-        %% Incubation Period Estimation
-        subgraph IncubationEst[" "]
-            direction LR
-            IE_Title["Incubation period estimation"]:::title
-            IE_IncubationRef["Incubation Period"]:::sharedModel
-            IE_OnsetData["Symptom onset data"]:::observationModel
-
-            %% Internal connections
-            IE_IncubationRef --> IE_OnsetData
-        end
-    end
-
-    %% Bottom row: Shared Models
-    subgraph BottomRow[" "]
-        direction LR
-
-        %% Shared Latent Infection Model
-        subgraph SharedInfection[" "]
-            direction LR
-            SLI_Title["Latent infection model"]:::title
-            SLI_GP["Gaussian Process"]:::statistical
-            SLI_Renewal["Renewal Process"]:::infection
-            SLI_Infections["Infections"]:::infection
-
-            %% Internal connections
-            SLI_GP -.-> SLI_Renewal
-            SLI_Renewal ==> SLI_Infections
-        end
-
-        %% Shared Incubation Period Model
-        subgraph SharedIncubation[" "]
-            direction LR
-            SIP_Title["Incubation period model"]:::title
-            SIP_Infections["Infection times"]:::infection
-            SIP_Delay["Delay"]:::observationModifier
-            SIP_Onset["Symptom onset times"]:::infection
-
-            %% Internal connections
-            SIP_Infections --> SIP_Delay
-            SIP_Delay --> SIP_Onset
-        end
-
-        %% Shared Case Observation Model
+        %% Col 1: Case Obs (vertical)
         subgraph SharedCaseObs[" "]
-            direction LR
-            SCO_Title["Case observation model"]:::title
-            SCO_Input["Symptom onsets"]
-            SCO_RD["Reporting Delay"]:::observationModifier
-            SCO_Asc["Ascertainment"]:::observationModifier
-            SCO_RT["Right Truncation"]:::observationModifier
-            SCO_Cases["Case Reports"]:::observationModel
+            direction TB
+            SCO_Title(["Case observation model"]):::title
+            SCO_Input(["Symptom onsets"])
+            SCO_RD(["Reporting Delay"]):::observationModifier
+            SCO_Asc(["Ascertainment"]):::observationModifier
+            SCO_RT(["Right Truncation"]):::observationModifier
+            SCO_Cases(["Case Reports"]):::observationModel
 
-            %% Internal connections
-            SCO_Input --> SCO_RD
-            SCO_RD --> SCO_Asc
-            SCO_Asc --> SCO_RT
-            SCO_RT --> SCO_Cases
+            SCO_Input ==> SCO_RD
+            SCO_RD ==> SCO_Asc
+            SCO_Asc ==> SCO_RT
+            SCO_RT ==> SCO_Cases
         end
 
-        %% Shared Viral Kinetics Model
+        %% Col 2: Viral Kinetics (vertical)
         subgraph SharedViralKinetics[" "]
-            direction LR
-            SVK_Title["Viral kinetics model"]:::title
-            SVK_Infection["Infection Time"]
-            SVK_VL["Viral Load Trajectory"]:::epiLatent
-            SVK_Peak["Peak Viral Load"]:::epiLatent
-            SVK_Shedding["Viral Shedding"]:::epiLatent
+            direction TB
+            SVK_Title(["Viral kinetics model"]):::title
+            SVK_Infection(["Infection Time"])
+            SVK_VL(["Viral Load Trajectory"]):::epiLatent
+            SVK_Peak(["Peak Viral Load"]):::epiLatent
+            SVK_Shedding(["Viral Shedding"]):::epiLatent
 
-            %% Internal connections
-            SVK_Infection --> SVK_VL
-            SVK_VL --> SVK_Peak
-            SVK_VL --> SVK_Shedding
+            SVK_Infection ==> SVK_VL
+            SVK_VL ==> SVK_Peak
+            SVK_VL ==> SVK_Shedding
+        end
+
+        %% Col 3: Latent Infection + Incubation stacked vertically (both horizontal internally)
+        subgraph SharedCol3[" "]
+            direction LR
+
+            subgraph SharedInfection[" "]
+                direction LR
+                SLI_Title(["Latent infection model"]):::title
+                SLI_GP(["Gaussian Process"]):::statistical
+                SLI_Renewal(["Renewal Process"]):::infection
+                SLI_Infections(["Infections"]):::infection
+
+                SLI_GP ==> SLI_Renewal
+                SLI_Renewal ==> SLI_Infections
+            end
+
+            subgraph SharedIncubation[" "]
+                direction LR
+                SIP_Title(["Incubation period model"]):::title
+                SIP_Infections(["Infection times"]):::infection
+                SIP_Delay(["Delay"]):::observationModifier
+                SIP_Onset(["Symptom onset times"]):::infection
+
+                SIP_Infections ==> SIP_Delay
+                SIP_Delay ==> SIP_Onset
+            end
         end
     end
 
-    %% Style for main sections
-    style TopRow fill:none,stroke:none
-    style BottomRow fill:none,stroke:none
+    %% ===== ROW 2: Applications =====
+    subgraph ApplicationsRow[" "]
+        direction TB
+
+        %% Col 1: Wastewater (vertical)
+        subgraph Wastewater[" "]
+            direction TB
+            WW_Title(["Wastewater Surveillance"]):::title
+            WW_InfectionRef(["Latent Infection Model"]):::sharedModel
+            WW_Infections(["Infections"]):::infection
+            WW_ViralKineticsRef(["Viral Kinetics Model"]):::sharedModel
+            WW_IncubationRef(["Incubation Period Model"]):::sharedModel
+            WW_Shedding(["Viral Shedding"]):::epiLatent
+            WW_EnvDeg(["Environmental Decay"]):::observationModifier
+            WW_OM1(["Wastewater Signal"]):::observationModel
+            WW_CaseObsRef(["Case Observation Model"]):::sharedModel
+
+            WW_InfectionRef ==> WW_Infections
+            WW_Infections ==> WW_ViralKineticsRef
+            WW_Infections ==> WW_IncubationRef
+            WW_ViralKineticsRef ==> WW_Shedding
+            WW_Shedding ==> WW_EnvDeg
+            WW_EnvDeg ==> WW_OM1
+            WW_IncubationRef ==> WW_CaseObsRef
+        end
+
+        %% Col 2: Biomarker (vertical)
+        subgraph BiomarkerModelling[" "]
+            direction TB
+            BM_Title(["Biomarker Modelling"]):::title
+            BM_InfectionRef(["Latent Infection Model"]):::sharedModel
+            BM_Infections(["Infections"]):::infection
+            BM_ViralKineticsRef(["Viral Kinetics Model"]):::sharedModel
+            BM_IncubationRef(["Incubation Period Model"]):::sharedModel
+            BM_VL(["Viral Load"]):::epiLatent
+            BM_OM1(["PCR Testing"]):::observationModel
+            BM_OM2(["Symptom Onset Data"]):::observationModel
+
+            BM_InfectionRef ==> BM_Infections
+            BM_Infections ==> BM_ViralKineticsRef
+            BM_Infections ==> BM_IncubationRef
+            BM_ViralKineticsRef ==> BM_VL
+            BM_VL ==> BM_OM1
+            BM_IncubationRef ==> BM_OM2
+        end
+
+        %% Col 3: Early Outbreak (vertical) with Incubation Est (horizontal) below
+        subgraph AppCol3[" "]
+            direction LR
+
+            subgraph EarlyOutbreak[" "]
+                direction TB
+                EOA_Title(["Early Outbreak Analysis"]):::title
+                EOA_InfectionRef(["Latent Infection Model"]):::sharedModel
+                EOA_Infections(["Infections"]):::infection
+                EOA_IncubationRef(["Incubation Period Model"]):::sharedModel
+                EOA_CaseObsRef(["Case Observation Model"]):::sharedModel
+
+                EOA_InfectionRef ==> EOA_Infections
+                EOA_Infections ==> EOA_IncubationRef
+                EOA_IncubationRef ==> EOA_CaseObsRef
+            end
+
+            subgraph IncubationEst[" "]
+                direction LR
+                IE_Title(["Incubation period estimation"]):::title
+                IE_IncubationRef(["Incubation Period Model"]):::sharedModel
+                IE_OnsetData(["Symptom onset data"]):::observationModel
+
+                IE_IncubationRef ==> IE_OnsetData
+            end
+        end
+    end
+
+    %% Style for main section boxes
+    style SharedModelsRow fill:#f3e5f5,stroke:#6600cc,stroke-width:8px,stroke-dasharray:8 8,color:black,padding:20px
+    style ApplicationsRow fill:none,stroke:none
+
+    %% Style for column subgraphs (invisible)
+    style SharedCol3 fill:none,stroke:none
+    style AppCol3 fill:none,stroke:none
 
     %% Style for application subgraphs (light grey background like case studies)
-    style EarlyOutbreak fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black,padding:15px
-    style BiomarkerModelling fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black,padding:15px
-    style Wastewater fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black,padding:15px
-    style IncubationEst fill:#f9f9f9,stroke:#333,stroke-width:1px,color:black,padding:15px
+    style EarlyOutbreak fill:#f9f9f9,stroke:#333,stroke-width:8px,color:black,padding:15px
+    style BiomarkerModelling fill:#f9f9f9,stroke:#333,stroke-width:8px,color:black,padding:15px
+    style Wastewater fill:#f9f9f9,stroke:#333,stroke-width:8px,color:black,padding:15px
+    style IncubationEst fill:#f9f9f9,stroke:#333,stroke-width:8px,color:black,padding:15px
 
-    %% Style for shared model subgraphs (highlighted with purple border and light fill)
-    style SharedInfection fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
-    style SharedIncubation fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
-    style SharedCaseObs fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
-    style SharedViralKinetics fill:#f3e5f5,stroke:#6600cc,stroke-width:2px,stroke-dasharray:5 5,color:black,padding:15px
+    %% Style for shared model subgraphs (invisible - contained in SharedModelsRow)
+    style SharedInfection fill:none,stroke:none
+    style SharedIncubation fill:none,stroke:none
+    style SharedCaseObs fill:none,stroke:none
+    style SharedViralKinetics fill:none,stroke:none
 
-    %% Thicker lines for all connections
-    linkStyle default stroke:#333,stroke-width:2px
+    %% Make link lines thicker
+    linkStyle default stroke-width:12px
 ```
