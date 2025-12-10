@@ -992,8 +992,7 @@ Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-bas
 The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
 Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, though we modify their specifications to improve numerical stability and prior interpretability.
 *Chatzilena et al.* use $\text{Gamma}(0.004, 0.002)$ (shape, rate parameterisation) for the recovery rate, which has shape < 1 and places most prior mass near zero.
-While this acts as a weakly informative prior, it creates numerical difficulties during sampling as $\gamma \to 0$ implies $R_0 \to \infty$.
-We instead use $\text{Gamma}(2, 0.125)$ which has a prior mean of 0.25, implying a mean 4-day infectious period appropriate for influenza, while ensuring the prior is bounded away from zero.
+While this acts as a weakly informative prior, it creates numerical difficulties during sampling as $\gamma \to 0$ implies $R_0 \to \infty$.We instead use $\text{Gamma}(8, 0.03125)$ which has a prior mean of 0.25, implying a mean 4-day infectious period appropriate for influenza, while ensuring the prior is bounded away from zero.
 *Chatzilena et al.* use $\text{LogNormal}(0, 1)$ for the transmission rate, which combined with their recovery rate prior ensures $R_0 > 1$ but with extreme values.
 We instead use $\text{LogNormal}(-0.5, 0.5)$ which, combined with our recovery rate prior, implies an $R_0$ prior with median approximately 3 and 10% prior probability of $R_0 < 1$, providing a more interpretable weakly informative prior for influenza.
 We use $\text{Beta}(1, 99)$ for the initial proportion infected to concentrate prior mass near small outbreak initiations.
@@ -1004,7 +1003,7 @@ Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 sir_params = SIRParams(
     tspan = (0.0, england_data.ts[end]),
     infectiousness = LogNormal(-0.5, 0.5),
-    recovery_rate = Gamma(2, 0.125),
+    recovery_rate = Gamma(8, 0.03125),
     initial_prop_infected = Beta(1, 99)
 )
 ```
