@@ -19,7 +19,9 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 ## Citation
 
-*Citation information will be added upon publication.*
+*Paper citation information will be added upon publication.*
+
+If reusing the code, please cite using DOI: [10.5281/zenodo.17884675](https://doi.org/10.5281/zenodo.17884675). See [CITATION.cff](CITATION.cff) for full citation information.
 
 ## Prerequisites
 

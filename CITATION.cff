@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Code and data for: The case for composable probabilistic infectious disease models"
+type: software
+authors:
+  - family-names: Abbott
+    given-names: Sam
+    orcid: https://orcid.org/0000-0001-8057-8037
+  - family-names: Brand
+    given-names: Samuel P. C.
+    orcid: https://orcid.org/0000-0003-0645-5367
+  - family-names: Ge
+    given-names: Hong
+    orcid: https://orcid.org/0000-0001-9421-2677
+  - family-names: Johnson
+    given-names: Kaitlyn E.
+    orcid: https://orcid.org/0000-0001-8011-0012
+  - family-names: Cori
+    given-names: Anne
+    orcid: https://orcid.org/0000-0002-8443-9162
+  - family-names: Funk
+    given-names: Sebastian
+    orcid: https://orcid.org/0000-0002-2842-3406
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.17884675
+    description: Zenodo archive
+repository-code: "https://github.com/EpiAware/CaseForComposableIDModels"
+url: "https://epiaware.org/CaseForComposableIDModels/"
+license: MIT
+version: "1.0.0"
+date-released: "2025-06-10"
+keywords:
+  - epidemiology
+  - infectious disease modelling
+  - composable models
+  - probabilistic programming
+  - Julia
+  - Bayesian inference
