@@ -26,7 +26,7 @@ Random.seed!(1234)
 # Setup
 
 This supplementary document contains the full implementation details for the case studies presented in the main text.
-The code here demonstrates how our prototype compositional modelling DSL recreates and extends existing epidemiological models.
+The code here demonstrates how our proof of concept compositional modelling DSL recreates and extends existing epidemiological models.
 
 ## Required definitions
 
@@ -75,7 +75,7 @@ arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 
 # Case studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
+We demonstrate how our proof of concept compositional modelling DSL can recreate and extend existing epidemiological models.
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
@@ -526,11 +526,11 @@ save("figures/fig-mishra.png", fig_mishra)
 fig_mishra
 ```
 
-@fig-mishra shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
+@fig-mishra shows that the compositional model defined using our proof of concept recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
 
 ## EpiNow2: Estimate real-time case counts and time-varying epidemiological parameters {#sec-example2}
 
-In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
+In this case study, we replicate a common `EpiNow2` configuration using our proof of concept framework.
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
 `EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from the main text and @sec-example1 and composing them with new delay and temporal effect components.
 
