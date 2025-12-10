@@ -510,7 +510,7 @@ We demonstrate our prototype compositional modelling DSL by recreating three pub
 
 We provide an overview of each case study in the following subsections, with full implementation details in the Supplementary Information.
 The first two case studies have also been replicated using the `EpiAwareR` R interface [@EpiAwareR], with R implementations available in the package vignettes, demonstrating cross-ecosystem accessibility.
-All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/CaseForComposableIDModels](https://github.com/EpiAware/CaseForComposableIDModels).
 
 ![Model structure for the ARIMA example and three case studies showing component reuse. The ARIMA Example panel shows how AR(2) and MA(1) components compose into ARIMA(2,1,1) with Exp transformation and Poisson observation. Mishra et al. reuses the AR(2) component for modelling time-varying Rt combined with a Renewal infection process and Negative Binomial observation. EpiNow2 extends this by reusing the full ARIMA structure with weekly broadcasting, adding Latent Delay for reporting delays and day-of-week ascertainment effects. Chatzilena et al. demonstrates an alternative infection process using a SIR ODE with Softplus transformation, scaled by population size N, and AR(1)-based time-varying ascertainment. Colours indicate component types: statistical models (orange), infection processes and latent infection quantities (light blue), epidemiological parameters (purple), observation modifiers (red), broadcasting operations (peach), transformations (white), and observation models (green).](figures/fig-case-studies.png){#fig-case-studies width="100%"}
 
@@ -672,7 +672,7 @@ We thank Poppy for growling as needed.
 
 ## Data and software availability {.appendix}
 
-All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+All code and data for reproducing the analyses are available at: [https://github.com/EpiAware/CaseForComposableIDModels](https://github.com/EpiAware/CaseForComposableIDModels).
 
 ## Funding information {.appendix}
 

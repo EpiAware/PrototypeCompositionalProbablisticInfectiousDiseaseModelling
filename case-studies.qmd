@@ -81,7 +81,7 @@ The examples progress from simple renewal models to more complex observation pro
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
 The EpiAwareR package vignettes provide step-by-step R implementations showing how R users can compose the same models using familiar syntax.
 
-All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/CaseForComposableIDModels](https://github.com/EpiAware/CaseForComposableIDModels).
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
