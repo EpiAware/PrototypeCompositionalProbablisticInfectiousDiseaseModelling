@@ -51,6 +51,10 @@ case-studies.ipynb
 
 # Generated figures from case-studies
 figures/fig-*.pdf
+figures/fig-arima.png
+figures/fig-epinow2.png
+figures/fig-mishra.png
+figures/fig-sir.png
 
 # Mermaid HTML outputs and Quarto file folders
 figures/*.html

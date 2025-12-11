@@ -1,17 +1,17 @@
-# A prototype for compositional probabilistic infectious disease modelling
+# The case for composable probabilistic infectious disease models
 
-[![Render and Deploy Quarto Paper](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml/badge.svg?branch=main)](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/actions/workflows/render-and-deploy.yml)
-[![Citation](https://img.shields.io/badge/Cite-CFF-blue)](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/blob/main/CITATION.cff)
+[![Render and Deploy Quarto Paper](https://github.com/EpiAware/CaseForComposableIDModels/actions/workflows/render-and-deploy.yml/badge.svg?branch=main)](https://github.com/EpiAware/CaseForComposableIDModels/actions/workflows/render-and-deploy.yml)
+[![Citation](https://img.shields.io/badge/Cite-CFF-blue)](https://github.com/EpiAware/CaseForComposableIDModels/blob/main/CITATION.cff)
 
 ## Abstract
 
-Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from clinical medicine, environmental science, behavioural research, and public health to accurately capture transmission processes, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. In this work, we start by outlining the key requirements for a composable infectious disease modelling framework and then present a prototype that addresses these requirements through composable epidemiological components built on Julia's type system and Turing.jl. Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components. Through three case studies using the prototype, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects for real-time nowcasting applications. The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data. We explore other potential options and compare them to our proposed approach. The prototype demonstrates promise but future work is needed to solve remaining composability challenges, expand the component library, and integrate bridges to existing epidemiological software ecosystems.
+Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making. Effective models require integration of expert domain knowledge from multiple domains such as clinical medicine, environmental science, behavioural research, and public health, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, losing information and potentially introducing bias, or joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. In this work, we start by outlining proposed requirements for a composable infectious disease modelling framework and then present a proof of concept that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. We demonstrate a prototype R interface showing how such frameworks can bridge software ecosystems. Through three case studies, we show how components can be reused across different models whilst maintaining statistical rigour. The first replicates a COVID-19 analysis for South Korea using a renewal process with time-varying reproduction numbers. The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool. The third replicates an SIR model analysis of influenza outbreak data, integrating ODE solvers. We then discuss strengths, limitations, and alternative approaches. Our approach demonstrates promise for enabling interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development. Future work is needed to solve remaining composability challenges, explore other options, expand the component library, and explore opportunities for large language model assisted model construction.
 
-📖 **[Read the paper](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/paper.pdf)** (PDF)
+📖 **[Read the paper](https://epiaware.org/CaseForComposableIDModels/paper.pdf)** (PDF)
 
-🌐 **[Read the paper online](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/paper.html)** (HTML)
+🌐 **[Read the paper online](https://epiaware.org/CaseForComposableIDModels/paper.html)** (HTML)
 
-📑 **[Supplementary Information: Case Studies](https://epiaware.org/PrototypeCompositionalProbablisticInfectiousDiseaseModelling/case-studies.html)** (HTML)
+📑 **[Supplementary Information: Case Studies](https://epiaware.org/CaseForComposableIDModels/case-studies.html)** (HTML)
 
 📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
 
@@ -19,7 +19,9 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 ## Citation
 
-*Citation information will be added upon publication.*
+*Paper citation information will be added upon publication.*
+
+If reusing the code, please cite using DOI: [10.5281/zenodo.17884675](https://doi.org/10.5281/zenodo.17884675). See [CITATION.cff](CITATION.cff) for full citation information.
 
 ## Prerequisites
 

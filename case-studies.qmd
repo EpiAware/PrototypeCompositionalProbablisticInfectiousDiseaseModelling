@@ -26,7 +26,7 @@ Random.seed!(1234)
 # Setup
 
 This supplementary document contains the full implementation details for the case studies presented in the main text.
-The code here demonstrates how our prototype compositional modelling DSL recreates and extends existing epidemiological models.
+The code here demonstrates how our proof of concept compositional modelling DSL recreates and extends existing epidemiological models.
 
 ## Required definitions
 
@@ -75,13 +75,13 @@ arima211 = DiffLatentModel(arma21, Normal(0, 0.2); d=1)
 
 # Case studies {#sec-case-studies}
 
-We demonstrate how our prototype compositional modelling DSL can recreate and extend existing epidemiological models.
+We demonstrate how our proof of concept compositional modelling DSL can recreate and extend existing epidemiological models.
 Each case study shows how complex models are built by composing reusable components, validating their behaviour through prior predictive checks, and fitting them to real data.
 The examples progress from simple renewal models to more complex observation processes that account for reporting delays and temporal effects.
 The first two case studies have also been replicated using the EpiAwareR R interface [@EpiAwareR], in order to demonstrate cross-ecosystem accessibility.
 The EpiAwareR package vignettes provide step-by-step R implementations showing how R users can compose the same models using familiar syntax.
 
-All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling](https://github.com/EpiAware/PrototypeCompositionalProbablisticInfectiousDiseaseModelling).
+All code and data for reproducing the analyses in this paper are available at: [https://github.com/EpiAware/CaseForComposableIDModels](https://github.com/EpiAware/CaseForComposableIDModels).
 
 ## On the derivation of the renewal equation from an age-dependent branching process: an epidemic modelling perspective {#sec-example1}
 
@@ -526,11 +526,11 @@ save("figures/fig-mishra.png", fig_mishra)
 fig_mishra
 ```
 
-@fig-mishra shows that the compositional model defined using our prototype system recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
+@fig-mishra shows that the compositional model defined using our proof of concept recovers the main finding in *Mishra et al*; that the $R_t$ in South Korea peaked at a very high value ($R_t \sim 10$ at peak, @fig-mishra F) before rapidly dropping below 1 in early March 2020, with the model capturing both the epidemic trajectory and day-to-day variation in case counts (@fig-mishra E).
 
 ## EpiNow2: Estimate real-time case counts and time-varying epidemiological parameters {#sec-example2}
 
-In this case study, we replicate a common `EpiNow2` configuration using our prototype framework.
+In this case study, we replicate a common `EpiNow2` configuration using our proof of concept framework.
 `EpiNow2` [@abbott-epinow2-wellcomeopenres] is a widely-used R package for estimating the time-varying reproduction number and making forecasts for epidemics in real-time.
 `EpiNow2` is built around three core modeling components that work together to reconstruct epidemic dynamics from delayed and noisy case count observations. These are: a discrete renewal equation to model how new infections arise from previous infections, weighted by the generation time distribution (the time between successive infections in a transmission chain); the delay between infection and case reporting, which typically involves multiple sequential delays including incubation periods and reporting lags; observation error to capture overdispersion and model misspecification, with additional modifiers such as day-of-week effects, and underascertainment to account for biases in reporting patterns. We recreate the core `EpiNow2` functionality by reusing model components from the main text and @sec-example1 and composing them with new delay and temporal effect components.
 
@@ -990,16 +990,20 @@ Unlike the renewal models in previous case studies, the SIR model does not requi
 
 Our prototype provides `SIRParams` and `ODEProcess` structs for defining ODE-based infection models.
 The `SIRParams` struct specifies priors for the transmission rate $\beta$, recovery rate $\gamma$, and initial proportion infected.
-Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, but with a tighter prior for the transmission rate (`LogNormal(0.5, 0.25)`) to reduce prior mass on extreme values.
-We also use a more informative prior `Beta(1, 99)` for the initial proportion infected to concentrate prior mass near small outbreak initiations.
+Following *Chatzilena et al.*, we use log-normal and gamma priors for $\beta$ and $\gamma$, though we modify their specifications to improve numerical stability and prior interpretability.
+*Chatzilena et al.* use $\text{Gamma}(0.004, 0.002)$ (shape, rate parameterisation) for the recovery rate, which has shape < 1 and places most prior mass near zero.
+While this acts as a weakly informative prior, it creates numerical difficulties during sampling as $\gamma \to 0$ implies $R_0 \to \infty$.We instead use $\text{Gamma}(8, 0.03125)$ which has a prior mean of 0.25, implying a mean 4-day infectious period appropriate for influenza, while ensuring the prior is bounded away from zero.
+*Chatzilena et al.* use $\text{LogNormal}(0, 1)$ for the transmission rate, which combined with their recovery rate prior ensures $R_0 > 1$ but with extreme values.
+We instead use $\text{LogNormal}(-0.5, 0.5)$ which, combined with our recovery rate prior, implies an $R_0$ prior with median approximately 3 and 10% prior probability of $R_0 < 1$, providing a more interpretable weakly informative prior for influenza.
+We use $\text{Beta}(1, 99)$ for the initial proportion infected to concentrate prior mass near small outbreak initiations.
 Prior predictive samples (@fig-sir A) show the resulting SIR trajectories.
 
 ```{julia}
 #| output: false
 sir_params = SIRParams(
     tspan = (0.0, england_data.ts[end]),
-    infectiousness = LogNormal(0.5, 0.25),
-    recovery_rate = Gamma(0.004, 1 / 0.002),
+    infectiousness = LogNormal(-0.5, 0.5),
+    recovery_rate = Gamma(8, 0.03125),
     initial_prop_infected = Beta(1, 99)
 )
 ```
@@ -1286,16 +1290,16 @@ fig_sir = let
     end
     lines!(ax12, prior_ts, softplus.(latent_infections); color=:red, linewidth=3, label="Expected")
 
-    # Panel C: Prior and posterior R0 comparison (filter to 0-8 range)
-    R0_filter = x -> filter(v -> 0 < v < 8, x)
+    # Panel C: Prior and posterior R0 comparison (filter to 0-6 range)
+    R0_filter = x -> filter(v -> 0 < v < 6, x)
     density!(ax13, R0_filter(prior_R0), label="Prior",
         color=(:grey, 0.3), strokecolor=:black, strokewidth=2)
     density!(ax13, R0_filter(deterministic_R0), label="Deterministic",
         color=(:blue, 0.5), strokecolor=:blue, strokewidth=2)
     density!(ax13, R0_filter(stochastic_R0), label="Stochastic",
         color=(:orange, 0.5), strokecolor=:orange, strokewidth=2)
-    xlims!(ax13, 0, 8)
-    axislegend(ax13)
+    xlims!(ax13, 0, 6)
+    axislegend(ax13, position=:lt)
 
     # Panel D: Posterior S and I compartments (both models)
     # Get posterior solutions for stochastic model too
@@ -1353,6 +1357,7 @@ fig_sir = let
     ax11_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
     ax21_S.ytickformat = values -> [string(round(v, digits=2)) for v in values]
     ax21_I.ytickformat = values -> [string(round(v, digits=2)) for v in values]
+    ax23.ytickformat = values -> [string(round(v, digits=1)) for v in values]
 
     # Add panel labels
     for (label, layout) in zip(["A", "B", "C", "D", "E", "F"],

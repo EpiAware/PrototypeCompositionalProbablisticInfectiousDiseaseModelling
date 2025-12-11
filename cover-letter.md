@@ -15,7 +15,7 @@ Our approach enables "LEGO-like" model construction where complex models emerge 
 We validate the approach through three case studies that recreate published epidemiological analyses, demonstrating that components can be reused across different models whilst maintaining statistical rigour.
 The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers.
 The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool.
-The third integrates ODE solvers for compartmental disease transmission models applied to influenza outbreak data.
+The third replicates an SIR model analysis of influenza outbreak data, integrating ODE solvers.
 
 We believe this work fits the Epidemiology & Public Health section, specifically addressing process-based approaches to infectious disease modelling.
 The framework enables interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development, and establishes requirements for future composable modelling systems that can respond to unpredictable infectious disease threats.

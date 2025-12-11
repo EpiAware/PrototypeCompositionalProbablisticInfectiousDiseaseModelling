@@ -25,19 +25,20 @@ format:
     notebook-links: false
     echo: true
     output: true
-    fig-width: 7
-    fig-height: 5
+    fig-width: 8
+    fig-height: 6
     fig-format: pdf
     fig-dpi: 300
     include-in-header:
       text: |
         \usepackage{graphicx}
-        \setkeys{Gin}{width=0.8\textwidth,height=!,keepaspectratio}
+        \setkeys{Gin}{width=0.9\textwidth,height=!,keepaspectratio}
         \makeatletter
         \let\oldincludegraphics\includegraphics
         \renewcommand{\includegraphics}[2][]{\oldincludegraphics[width=1.0\textwidth,keepaspectratio]{#2}}
         \makeatother
   ipynb: default
+  docx: default
 
 bibliography: references.bib
 csl: https://www.zotero.org/styles/plos-computational-biology

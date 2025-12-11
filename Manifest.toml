@@ -899,7 +899,7 @@ version = "0.0.195+0"
 
 [[deps.EpiAware]]
 deps = ["ADTypes", "AbstractMCMC", "AdvancedHMC", "DataFramesMeta", "Distributions", "DocStringExtensions", "DynamicPPL", "FillArrays", "LinearAlgebra", "LogExpFunctions", "MCMCChains", "OrdinaryDiffEq", "Pathfinder", "PrettyPrinting", "QuadGK", "Random", "Reexport", "SparseArrays", "Statistics", "Tables", "Turing"]
-git-tree-sha1 = "d35534eccc112b0ecee46112dd539ef7ff21fdb8"
+git-tree-sha1 = "a25c79ebe00492eaae452c4770254c462f9e82c8"
 path = "EpiAware/EpiAware"
 repo-rev = "main"
 repo-subdir = "EpiAware"
