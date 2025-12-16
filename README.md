@@ -15,7 +15,7 @@ Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of mode
 
 📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
 
-📦 **[EpiAwareR Documentation](https://sbfnk.github.io/EpiAwareR/)** | [GitHub](https://github.com/sbfnk/EpiAwareR)
+📦 **[EpiAwareR Documentation](epiawarer/)** | [GitHub](https://github.com/sbfnk/EpiAwareR)
 
 ## Citation
 

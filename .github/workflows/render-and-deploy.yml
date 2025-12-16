@@ -54,6 +54,45 @@ jobs:
             Pkg.precompile()
           '
 
+      # R and EpiAwareR pkgdown setup
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Setup pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Cache renv
+        uses: actions/cache@v4
+        with:
+          path: renv/library
+          key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-renv-
+
+      - name: Restore renv
+        run: |
+          Rscript -e 'renv::restore()'
+
+      - name: Install EpiAwareR and pkgdown
+        run: |
+          Rscript -e '
+            renv::install("pkgdown")
+            remotes::install_local("EpiAwareR", dependencies = FALSE, upgrade = "never")
+          '
+
+      - name: Setup JuliaCall
+        uses: epiforecasts/actions/setup-juliacall@v1
+
+      - name: Setup EpiAwareR Julia backend
+        run: |
+          Rscript -e 'EpiAwareR::epiaware_setup_julia(verbose = TRUE)'
+
+      - name: Build EpiAwareR pkgdown site
+        run: |
+          Rscript -e 'pkgdown::build_site("EpiAwareR", new_process = FALSE)'
+
       - name: Cache Quarto
         uses: actions/cache@v4
         with:
@@ -120,6 +159,7 @@ jobs:
           cp Manifest.toml _site/ || echo "Manifest.toml not found"
           cp -r data _site/ || echo "Data folder not found"
           cp -r figures _site/ 2>/dev/null || echo "Figures folder not found"
+          cp -r EpiAwareR/docs _site/epiawarer 2>/dev/null || echo "EpiAwareR docs not found"
 
       - name: Upload artifacts
         if: steps.check-outputs.outputs.has-artifacts == 'true'
