@@ -74,4 +74,4 @@ _manuscript/
 index.ipynb
 
 # Quarto generated assets
-site_libs/
+site_libs/index.docx
