@@ -601,7 +601,7 @@ This modularity also enables interdisciplinary collaboration, as domain experts 
 However, our proposed approach is a proof of concept and not designed for ongoing use or widespread adoption.
 We only partially implemented support for automated mappings between latent and observed states, partial pooling approaches, and the current component library remains limited to relatively basic epidemiological patterns.
 The DSL layer manipulation tooling also cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention.
-Whilst our proof of concept has these limitations, the three real-world case studies establish viability for real-world epidemiological problems.
+Whilst our proof of concept has these limitations, the three case studies establish viability for real-world epidemiological problems.
 A final limitation of our approach is the learning curve required to adopt this compositional pattern, though this should be mitigated as researchers can embed elements within their existing models and implement their own compositional elements with minimal understanding of the overall architecture.
 
 <!-- Strengths and weaknesses of Turing.jl -->
