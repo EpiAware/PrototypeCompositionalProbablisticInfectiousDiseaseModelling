@@ -593,64 +593,55 @@ This approach enables building block style model construction, maintaining the s
 The autoregressive model example illustrated how more complex models emerge from simple component combinations using our proposed struct-in-struct pattern (where structures, data containers that group related variables and their types together, contain other structures as fields).
 Our three case studies, which were based on previous studies [@mishra2020covid; @epinow2; @chatzilena2019contemporary], demonstrate that this compositional framework can address real-world epidemiological problems across a range of modelling approaches and underlying methods.
 
-<!-- Strengths and weaknesses interwoven -->
+<!-- Strengths and weaknesses of our DSL -->
 
-A strength of our proposed approach is its modular design, which enables faster model development and component reuse, whilst also allowing for comparison of modelling assumptions without significant reimplementation.
-The approach enables researchers to embed new components within existing models more easily which reduces implementation barriers for methodological development.
-For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement the existing infection, latent, and observation models.
-This modularity also enables interdisciplinary collaboration.
-Domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to review other components or understand the programming details.
-Whilst a limitation of our approach is that it requires immplementation in Julia, which is not currently common in the field, the `EpiAwareR` R interface [@EpiAwareR] demonstrates that our frameworks can bridge software ecosystems.
-Similar interfaces could be built for other languages using existing Julia bridges such as `PythonCall.jl` [@PythonCall.jl] for Python.
-However, a clear limitation is that our proposed approach is a proof of concept and not designed for ongoing use or widespread adoption by the field.
-For example, we only partially implemented support for automated mappings between latent and observed states, which remains challenging to do well.
-Similarly, we only added partial support for partial pooling approaches with implemented infrastructure in place to support users in using this functionality in our DSL layer.
-The current component library also remains limited to relatively basic epidemiological patterns.
-Finally, the current DSL layer manipulation tooling cannot coordinate updates of related parameters such as model order and corresponding priors, without manual intervention, requiring either avoiding this pattern or developing additional solutions.
+A strength of our proposed approach is its modular design, which enables faster model development and component reuse whilst allowing comparison of modelling assumptions without significant reimplementation.
+For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement existing components.
+This modularity also enables interdisciplinary collaboration, as domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to review other components or understand the programming details.
+However, our proposed approach is a proof of concept and not designed for ongoing use or widespread adoption.
+We only partially implemented support for automated mappings between latent and observed states, partial pooling approaches, and the current component library remains limited to relatively basic epidemiological patterns.
+The DSL layer manipulation tooling also cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention.
+Whilst our proof of concept has these limitations, the three real-world case studies establish viability for real-world epidemiological problems.
+A final limitation of our approach is the learning curve required to adopt this compositional pattern, though this should be mitigated as researchers can embed elements within their existing models and implement their own compositional elements with minimal understanding of the overall architecture.
 
-Whilst our proof of concept has limitations, the three real-world case studies presented here establish the viability of our compositional approach for real-world epidemiological problems.
-Another limitation is the learning curve required for researchers familiar with current approaches to adopt this compositional paradigm.
-However, as they can embed elements of our system within their existing models and as they can implement their own compositional elements with minimal understanding of the overall architecture these barriers to use should be mitigated. 
-Computational overhead from abstraction layers is also a concern; the impact of this overhead and potential optimisations remains unclear.
-However, `Turing.jl` [@fjelde2025turin] and Julia [@Julia-2017] are well-positioned for optimisation with new automatic differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface], which could reduce computational costs in future implementations.
-Similarly, ongoing work in the `Turing.jl` ecosystem should be able to identify and resolve performance bottlenecks that do emerge.
-A strength of the Julia [@Julia-2017] ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces.
-However, this distributed development also creates challenges as it can be difficult to locate appropriate tools and unclear where responsibility lies when issues emerge.
-Users may not know whether problems originate in `Turing.jl`, our DSL layer, or elsewhere in the ecosystem, and even once located, it can be difficult to determine who is responsible for resolving them.
-There are also additional technical barriers within the `Turing.jl` ecosystem.
-The `Turing.jl` PPL is not fully stable and since developing our DSL, the `@submodel` macro has changed syntax and become a function with breaking changes in how it handles prefixes and in how it manages variables within a submodel, meaning our current implementation is not compatible with the latest `Turing.jl` release.
-However, some of these changes do allow for potentially more flexible models as they reduce the difference between specifying something as a distribution and as a submodel.
-This allows for less overhead in model construction and easier to generalise components as distributions are more widely used in the Julia ecosystem when compared to submodels.
-Other recent changes in `Turing.jl`, such as the primary workflow for observed data being to condition and fix  after model creation with no argument for observations in the original model, impact how data is conditioned on the model. 
-This means not having to pass observations through layers of the model, potentially making it easier to build composable models.
-`Turing.jl` also has limited handling of numerical instability, and so things like large counts being simulated can cause errors, which makes evaluating and developing models frustrating.
-An advantage of the Julia [@Julia-2017] ecosystem for a composable modelling tool built on top of a PPL is access to the full features of a programming language.
-However, in practice, some of these utilities, such as profiling tools, can be difficult to use with `Turing.jl` when compared to similar tools offered in other ecosystems because the probabilistic programming language abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging in our experience to identify performance bottlenecks in model components.
+<!-- Strengths and weaknesses of Turing.jl -->
+
+Key strengths of building on `Turing.jl` [@fjelde2025turin] include mature submodel support for nesting models within models, extensive inference algorithm choices, and integration with the wider Julia ecosystem through `Distributions.jl` [@JSSv098i16] and other packages.
+However, building on an evolving probabilistic programming language involves practical considerations.
+The `Turing.jl` PPL is not fully stable and since developing our DSL, the `@submodel` macro has changed syntax with breaking changes in how it handles prefixes and variables within submodels, meaning our current implementation is not compatible with the latest release.
+`Turing.jl` also has limited handling of numerical instability, so large counts being simulated can cause errors, and vectors that combine missing values with other values, which require manual handling.
+Profiling tools can be difficult to use because the probabilistic programming abstractions and macro expansions obscure the relationship between source code and runtime behaviour, making it challenging to identify performance bottlenecks.
+That said, recent `Turing.jl` changes may benefit composability: the reduced difference between distributions and submodels could enable more flexible model construction, and new conditioning workflows avoid passing observations through model layers.
+
+<!-- Strengths and weaknesses of Julia -->
+
+Implementing in Julia [@Julia-2017] provides access to the full features of a programming language rather than a restricted modelling syntax, multiple dispatch for clean component composition, and the mature SciML ecosystem [@SciML] for differential equations and scientific computing.
+A key strength of the Julia ecosystem for compositional work is that domain experts develop specialised tools that interoperate through shared interfaces.
+However, this distributed development also creates challenges as it can be difficult to locate appropriate tools, and when issues emerge users may not know whether problems originate in `Turing.jl`, our DSL layer, or elsewhere in the ecosystem.
+Computational overhead from abstraction layers is also a concern, though new automatic differentiation backends like Enzyme [@moses2020enzyme] and Mooncake [@dalle2025differentiationinterface] could reduce costs in future implementations.
+Whilst our approach requires implementation in Julia, which is not currently common in epidemiology, the `EpiAwareR` R interface [@EpiAwareR] demonstrates that such frameworks can bridge software ecosystems, and similar interfaces could be built for Python using `PythonCall.jl` [@PythonCall.jl].
 
 <!-- Comparison to literature - Algebraic Julia -->
 
-Our prototype could draw more heavily on category theory [@fong2018seven], which provides formal mathematical foundations for composability.
-This theory enables automatic modifications to the model when changes are made to underlying components.
-The AlgebraicJulia ecosystem demonstrates how category theory can be operationalised in software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition through structured cospans and wiring diagrams [@vagner2014algebras].
-These provide multiple interchangeable representations of model components as open Petri nets, with connection "ports" allowing composability with other components via "junction" porting [@libkind2022algebraic].
-Another symbolic-numeric approach to defining dynamical systems, `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] from the SciML ecosystem [@SciML], allow for acausal component-based models which achieve performance improvements through automated parallelisation, sparsity detection, and equation simplification.
-`AlgebraicPetri.jl` uses the direct association between Petri nets and reaction networks [@baez2017compositional] to link the graphical/algebraic representation of the model to its computational semantics via `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst], allowing models composed using this approach access to the SciML ecosystem.
-However, all of these tools are currently designed for representing the generators of dynamical systems and do not naturally extend to general probabilistic models.
-Our probabilistic programming foundation offers more direct support for statistical inference and uncertainty quantification, supports a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory approaches and automated optimisations of symbolic-numeric frameworks.
-The SIR model in @sec-example3 uses a complete ODE specification, but more complex compartmental models could be composed from reusable reaction components using `AlgebraicPetri.jl` or `Catalyst.jl`, with our approach managing the probabilistic aspects such as priors and observation models.
+Alternative approaches to compositional modelling exist in the literature.
+Category theory [@fong2018seven] provides formal mathematical foundations for composability, enabling automatic modifications to models when changes are made to underlying components.
+The AlgebraicJulia ecosystem demonstrates how category theory can be operationalised in software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition for hierarchical model construction.
+Symbolic-numeric frameworks such as `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] from the SciML ecosystem [@SciML] offer acausal component-based models with performance improvements through automated parallelisation and equation simplification, and link to AlgebraicJulia through shared reaction network representations [@baez2017compositional].
+However, these tools are designed for representing dynamical systems and do not currently extend to general probabilistic models.
+Our probabilistic programming approach also offers more direct support for statistical inference and uncertainty quantification across a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory and automated optimisations of symbolic-numeric frameworks.
+More complex compartmental models could be composed from reusable reaction components using `AlgebraicPetri.jl` or `Catalyst.jl`, with our approach managing the probabilistic aspects such as priors and observation models.
 
 <!-- Comparison to literature - Other approaches -->
 
 Alternative probabilistic programming languages could support similar compositional approaches.
 `Gen.jl` [@cusumanotowner2019gen] focuses on lower-level implementation of probabilistic programs compared to `Turing.jl`, with composition support through nested generative function calls and combinators of generative functions.
-However, `Gen.jl` operates more independently from the broader Julia ecosystem, maintaining its own distribution types rather than using `Distributions.jl` [@JSSv098i16], which negates a key strength of Julia approaches where packages interoperate through shared interfaces.
-Despite this, Gen-based tools demonstrate useful functionality for epidemiological modelling, such as `AutoGP.jl` [@saad2023sequential], which implements real-time inference and automated composition of Gaussian process kernels that could be useful for modelling time-varying epidemiological parameters.
-Genify [@tan2021genify] provides an approach that translates Julia code into Gen models, potentially easing adoption by allowing modellers to write in familiar Julia syntax whilst accessing Gen's programmable inference capabilities.
+Despite this, Gen-based tools demonstrate useful functionality for epidemiological modelling, such as `AutoGP.jl` [@saad2023sequential], which implements real-time inference and automated composition of Gaussian process kernels.
+Genify [@tan2021genify] provides an approach that translates Julia code into Gen models, potentially easing adoption.
 Python-based probabilistic programming languages such as NumPyro [@phan2019composable] and Oryx [@oryx2020] built on JAX [@jax2018github] could enable similar composability [@pyrenew2024, @coix2024], with potential advantages from JAX's focus on efficiency and GPU scaling.
 However, the smaller JAX-specific ecosystem compared to general Python packages, JAX's optimisation for neural network tasks, and Python PPLs' more programmer-oriented syntax that diverges from mathematical notation may create barriers for epidemiological modellers.
-As well as imperative probabilistic programming languages (specifies how to perform computations through explicit sequences of commands) such as `Turing.jl`, there are declarative graph-based approaches (specifies what should be computed by stating relationships and constraints) available such as `JuliaBUGS.jl` [@sun2024juliabugs] and `RxInfer.jl` [@bagaev2023rxinfer] where users specify directed graphical models by explicitly stating conditional dependencies between variables.
-This graph-based representation offers several advantages including clearer understanding of dependencies, more transparent model structure and assumptions, and efficient inference through algorithms that leverage the model's graphical structure to identify conditional independence relationships.
-However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style, which allows procedural code, such as a loop over recursive updates for a dynamical system, that can be more expressive for certain complex modelling patterns.
+As well as imperative approaches like `Turing.jl`, where models are written as procedural code, declarative graph-based approaches such as `JuliaBUGS.jl` [@sun2024juliabugs] and `RxInfer.jl` [@bagaev2023rxinfer] specify models through explicit conditional dependencies between variables.
+This graph-based representation offers several advantages including more transparent model structure and assumptions, and efficient inference through algorithms that leverage the model's graphical structure.
+However, the declarative approach trades off the flexibility of `Turing.jl`'s imperative style for procedural code, such as loops over recursive updates for dynamical systems, which may limit the range of epidemiological models that can be composed.
 Building a domain-specific backend on `Distributions.jl` rather than `Turing.jl` could enable compatibility with multiple PPLs including `JuliaBUGS.jl` whilst trading off `Turing.jl`'s expressive submodel interface.
 
 <!-- Future work -->
