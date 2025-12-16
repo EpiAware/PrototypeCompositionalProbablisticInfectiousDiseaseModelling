@@ -142,28 +142,44 @@ Finally, we discuss alternative design approaches, evaluate the strengths and li
 
 # Proposed requirements for composable infectious disease modelling {#sec-requirements}
 
-Based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling [@gelman2020bayesian], we propose the following requirements for composable infectious disease modelling.
+Based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling [@gelman2020bayesian], we propose requirements for composable infectious disease modelling organised into six themes (@tbl-requirements).
+The requirements in the uncertainty and inference theme and the model structure theme address the statistical foundations of building and fitting models with appropriate uncertainty quantification.
+The requirements in the population heterogeneity theme address the need to model diseases across different groups whilst reducing the additional bookkeeping this typically requires.
+The requirements in the accessibility and adoption theme lower barriers for diverse users, enable incremental uptake, and support the propagation of domain expertise into composed models.
+The requirements in the interoperability theme ensure components work together and integrate with external tools.
+The requirements in the modelling workflow theme support the development of validated models that can answer key stakeholder questions in decision maker relevant timelines [@whitty2015what], and enable emerging opportunities for large language model assisted model construction.
+Whilst we have presented this as a mapping of problems to requirements, in reality there is overlap; for example, standardised interfaces enable component compatibility, support handling of multiple strata, and ensure proper uncertainty propagation.
 
-Modelling infectious disease dynamics requires quantifying uncertainty at every level because decisions should account for incomplete knowledge about individual infection risk, transmission dynamics, and observation processes [@swallow2022chall].
-A clear separation between distinct model components, infection processes, observation processes, and latent dynamics is also key as these allows reasoning on each of these components separately.
-Because diseases affect populations heterogeneously across age, location, and risk groups [@heesterbeek15_modeling], the framework needs to be able to support arbitrary stratification schemes for all components.
-These stratified models should also remain data-agnostic as this allows the model to be generalised to different datasets, tested based on just its prior specification, and used for forecasting.
-Similarly, the book work of supporting multiple strata needs to be abstracted from the user to make the system easier to use but at the same time they need to be able to model relationships between strata to support partial pooling of parameters for sparse data settings.
-To allow for models to be validated, the framework should support nesting models within models and programming over model structure itself, allowing simple components to compose into sophisticated models while remaining individually interrogable for debugging, validation, and mechanistic understanding.
-Treating models as a collection of submodels in this way also enables staged inference, enabling one model's outputs to serve as another's inputs with proper uncertainty propagation as formalised in Markov melding [@goudie2019markov] and cut likelihoods [@plummer2015cuts].
-Model specifications should serve dual purposes, supporting both forward simulation for prior predictive checks and forecasting, and inference when conditioned on observed data, without requiring separate implementations [@gelman2020bayesian].
-This compositional approach requires a clear, concise modelling language so that it can be used by a wide pool of users and so that model specifications can be written quickly but with clarity.
-Supporting modern inference methods is important so that complex models can be fit.
-This will generally necessitate gradient computation throughout via automatic differentiation.
-It is also important to allow for a wide range of inference methods so that the best approach for a given model/data combination can be used.
-This means supporting abstract back-ends to allow seamlessly switching between inference approaches.
+::: {.landscape}
 
-We also need to have model components that encapsulate both structure and prior distributions so that domain experts can contribute specialised knowledge: a virologist's understanding of within-host dynamics, an epidemiologist's of contact patterns, a clinician's of disease progression insights without reviewing the entire modelling framework.
-Standardised interfaces between components are needed to allow individual components to work together, to support handling of multiple strata, and to allow for proper uncertainty propagation.
-Such interfaces would also enable large language models to serve as model construction agents, composing models from component libraries whilst validation methods ensure statistical rigour [@aygun2025ai].
-As there are a range of different potential ways to express infectious disease models including ordinary differential equations, agent-based models, network models, stochastic processes, and discrete time models these all need to be supported both independently and in combination.
-Importantly, the design must enable incremental adoption without requiring complete rebuilds of existing models, and components should remain functional as standalone tools outside the compositional framework to maximise their utility and adoption.
-Finally, we need a framework that can be composed with out of domain approaches and expertise, such as neural networks, Gaussian processes, and other machine learning approaches [@philipps2025ude].
+| Theme | Proposed requirement | Motivating problem |
+|-------|---------------------|-------------------|
+| **Uncertainty & inference** | Probabilistic model specification with full uncertainty quantification | Decisions must account for incomplete knowledge about infection risk, transmission, and observation [@swallow2022chall] |
+| | Joint modelling and staged inference [@goudie2019markov] with proper uncertainty propagation | Chaining models introduces implicit assumptions and cascading biases (see CIS example in the introduction) |
+| | Automatic differentiation [@baydin2018automatic] | Complex models require efficient fitting methods, and many modern inference approaches rely on gradients [@hoffman2014nuts] |
+| | Switchable inference backends | The best inference method varies by model and data combination; no single approach works universally |
+| **Model structure** | Clear separation between model components | Infection, observation, and latent dynamics require distinct expertise and should be reasoned about separately |
+| | Nesting models within models | Adding new data sources or processes can require modifying entire models |
+| | Support for multiple modelling paradigms | Infectious disease models take many forms (ODEs, agent-based, network, stochastic, discrete time) |
+| **Population heterogeneity** | Arbitrary stratification for all model components | Diseases affect populations heterogeneously across age, location, and risk group [@heesterbeek15_modeling] |
+| | Stratification bookkeeping abstracted from users | Manual bookkeeping for multiple strata can be complex and error-prone |
+| | Programming over model structure | Replicating model components across strata often requires manual specification for each group |
+| | Partial pooling [@gelman2007data] through relationships between strata | Sparse data in individual strata can require borrowing information between groups |
+| **Accessibility & adoption** | Clear, concise modelling language | Diverse users including those without programming expertise need to specify models quickly |
+| | Components contain both the structure and parameter prior distributions | Domain expertise can be difficult to transfer between models or modelling teams |
+| | Incremental adoption paths | Requiring complete rebuilds of existing models can be wasteful and time-consuming [@whitty2015what] |
+| | Components functional as standalone tools | Components should provide value even outside the compositional framework to maximise utility |
+| **Interoperability** | Standardised interfaces between components | Components developed independently may be incompatible and uncertainty may not propagate correctly between them |
+| | Data-agnostic model definitions | Models need to generalise across datasets, support prior predictive checks, and enable forecasting |
+| | Composability with machine learning approaches | Integration with neural networks, Gaussian processes, and other ML tools enables leveraging that expertise [@philipps2025ude] |
+| **Modelling workflow** | Dual-purpose specifications for simulation and inference | Both simulation (for prior predictive checks and forecasting) and inference are needed [@gelman2020bayesian], but implementing both separately can be resource intensive and difficult to keep in sync |
+| | Rapid model iteration | Evidence is urgently needed during outbreaks and other time sensitive settings; iteration speed matters for decision making [@whitty2015what] |
+| | Easy model and model component validation and exploration | Complex models are difficult to debug, validate, and understand |
+| | Modelling language optimised for large language model assisted construction with automated validation | Large language models may be useful for constructing models but can make errors and often do not fully capture expert knowledge [@aygun2025ai] |
+
+: Proposed requirements for composable infectious disease modelling. {#tbl-requirements}
+
+:::
 
 # Our approach {#sec-approach}
 

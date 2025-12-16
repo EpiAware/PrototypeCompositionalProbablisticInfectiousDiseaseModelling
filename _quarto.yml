@@ -32,6 +32,7 @@ format:
     include-in-header:
       text: |
         \usepackage{graphicx}
+        \usepackage{pdflscape}
         \setkeys{Gin}{width=0.9\textwidth,height=!,keepaspectratio}
         \makeatletter
         \let\oldincludegraphics\includegraphics
