@@ -10,6 +10,7 @@ format:
 flowchart LR
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef latentInfection fill:#cfe2f3,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef statistical fill:#ff9900,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef observationModifier fill:#ff9999,stroke:#333,stroke-width:6px,color:black,padding:20px
@@ -34,7 +35,7 @@ flowchart LR
             C_Rt(["Rt"]):::epiLatent
             C_GT(["Generation Time"]):::epiLatent
             C_Renewal(["Renewal"]):::infection
-            C_Infections(["Infections"]):::infection
+            C_Infections(["Infections"]):::latentInfection
             C_Delay(["Delay"]):::epiLatent
             C_LatentDelay(["Latent Delay"]):::observationModifier
             C_RE(["Random Effect"]):::statistical
@@ -66,7 +67,7 @@ flowchart LR
             D_Title(["Chatzilena et al."]):::title
             direction TB
             D_SIR(["SIR ODE"]):::infection
-            D_Incidence(["Incidence"]):::infection
+            D_Incidence(["Incidence"]):::latentInfection
             D_N(["N"]):::epiLatent
             D_Softplus(["Softplus"]):::transform
             D_ScaleN(["Scale by N"]):::observationModifier
@@ -93,7 +94,7 @@ flowchart LR
             B_Rt(["Rt"]):::epiLatent
             B_GT(["Generation Time"]):::epiLatent
             B_Renewal(["Renewal"]):::infection
-            B_Infections(["Infections"]):::infection
+            B_Infections(["Infections"]):::latentInfection
             B_Obs(["Negative Binomial"]):::observation
 
             B_AR ==> B_Exp
@@ -105,7 +106,7 @@ flowchart LR
         end
 
         subgraph A[" "]
-            A_Title(["ARIMA example"]):::title
+            A_Title(["ARIMA"]):::title
             direction TB
             A_AR(["AR(2)"]):::statistical
             A_MA(["MA(1)"]):::statistical

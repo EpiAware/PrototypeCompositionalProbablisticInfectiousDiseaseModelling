@@ -10,6 +10,7 @@ format:
 flowchart LR
     %% Class definitions
     classDef infection fill:#9fc5e8,stroke:#333,stroke-width:6px,color:black,padding:20px
+    classDef latentInfection fill:#cfe2f3,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef observation fill:#b6d7a8,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef statistical fill:#ff9900,stroke:#333,stroke-width:6px,color:black,padding:20px
     classDef epiLatent fill:#d5a6bd,stroke:#333,stroke-width:6px,color:black,padding:20px
@@ -62,7 +63,7 @@ flowchart LR
                 SLI_Title(["Latent infection model"]):::title
                 SLI_GP(["Gaussian Process"]):::statistical
                 SLI_Renewal(["Renewal Process"]):::infection
-                SLI_Infections(["Infections"]):::infection
+                SLI_Infections(["Infections"]):::latentInfection
 
                 SLI_GP ==> SLI_Renewal
                 SLI_Renewal ==> SLI_Infections
@@ -71,9 +72,9 @@ flowchart LR
             subgraph SharedIncubation[" "]
                 direction LR
                 SIP_Title(["Incubation period model"]):::title
-                SIP_Infections(["Infection times"]):::infection
+                SIP_Infections(["Infection times"]):::latentInfection
                 SIP_Delay(["Delay"]):::observationModifier
-                SIP_Onset(["Symptom onset times"]):::infection
+                SIP_Onset(["Symptom onset times"]):::latentInfection
 
                 SIP_Infections ==> SIP_Delay
                 SIP_Delay ==> SIP_Onset
@@ -90,7 +91,7 @@ flowchart LR
             direction TB
             WW_Title(["Wastewater Surveillance"]):::title
             WW_InfectionRef(["Latent Infection Model"]):::sharedModel
-            WW_Infections(["Infections"]):::infection
+            WW_Infections(["Infections"]):::latentInfection
             WW_ViralKineticsRef(["Viral Kinetics Model"]):::sharedModel
             WW_IncubationRef(["Incubation Period Model"]):::sharedModel
             WW_Shedding(["Viral Shedding"]):::epiLatent
@@ -112,7 +113,7 @@ flowchart LR
             direction TB
             BM_Title(["Biomarker Modelling"]):::title
             BM_InfectionRef(["Latent Infection Model"]):::sharedModel
-            BM_Infections(["Infections"]):::infection
+            BM_Infections(["Infections"]):::latentInfection
             BM_ViralKineticsRef(["Viral Kinetics Model"]):::sharedModel
             BM_IncubationRef(["Incubation Period Model"]):::sharedModel
             BM_VL(["Viral Load"]):::epiLatent
@@ -135,7 +136,7 @@ flowchart LR
                 direction TB
                 EOA_Title(["Early Outbreak Analysis"]):::title
                 EOA_InfectionRef(["Latent Infection Model"]):::sharedModel
-                EOA_Infections(["Infections"]):::infection
+                EOA_Infections(["Infections"]):::latentInfection
                 EOA_IncubationRef(["Incubation Period Model"]):::sharedModel
                 EOA_CaseObsRef(["Case Observation Model"]):::sharedModel
 
