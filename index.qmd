@@ -96,7 +96,6 @@ As a consequence, modellers often have to re-implement model components in new m
 This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed [@whitty2015what].
 It also limits opportunities for collaboration and co-development of robust methods that others can re-use, and raises technical barriers to building state-of-the-art models, as individual modellers must understand and implement all parts of the relevant transmission and observation models.
 As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction; @ons2020cis].
-An alternative is to use more generic modelling frameworks that are easier to generalise, but these can be difficult to adapt to capture transmission dynamics or aspects of the data generating process such as time-varying missing data [@Overton2023-dk].
 
 Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [@king16_statistical;@fitzjohn25_monty], have not solved this problem.
 These tools have enabled principled joint modelling and inference, reduced development effort and improved model quality compared with manual specification [@vandemeent2018introduction].
@@ -625,7 +624,8 @@ More complex compartmental models could be composed from reusable reaction compo
 <!-- Comparison to literature - Other approaches -->
 
 In comparison to our proposed compositional DSL approach, domain-specific infectious disease tools currently provide useful features but are designed for a limited number of use cases and do not cover the full range of epidemiological modelling approaches needed in practice [@epinow2;@epinowcast;@scott2021_epidemia;@epiline].
-Probabilistic programming languages (PPLs) commonly used in infectious disease modelling do not meet our proposed requirements for composability.
+Generic modelling frameworks can be easier to generalise but difficult to adapt to include domain specific elements [@Overton2023-dk].
+Probabilistic programming languages (PPLs) commonly used in infectious disease modelling also do not meet our proposed composability requirements.
 Stan is probably the most commonly used, but is optimised for implementing complete models rather than composing submodels [@Stan].
 Domain-specific PPLs such as `odin`/`monty` and `greta` trade generality for specialisation, none of the available options fully support nesting models within models, and there is limited support for state-of-the-art inference methods [@odin;@fitzjohn25_monty;@greta].
 Alternative PPLs could support compositional approaches.
