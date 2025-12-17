@@ -633,7 +633,11 @@ More complex compartmental models could be composed from reusable reaction compo
 
 <!-- Comparison to literature - Other approaches -->
 
-Alternative probabilistic programming languages could support similar compositional approaches.
+In comparison to our proposed compositional DSL approach, domain-specific infectious disease tools currently provide useful features but are designed for a limited number of use cases and do not cover the full range of epidemiological modelling approaches needed in practice [@epinow2;@epinowcast;@scott2021_epidemia;@epiline].
+Probabilistic programming languages (PPLs) commonly used in infectious disease modelling do not meet our proposed requirements for composability.
+Stan is probably the most commonly used, but is optimised for implementing complete models rather than composing submodels [@Stan].
+Domain-specific PPLs such as `odin`/`monty` and `greta` trade generality for specialisation, none of the available options fully support nesting models within models, and there is limited support for state-of-the-art inference methods [@odin;@fitzjohn25_monty;@greta].
+Alternative PPLs could support compositional approaches.
 `Gen.jl` [@cusumanotowner2019gen] focuses on lower-level implementation of probabilistic programs compared to `Turing.jl`, with composition support through nested generative function calls and combinators of generative functions.
 Despite this, Gen-based tools demonstrate useful functionality for epidemiological modelling, such as `AutoGP.jl` [@saad2023sequential], which implements real-time inference and automated composition of Gaussian process kernels.
 Genify [@tan2021genify] provides an approach that translates Julia code into Gen models, potentially easing adoption.
