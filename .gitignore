@@ -42,6 +42,7 @@ resources
 index.html
 index.pdf
 index.tex
+index.docx
 index_files/
 case-studies.html
 case-studies.pdf
@@ -75,3 +76,4 @@ index.ipynb
 
 # Quarto generated assets
 site_libs/index.docx
+site_libs/
