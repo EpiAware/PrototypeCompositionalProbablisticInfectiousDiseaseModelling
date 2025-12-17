@@ -190,6 +190,7 @@ This separation enables incremental adoption without rebuilding existing models 
 The DSL layer provides clear, concise model specification using epidemiological concepts, enabling domain experts to contribute components encapsulating their specialised knowledge without understanding the low-level details of all framework elements.
 The backend layer aims to handle the automated bookkeeping of stratification, interface validation, and uncertainty propagation whilst supporting multiple inference approaches and auto differentiation options by leveraging the `Turing.jl` and wider Julia ecosystems.
 This structure enables integration of diverse data sources by allowing researchers to add a submodel with its own latent and observation process to an existing model, for example adding wastewater measurements to a case-based renewal model or clinical biomarkers to transmission dynamics without modifying the core infection model.
+It also facilitates staged inference approaches such as Markov melding [@goudie2019markov], meaning that components can be fitted separately and combined with proper uncertainty propagation.
 
 To demonstrate cross-ecosystem accessibility, we also developed `EpiAwareR` [@EpiAwareR], an R interface to the prototype using `JuliaCall` [@JuliaCall].
 This enables R users to access the compositional modelling framework without requiring Julia programming knowledge, specifying models using familiar R syntax while gaining access to the full composable component library.
