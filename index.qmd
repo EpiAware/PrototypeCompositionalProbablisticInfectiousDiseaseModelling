@@ -106,23 +106,21 @@ For examples, at least seven packages estimate effective reproduction numbers us
 Wastewater surveillance highlights challenges when different domain expertise is required: `EpiSewer` and `wwinference` were both implemented by non-wastewater experts with different levels of focus on sampling details, yet share no components and it is not clear which modelling choices matter.
 To resolve these issues some efforts have aimed for greater generality: `epinowcast` provides a modular Bayesian framework supporting flexible model specification, and `epidist` [@epidist] extends Bayesian Regression Models using Stan (`brms`) [@brms] for delay distribution estimation.
 Yet these, and other similar efforts, remain monolithic, difficult for users to contribute to or adapt beyond supported functionality, and limited in scope.
+
 To work around these constraints, some analyses have adopted multi-stage "pipeline" approaches, fitting separate models sequentially and passing outputs to subsequent stages [@huisman2022;@epinow2].
 This allows flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
-
-Modelling making use of data from the UK Office for National Statistics Community Infection Survey (CIS) illustrates these challenges [@ons2020cis].
+Modelling using data from the UK Office for National Statistics Community Infection Survey (CIS) demonstrates this approach and resulting challenges [@ons2020cis].
 From April 2020 to March 2023, the CIS tested over four million swabs from more than 150,000 households at a cost exceeding £500 million.
-ONS estimated prevalence from their model applied to this data, but modellers without access to the underlying observations had to develop separate methods to estimate incidence from these published prevalence estimates [@abbott2022estimating].
-These methods typically assumed that prevalence observations were independent with normally distributed uncertainty, and any subsequent uses inherited implicit assumptions such as assuming stationarity if a Gaussian process was used for estimation [@abbott2022estimating].
-These incidence estimates were subsequently used as inputs to policy-relevant analyses of Delta variant emergence [@mccrone2022delta] and Omicron severity [@nyberg2022omicron].
-Whilst other analyses that were used to inform policy fitted directly to the summarised prevalence estimates [@davies21_associationcovidengland].
-Attempts were also made to estimate reproduction numbers directly from the estimated prevalence, but these suffered from oversmoothing and timing delays, likely due to not fully accounting for the complexities of the observation process [@mccabe2024inferring].
-Here less ad-hoc joint modelling methods, of a similar standard to the high quality methods used in the CIS for data collection, could not be used due to the unavoidable data security constraints on the underlying data, siloing of highly specialised expertise, and the lack of consistent modelling language and tools across the different analyses.
+Data security constraints meant external modellers accessed only summarised prevalence estimates rather than underlying observations.
+This created a cascade where estimates were treated as data: prevalence estimates became inputs for incidence [@abbott2022estimating] and reproduction number estimates [@mccabe2024inferring], which themselves informed policy analyses [@mccrone2022delta;@nyberg2022omicron;@davies21_associationcovidengland].
+At each stage, uncertainty from earlier estimates was approximated and modelling assumptions inherited without the ability to evaluate their impact.
+This may have impacted the evidence used in policy-relevant decisions about variant transmissibility and severity [@mccrone2022delta;@nyberg2022omicron;@davies21_associationcovidengland].
 
-Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour, to address these challenges.
+Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour, to address the tension between flexible and rigorous modelling.
 Advances in `Turing.jl`, a probabilistic programming language built in Julia [@Julia-2017], have introduced submodel interfaces that enable composable probabilistic programming, offering a pathway for epidemiological model composition [@Nicholson2022-ua; @fjelde2025turin].
 In other fields, domain-specific languages (programming languages tailored to specific application domains that use terminology and concepts familiar to domain experts rather than general programming constructs) built in Julia have enabled compositional modelling: `HydroModels.jl` [@jing2025hydromodels] for hydrological modelling with differentiable neural-enhanced components, and `SpeedyWeather.jl` [@speedyweather2024] for building-block style atmospheric modelling with modular component assembly.
 For the CIS example above, composability would allow the observation model linking prevalence surveys to underlying infection dynamics to be developed once and shared as a reusable submodel.
-This would make it easier to fully propagate uncertainty and avoid implicit assumptions that lead to bias in current approaches.
+This would make it easier to fully propagate uncertainty [@goudie2019markov] and avoid implicit assumptions that lead to bias in current approaches.
 
 In this paper, we first propose requirements for composable infectious disease modelling based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling.
 We then present a proof of concept that addresses these requirements, combining the modularity of pipeline approaches with the statistical rigour of joint models through composable epidemiological components.
