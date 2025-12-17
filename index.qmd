@@ -98,19 +98,16 @@ It also limits opportunities for collaboration and co-development of robust meth
 As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction; @ons2020cis].
 An alternative is to use more generic modelling frameworks that are easier to generalise, but these can be difficult to adapt to capture transmission dynamics or aspects of the data generating process such as time-varying missing data [@Overton2023-dk].
 
-Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [@king16_statistical;@fitzjohn25_monty], have transformed how infectious disease models are fitted to data.
-These tools enable statistically principled joint modelling and inference with probabilistic reasoning across a wide range of applications.
-However, they are designed for implementing complete models and do not provide straightforward ways to share or reuse model components.
-The practical unit of reuse therefore remains the whole model or its codebase, not the underlying epidemiological concepts.
-Building on these frameworks, several efforts have aimed for greater generality within specific modelling paradigms.
-Effective reproduction number estimation illustrates this: `epidemia` [@scott2021_epidemia], `EpiNow2` [@epinow2], `epinowcast` [@epinowcast], `epimap` [@epimap], `EpiLine` [@epiline], `EpiSewer` [@lison2025episewer], and `wwinference` [@johnson2025wwinference] all estimate Rt using renewal-based approaches in Stan, yet maintain separate codebases with no shared components despite overlapping features and, in some cases, the same authors.
-Wastewater surveillance highlights challenges when different domain expertise is required: `EpiSewer` and `wwinference` both estimate transmission from wastewater in Stan but model different aspects, detailed sampling processes versus multiple sites, with no shared components.
-`epidemia` and `epimap` have had little recent development, `EpiLine` has minimal ongoing work, and whilst `EpiNow2` and `epinowcast` remain actively maintained, new features must be implemented separately in each.
-Delay distribution estimation shows similar challenges.
-`epidist` [@epidist] extends `brms` (Bayesian Regression Models using Stan) [@brms], a general-purpose regression tool built on Stan, allowing ecosystem integration but with limited scope for extension to other epidemiological models due to constraints in its composability.
-`primarycensored` [@primarycensored] was developed to handle delays for `EpiNow2`, `epidist`, and `epinowcast` but is currently only used in `epidist` and requires maintaining parallel R and Stan codebases with the same functionality, and custom tooling to inject its code into the other packages models.
-To work around these constraints, some analyses have adopted multi-stage or "pipeline" approaches, in which separate models are fitted sequentially and their outputs passed as inputs to subsequent stages [@huisman2022;@epinow2].
-This allows different data sources or processes to be analysed independently and more flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
+Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [@king16_statistical;@fitzjohn25_monty], have not solved this problem.
+These tools have enabled principled joint modelling and inference, reduced development effort and improved model quality compared with manual specification.
+However, they generally do not provide straightforward ways to share or reuse model components; the practical unit of reuse remains the whole model or its codebase, not the underlying epidemiological concepts.
+The resulting fragmentation is evident across the field.
+For examples, at least seven packages estimate effective reproduction numbers using renewal-based approaches in Stan (`epidemia` [@scott2021_epidemia], `EpiNow2` [@epinow2], `epinowcast` [@epinowcast], `epimap` [@epimap], `EpiLine` [@epiline], `EpiSewer` [@lison2025episewer], `wwinference` [@johnson2025wwinference]), yet none share components despite overlapping features and, in some cases, the same authors.
+Wastewater surveillance highlights challenges when different domain expertise is required: `EpiSewer` and `wwinference` were both implemented by non-wastewater experts with different levels of focus on sampling details, yet share no components and it is not clear which modelling choices matter.
+To resolve these issues some efforts have aimed for greater generality: `epinowcast` provides a modular Bayesian framework supporting flexible model specification, and `epidist` [@epidist] extends Bayesian Regression Models using Stan (`brms`) [@brms] for delay distribution estimation.
+Yet these, and other similar efforts, remain monolithic, difficult for users to contribute to or adapt beyond supported functionality, and limited in scope.
+To work around these constraints, some analyses have adopted multi-stage "pipeline" approaches, fitting separate models sequentially and passing outputs to subsequent stages [@huisman2022;@epinow2].
+This allows flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with fully joint models [@lison2024].
 
 Modelling making use of data from the UK Office for National Statistics Community Infection Survey (CIS) illustrates these challenges [@ons2020cis].
 From April 2020 to March 2023, the CIS tested over four million swabs from more than 150,000 households at a cost exceeding £500 million.
