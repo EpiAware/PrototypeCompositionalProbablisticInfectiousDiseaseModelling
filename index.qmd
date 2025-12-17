@@ -1,5 +1,5 @@
 ---
-title: "The case for composable probabilistic infectious disease models"
+title: "Composable probabilistic models can lower barriers to rigorous infectious disease modelling"
 authors:
   - name: "Sam Abbott"
     affiliations:

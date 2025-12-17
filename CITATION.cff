@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "Code and data for: The case for composable probabilistic infectious disease models"
+title: "Code and data for: Composable probabilistic models can lower barriers to rigorous infectious disease modelling"
 type: software
 authors:
   - family-names: Abbott
@@ -28,8 +28,8 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.17884675
     description: Zenodo archive
-repository-code: "https://github.com/EpiAware/CaseForComposableIDModels"
-url: "https://epiaware.org/CaseForComposableIDModels/"
+repository-code: "https://github.com/EpiAware/ComposableProbabilisticIDModels"
+url: "https://epiaware.org/ComposableProbabilisticIDModels/"
 license: MIT
 version: "1.0.0"
 date-released: "2025-06-10"

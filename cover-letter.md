@@ -2,7 +2,7 @@
 
 Dear Editor,
 
-We submit for consideration "A Prototype for Compositional Probabilistic Infectious Disease Modelling" as a Methods article for PLOS Computational Biology.
+We submit for consideration "Composable probabilistic models can lower barriers to rigorous infectious disease modelling" as a Methods article for PLOS Computational Biology.
 
 Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making.
 However, current modelling approaches create barriers to integration of expert domain knowledge.
