@@ -154,7 +154,7 @@ Whilst we have presented this as a mapping of problems to requirements, in reali
 | **Population heterogeneity** | Arbitrary stratification for all model components | Diseases affect populations heterogeneously across age, location, and risk group [@heesterbeek15_modeling] |
 | | Automatic management of multi-group structure | Managing dimensions and interactions across groups (such as age groups and locations) can be complex and error-prone |
 | | Programmatic generation and modification of model components | Extending models to additional groups (such as age groups or locations) and adapting existing components often requires repetitive code |
-| | Partial pooling [@gelman2007data] through relationships between strata | Sparse data in individual strata can require borrowing information between groups |
+| | Partial pooling [@gelman2007data] in order to share information across groups | Sparse data in individual groups can require borrowing information between them |
 | **Accessibility & adoption** | Clear, concise modelling language | Diverse users including those without programming expertise need to specify models quickly |
 | | Components contain both the structure and parameter prior distributions | Domain expertise can be difficult to transfer between models or modelling teams |
 | | Support for incremental adoption of the approach | Requiring complete rebuilds of existing models can be wasteful and time-consuming [@whitty2015what] |
