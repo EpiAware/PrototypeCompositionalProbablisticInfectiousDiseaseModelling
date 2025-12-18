@@ -4,21 +4,23 @@ Dear Editor,
 
 We submit for consideration "Composable probabilistic models can lower barriers to rigorous infectious disease modelling" as a Methods article for PLOS Computational Biology.
 
-Recent outbreaks of Ebola, COVID-19 and mpox have demonstrated the value of modelling for synthesising data for rapid evidence to inform decision making.
-However, current modelling approaches create barriers to integration of expert domain knowledge.
-Methods used to synthesise available data broadly fall into pipeline approaches that chain separate models together, or joint models that are often monolithic and difficult to adapt.
-These barriers have prevented advances across multiple settings where models could have provided actionable insights.
+Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemic pathogens such as influenza, have demonstrated the value of modelling for synthesising data to inform decision making.
+However, current approaches create barriers to integrating diverse expertise required for effective outbreak response.
+Methods either chain separate models together, offering flexibility but losing information and potentially introducing bias, or use rigorous joint models that are often monolithic and difficult to adapt.
+These barriers have prevented advances across settings where models could have provided actionable insights.
 
-This paper addresses these limitations by outlining key requirements for a composable infectious disease modelling framework and presenting a proof-of-concept implementation that addresses these requirements through composable epidemiological components built on Julia's type system and Turing.jl.
-Our approach enables "LEGO-like" model construction where complex models emerge from composing simpler, reusable components.
+This paper addresses these limitations by outlining proposed requirements for a composable infectious disease modelling framework and presenting a proof of concept.
+Our approach enables components to be reused across contexts and combined whilst maintaining statistical rigour.
+When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
 
-We validate the approach through three case studies that recreate published epidemiological analyses, demonstrating that components can be reused across different models whilst maintaining statistical rigour.
-The first replicates a COVID-19 analysis for South Korea using renewal processes with time-varying reproduction numbers.
+We demonstrate the approach through three case studies recreating published analyses, showing component reuse across different models.
+The first replicates a COVID-19 analysis for South Korea using renewal processes.
 The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool.
-The third replicates an SIR model analysis of influenza outbreak data.
+The third replicates an ordinary differential equation model analysis of influenza outbreak data.
 
 We believe this work fits the Epidemiology & Public Health section, specifically addressing process-based approaches to infectious disease modelling.
-The framework enables interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development, and establishes requirements for future composable modelling systems that can respond to unpredictable infectious disease threats.
+Such systems could improve both routine surveillance, where validated components can be refined across seasons, and outbreak response, where components can be rapidly adapted for novel pathogens.
+The framework enables interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development.
 
 All authors have approved the manuscript and declare no competing interests.
 
