@@ -589,7 +589,9 @@ Our three case studies (@fig-case-studies), which were based on previous studies
 
 <!-- Strengths and weaknesses of our DSL -->
 
-A strength of our proposed approach is its modular design, which enables faster model development and component reuse whilst allowing comparison of modelling assumptions without significant reimplementation.
+A limitation of our proposal is that the requirements were developed without broader community input.
+However, they were based on our experience building infectious disease modelling frameworks and applied modelling.
+A key strength of our proposed approach is its modular design, which enables faster model development and component reuse whilst allowing comparison of modelling assumptions without significant reimplementation.
 For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement existing components.
 This modularity also enables interdisciplinary collaboration, as domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to review other components or understand the programming details.
 This design supports both routine surveillance, where validated components can be refined across seasons for established forecasting and monitoring efforts [@Reich2019-flusight; @Cramer2021-hub-dataset; @cdcrtestimates], and outbreak response, where analysts could rapidly adapt existing models to novel pathogens by swapping infection processes whilst retaining validated observation components.
@@ -597,6 +599,7 @@ However, our proposed approach is a proof of concept and not designed for ongoin
 We only partially implemented support for automated mappings between latent and observed states, partial pooling approaches, and the current component library remains limited to relatively basic epidemiological patterns.
 The DSL layer manipulation tooling also cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention.
 Whilst our proof of concept has these limitations, the three case studies establish viability for real-world epidemiological problems.
+
 A final limitation of our approach is the learning curve required to adopt this compositional pattern, though this should be mitigated as researchers can embed elements within their existing models and implement their own compositional elements with minimal understanding of the overall architecture.
 
 <!-- Strengths and weaknesses of Turing.jl -->
@@ -619,11 +622,12 @@ Whilst our approach requires implementation in Julia, which is not currently com
 <!-- Comparison to literature - Algebraic Julia -->
 
 Alternative approaches to compositional modelling exist in the literature.
-Category theory [@fong2018seven] provides formal mathematical foundations for composability, enabling automatic modifications to models when changes are made to underlying components.
+Category theory [@fong2018seven] provides formal mathematical foundations for composability, enabling complex models to be built from smaller building blocks, with the composed model being correct by construction.
 The AlgebraicJulia ecosystem demonstrates how category theory can be operationalised in software, with `AlgebraicPetri.jl` [@libkind2022algebraic] and `AlgebraicDynamics.jl` [@libkind2021operadic] implementing operadic composition for hierarchical model construction.
 Symbolic-numeric frameworks such as `ModelingToolkit.jl` [@modelingtoolkit2021] and `Catalyst.jl` [@loman2023catalyst] from the SciML ecosystem [@SciML] offer acausal component-based models with performance improvements through automated parallelisation and equation simplification, and link to AlgebraicJulia through shared reaction network representations [@baez2017compositional].
-However, these tools are designed for representing dynamical systems and do not currently extend to general probabilistic models.
-Our probabilistic programming approach also offers more direct support for statistical inference and uncertainty quantification across a broader range of modelling approaches, but lacks the formal compositional guarantees of category theory and automated optimisations of symbolic-numeric frameworks.
+In comparison, our approach currently lacks the formal compositional guarantees of category theory and automated optimisations of symbolic-numeric frameworks.
+However, current AlgebraicJulia tools focus on composing dynamical systems and provide limited direct support for probabilistic modelling; in contrast, our approach targets the full range of probabilistic models used in infectious disease inference.
+Although category theory could in principle provide guardrails for composing probabilistic models, the software does not yet support this.
 More complex compartmental models could be composed from reusable reaction components using `AlgebraicPetri.jl` or `Catalyst.jl`, with our approach managing the probabilistic aspects such as priors and observation models.
 
 <!-- Comparison to literature - Other approaches -->
@@ -649,9 +653,10 @@ Building a domain-specific backend on `Distributions.jl` rather than `Turing.jl`
 
 <!-- Future work -->
 
-Areas for future work on our approach include expanding the component library to address epidemiological applications across multiple scales and data types.
+Areas for future work on our approach include gathering community feedback on the proposed requirements, and expanding the component library to address epidemiological applications across multiple scales and data types.
 More work is also needed to allow for modifying deeply nested model specifications without the user needing to be aware of the structure of the nested model.
-Exploring the alternative approaches discussed above, including alternative PPL backends, category theory based methods, and symbolic-numeric frameworks, warrants further investigation.
+Exploring the alternative approaches discussed above also warrants further investigation.
+This includes integrating our approach with AlgebraicJulia tools for composing dynamical systems, extending category theory based software to support probabilistic models, using symbolic-numeric frameworks for automated optimisation, and exploring alternative PPL backends.
 Methodological advances are also needed for joint estimation of interdependent epidemiological parameters and integration of individual and population-level observations.
 Further developing and integrating modular Bayesian inference methods, including Markov melding [@goudie2019markov] for combining submodels fitted separately and cut likelihoods [@plummer2015cuts] for controlling feedback between modules, could enable methodological sharing that is currently difficult.
 Future surveillance programmes could also be designed with composable modelling frameworks in mind, enabling estimates and model components to be shared and reused from initial data collection through to policy-relevant analyses.
