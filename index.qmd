@@ -628,7 +628,10 @@ More complex compartmental models could be composed from reusable reaction compo
 
 <!-- Comparison to literature - Other approaches -->
 
-In comparison to our proposed compositional DSL approach, domain-specific infectious disease tools currently provide useful features but are designed for a limited number of use cases and do not cover the full range of epidemiological modelling approaches needed in practice [@epinow2;@epinowcast;@scott2021_epidemia;@epiline].
+In comparison to our proposed compositional DSL approach, domain-specific infectious disease tools currently provide useful features but are generally designed for a limited number of use cases and do not cover the full range of epidemiological modelling approaches needed in practice [@epinow2;@epinowcast;@scott2021_epidemia;@epiline].
+Of the currently available tools, agent-based modelling approaches show the most promise for compositional modelling [@kerr2024starsim; @gallagher2024epiabm].
+However, ABM calibration remains challenging, though differentiable ABMs may improve this [@chopra2023differentiable], and there are settings where ABM approach may not be appropriate.
+A key aspect of our proposal is being backend agnostic: our DSL could support agent-based backends [@datseris2022agents], and could also support hybrid approaches [@bostanci2025hybrid].
 Generic modelling frameworks can be easier to generalise but difficult to adapt to include domain specific elements [@Overton2023-dk].
 Probabilistic programming languages (PPLs) commonly used in infectious disease modelling also do not meet our proposed composability requirements.
 Stan is probably the most commonly used, but is optimised for implementing complete models rather than composing submodels [@Stan].
