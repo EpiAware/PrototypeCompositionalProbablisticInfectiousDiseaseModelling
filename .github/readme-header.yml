@@ -1,0 +1,9 @@
+---
+format:
+  html:
+    toc: true
+    theme: cosmo
+    code-fold: false
+    code-tools: true
+    embed-resources: true
+---

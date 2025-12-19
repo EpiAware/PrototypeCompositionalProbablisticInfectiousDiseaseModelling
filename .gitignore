@@ -50,6 +50,11 @@ case-studies.tex
 case-studies_files/
 case-studies.ipynb
 README.html
+README.aux
+README.docx
+README.ipynb
+README.log
+README.tex
 
 # Generated figures from case-studies
 figures/fig-*.pdf

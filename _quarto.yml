@@ -3,7 +3,6 @@ project:
   render:
     - case-studies.qmd
     - index.qmd
-    - README.md
 
 engines: ['julia']
 
