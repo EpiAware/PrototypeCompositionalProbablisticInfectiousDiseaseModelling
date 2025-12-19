@@ -9,7 +9,7 @@ Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemi
 
 📖 **[Read the paper](https://epiaware.org/ComposableProbabilisticIDModels/paper.pdf)** (PDF)
 
-🌐 **[Read the paper online](https://epiaware.org/ComposableProbabilisticIDModels/paper.html)** (HTML)
+🌐 **[Read the paper](https://epiaware.org/ComposableProbabilisticIDModels/paper.html)** (HTML)
 
 📑 **[Supplementary Information: Case Studies](https://epiaware.org/ComposableProbabilisticIDModels/case-studies.html)** (HTML)
 
