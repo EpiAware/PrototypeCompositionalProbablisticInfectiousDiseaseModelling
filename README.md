@@ -25,25 +25,17 @@ Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemi
 
 If reusing the code, please cite using DOI: [10.5281/zenodo.17884675](https://doi.org/10.5281/zenodo.17884675). See [CITATION.cff](CITATION.cff) for full citation information.
 
-## Prerequisites for running the analysis
-
-### 1. Quarto
-
-Follow the instructions at [quarto.org](https://quarto.org/docs/get-started/) to install Quarto.
-
-### 2. Julia
-
-Follow the instructions at [juliaup](https://github.com/JuliaLang/juliaup) to install Julia using the official Julia version manager.
-
-### 3. R (optional, for EpiAwareR)
-
-Install [R](https://cran.r-project.org/) (version 4.0.0 or higher) if you want to run the EpiAwareR vignettes.
-
-### 4. Task (optional)
-
-Install [Task](https://taskfile.dev/installation/) for automated workflow management.
-
 ## Running the analysis
+
+### Prerequisites
+
+1. **Quarto**: Follow the instructions at [quarto.org](https://quarto.org/docs/get-started/) to install Quarto.
+
+2. **Julia**: Follow the instructions at [juliaup](https://github.com/JuliaLang/juliaup) to install Julia using the official Julia version manager.
+
+3. **R** (optional, for EpiAwareR): Install [R](https://cran.r-project.org/) (version 4.0.0 or higher) if you want to run the EpiAwareR vignettes.
+
+4. **Task** (optional): Install [Task](https://taskfile.dev/installation/) for automated workflow management.
 
 ### Using Task (Recommended)
 
@@ -95,9 +87,9 @@ Available tasks:
    quarto render
    ```
 
-## Running interactively
+### Running interactively
 
-### Case Studies (Julia)
+#### Case Studies (Julia)
 
 The case studies in `case-studies.qmd` can be run interactively using Quarto's preview mode:
 
@@ -113,7 +105,7 @@ The case studies in `case-studies.qmd` can be run interactively using Quarto's p
 
    Or open `case-studies.qmd` directly in VS Code or another editor with Quarto support.
 
-### EpiAwareR vignettes (R)
+#### EpiAwareR vignettes (R)
 
 The `EpiAwareR/` submodule contains R vignettes demonstrating the R interface to EpiAware:
 
