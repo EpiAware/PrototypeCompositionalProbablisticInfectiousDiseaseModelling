@@ -72,17 +72,17 @@ Random.seed!(1234)
 ## Author Summary {.unnumbered}
 
 Mathematical models help synthesise data to inform infectious disease policy for both routine surveillance and outbreak response.
-For evidence to be useful it must be timely and rigorous, yet current modelling approaches struggle to achieve both.
+For evidence to be useful it must be timely and rigorous, yet current modelling approaches struggle to be both.
 During COVID-19, models integrating multiple data sources informed policy decisions, yet were not adapted for the 2022 mpox outbreak where different expertise was needed.
-Cross-sectional viral load measurements can provide useful information but have not been integrated into most models used to inform policy.
-Multi-model efforts combine outputs to improve robustness, but without shared components it is unclear whether differences reflect assumptions or implementation.
+Other novel data sources have been shown to provide useful information but have not been integrated into most models used to inform policy.
+Combining results from multiple models can improve reliability, but without shared components it is unclear whether differences reflect scientific choices or technical details.
 
-Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address this.
-When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
-This enables rigorous joint analysis whilst maintaining flexibility.
+Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address these issues.
+When components have common formats, specialists can contribute their knowledge without understanding entire modelling frameworks.
+This allows different data sources to be analysed together reliably, and for domain expertise to be included, whilst remaining flexible.
 
-We propose requirements for composable infectious disease modelling based on the identified tension between flexibility and rigour.
-We demonstrate feasibility through a proof of concept, recreating three published analyses using shared components.
+We propose requirements for composable infectious disease modelling based on these challenges.
+We demonstrate feasibility through a working example, recreating three published analyses using shared components.
 Such systems could provide the rigorous evidence needed to inform policy in a timely manner during both routine surveillance and outbreak response.
 
 # Introduction {#sec-introduction}
