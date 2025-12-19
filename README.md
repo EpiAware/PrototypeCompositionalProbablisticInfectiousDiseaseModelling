@@ -1,10 +1,4 @@
----
-title: "Composable probabilistic models can lower barriers to rigorous infectious disease modelling"
-format:
-  html:
-    toc: true
-    theme: cosmo
----
+# Composable probabilistic models can lower barriers to rigorous infectious disease modelling
 
 [![Render and Deploy Quarto Paper](https://github.com/EpiAware/ComposableProbabilisticIDModels/actions/workflows/render-and-deploy.yml/badge.svg?branch=main)](https://github.com/EpiAware/ComposableProbabilisticIDModels/actions/workflows/render-and-deploy.yml)
 [![Citation](https://img.shields.io/badge/Cite-CFF-blue)](https://github.com/EpiAware/ComposableProbabilisticIDModels/blob/main/CITATION.cff)
