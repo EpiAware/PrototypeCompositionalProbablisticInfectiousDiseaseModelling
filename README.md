@@ -13,12 +13,11 @@ Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemi
 
 📑 **[Supplementary Information: Case Studies](https://epiaware.org/ComposableProbabilisticIDModels/case-studies.html)** (HTML)
 
-📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
+📦 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)** | 💻 [Code](https://github.com/seabbs/Rt-without-renewal/tree/76fcd1297b4f978662726f9f33fb327ffe3be374)
 
-📦 **[EpiAwareR Documentation](epiawarer/)** | [GitHub](https://github.com/sbfnk/EpiAwareR)
+📦 **[EpiAwareR Documentation](https://epiaware.org/ComposableProbabilisticIDModels/epiawarer/)** | 💻 [Code](https://github.com/sbfnk/EpiAwareR/tree/2302c7fffc72a9a8eabb36516fbf5abfb89cffd7)
 
 
-![Demonstration of composability showing how four applications share common components. Colours correspond to component types: infection processes (light blue), latent infection quantities (pale blue), statistical processes (orange), epidemiological latent processes (purple), observation modifiers (red), and observation models (green). Four shared submodels are highlighted with purple dashed borders: the Latent Infection model (GP and Renewal, reused across all applications), the Incubation Period model (reused across all applications), the Case Observation model (reporting delay, ascertainment, and right truncation, shared between Early Outbreak Analysis and Wastewater Surveillance), and the Viral Kinetics model (shared between Biomarker Modelling and Wastewater Surveillance). Applications reference these shared models via matching purple dashed boxes. The Incubation Period Estimation application demonstrates how shared models can be calibrated from independent data sources.](figures/fig-composable.png)
 
 ## Citation
 
