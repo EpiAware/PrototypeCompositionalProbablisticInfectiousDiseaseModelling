@@ -53,7 +53,7 @@ monofont: JuliaMono
 filters:
   - authors-block
 abstract: |
-  Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemic pathogens such as influenza, have demonstrated the value of modelling for synthesising data to inform decision making. Effective models require integration of expert domain knowledge from multiple domains such as clinical medicine, environmental science, behavioural research, and public health, yet current modelling approaches create barriers to this integration. Methods used to synthesise available data broadly fall into approaches that chain separate models together, offering flexibility but losing information and potentially introducing bias, or rigorous joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. We outline proposed requirements for a composable infectious disease modelling framework and present a proof of concept that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. We demonstrate a prototype R interface showing how such frameworks can bridge software ecosystems. Three case studies show how latent process components can be composed with epidemiological models to estimate time-varying reproduction numbers. The first replicates a COVID-19 analysis for South Korea using a renewal process. The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool. The third replicates an ordinary differential equation model analysis of influenza outbreak data. We then discuss strengths, limitations, and alternative approaches. Our approach demonstrates promise for enabling interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development. Future work is needed to solve remaining composability challenges, explore other options, expand the component library, and explore opportunities for large language model assisted model construction.
+  Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemic pathogens such as influenza, have demonstrated the value of modelling for synthesising data to inform decision making. Effective models require integration of expert domain knowledge from multiple domains and outputs to be timely enough to inform policy yet current modelling approaches create barriers to meeting these goals. Methods used to synthesise available data broadly fall into approaches that chain separate models together, offering flexibility but losing information and potentially introducing bias, or rigorous joint models that are often monolithic and difficult to adapt. These barriers have prevented advances across multiple settings where models could have provided actionable insights. Composable models where components can be reused across different contexts and combined in various configurations whilst maintaining statistical rigour could address these limitations. We outline proposed requirements for a composable infectious disease modelling framework and present a proof of concept that addresses these requirements through composable epidemiological components built on Julia's type system and `Turing.jl`. We demonstrate a prototype R interface showing how such frameworks can bridge software ecosystems. Three case studies show how latent process components can be composed with epidemiological models to estimate time-varying reproduction numbers. The first replicates a COVID-19 analysis for South Korea using a renewal process. The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool. The third replicates an ordinary differential equation model analysis of influenza outbreak data. We then discuss strengths, limitations, and alternative approaches. Our approach demonstrates promise for enabling interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development. Future work is needed to solve remaining composability challenges, explore other options, expand the component library, and explore opportunities for large language model assisted model construction.
 ---
 
 ```{julia}
@@ -71,58 +71,55 @@ Random.seed!(1234)
 
 ## Author Summary {.unnumbered}
 
-When infectious disease outbreaks occur, mathematical models help synthesise available data to inform public health decisions.
-However, current approaches create barriers to integrating diverse expertise required for effective outbreak response.
-Methods either chain separate models, losing statistical information and introducing bias, or create monolithic models that require modellers to understand every component before making changes.
-These barriers have prevented methodological advances across settings where models could provide actionable insights.
+Mathematical models help synthesise data to inform infectious disease policy for both ongoing monitoring and outbreak response.
+For evidence to be useful it must be timely and rigorous, yet current modelling approaches struggle to be both.
+During COVID-19, models integrating multiple data sources informed policy decisions, yet were not adapted for the 2022 mpox outbreak where different expertise was needed.
+Other novel data sources have been shown to provide useful information but have not been integrated into most models used to inform policy.
+Combining results from multiple models can improve reliability, but without shared components it is unclear whether differences reflect scientific choices or technical details.
 
-Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address these challenges.
-When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
-This enables the statistical rigour of joint models, where all data is analysed together, whilst maintaining the flexibility to adapt analyses as new data sources become available.
+Composable models, where components can be reused across contexts and combined whilst maintaining reliability, could address these issues.
+When components have common formats, specialists can contribute their knowledge without understanding entire models.
+This allows different data sources to be analysed together reliably, and for specialist knowledge to be included, whilst remaining flexible.
 
-We propose requirements for composable infectious disease modelling based on challenges from recent outbreaks, including communicating uncertainty, separation of processes so that they can be worked on by specialists in that domain, and the ability to combine models in stages.
-We demonstrate feasibility through a proof of concept that addresses these requirements, recreating three published analyses using shared components.
-Such systems could improve both routine surveillance and outbreak response: for endemic pathogens such as influenza, validated components could be refined across seasons for ongoing forecasting; during outbreaks, the same components could be reused, and if needed, rapidly adapted for novel pathogens.
+We propose requirements for composable infectious disease modelling based on these challenges.
+We demonstrate feasibility through a working example, recreating three published analyses using shared components.
+Such systems could provide the rigorous evidence needed to inform policy in a timely manner during both ongoing monitoring and outbreak response.
 
 # Introduction {#sec-introduction}
 
 Modelling infectious disease dynamics can be a valuable tool for synthesising information and developing quantitative evidence for understanding and control [@heesterbeek15_modeling].
-The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed - from environmental surveillance [e.g. in wastewater, @oreilly25_analysis] and by-products of clinical management [e.g., hospital admissions and bed occupancy, @davies21_associationcovidengland] to dedicated transmission studies [e.g., in households, @kombe19_model].
-However, transmission mechanisms and observation processes vary across pathogens and settings, and, consequently, models are usually tailored to particular diseases and datasets.
-This hampers transfer of learning.
-For example, a model developed for real-time estimation of SARS-CoV-2 transmission integrating case counts, prevalence surveys, and severity data [@birrell2024] would not have carried over to subsequently studying the 2022 global outbreak of mpox, where contact structure and specific behaviours played a key role and would have needed to be represented explicitly in order to obtain correct insights [@Endo2022-ij].
+The utility of such models lies in their ability to combine expert knowledge about transmission with the often complex ways in which infections are ultimately observed.
+During the COVID-19 pandemic, models integrating case counts, prevalence surveys, severity data, and hospital bed occupancy provided evidence that supported policy decisions [@birrell2024; @ons2020cis; @davies21_transmissibility_b117], yet these models were not used during the 2022 mpox outbreak as contact structure and behaviour needed explicit representation and these models were not adapted to include this [@Endo2022-ij].
+Similarly, cross-sectional viral load measurements have been shown to provide useful information on epidemic dynamics [@hay21_estimating], yet this method has not been incorporated into most models used to inform policy even where such data was routinely available [@anderson20_reproduction; @ons2020cis].
+Multi-model efforts synthesise cross-domain expertise by combining forecasts or scenario projections from multiple teams (e.g., [@brisson20_impacthpv;@cramer22_unitedstatescovid]) and have been shown to improve predictive accuracy [@reich22_collaborativehubs;@howerton23_evaluationuscovid], yet teams rarely collaborate on elements of their models despite shared goals.
+For evidence to inform policy it must be timely, explicit about methods and limitations, and as simple as possible whilst remaining rigorous [@whitty2015what].
+In practice, while rigorous policy-relevant modelling is possible it usually comes at the cost of the flexibility needed for cross-domain collaboration and timely evidence generation.
 
-As a consequence, modellers often have to re-implement model components in new models that are used for different situations even when underlying concepts are, in principle, the same.
-This repeated re-implementation is wasteful and time-consuming at moments when evidence might be urgently needed [@whitty2015what].
-It also limits opportunities for collaboration and co-development of robust methods that others can re-use, and raises technical barriers to building state-of-the-art models, as individual modellers must understand and implement all parts of the relevant transmission and observation models.
-As an example, analyses during the COVID-19 pandemic demonstrated that cross-sectional viral-load measurements can inform epidemic dynamics [@hay21_estimating], yet this approach has not found its way into most models used to inform policy in real time even where such data was routinely available [@anderson20_reproduction; @ons2020cis].
-This is also true in established collaborative routine forecasting efforts [@Reich2019-flusight; @Cramer2021-hub-dataset], where teams rarely share components despite common forecast targets.
-
-Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [@king16_statistical;@fitzjohn25_monty], have not solved this problem.
-These tools have enabled rigorous joint modelling and inference, reduced development effort and improved model quality compared with manual specification [@vandemeent2018introduction].
-However, they generally do not provide straightforward ways to share or reuse model components; the practical unit of reuse remains the whole model or its codebase, not the underlying epidemiological concepts.
-The resulting fragmentation is evident across the field.
+Probabilistic programming languages (PPLs) such as Stan or LibBi [@Stan;@murray13_bayesian], and modelling frameworks such as pomp and monty [@king16_statistical;@fitzjohn25_monty], have enabled rigorous joint modelling and inference, reduced development effort, improved model quality, and supported workflow best practices compared with manual specification [@vandemeent2018introduction; @gelman2020bayesian; @gelman2025_statisticalworkflow].
+However, they have not enabled the flexibility and cross-domain collaboration needed to provide evidence in a timely manner.
+This may be because they do not provide straightforward ways to share or reuse model components; the practical unit of reuse remains the whole model or its codebase, not the underlying epidemiological concepts.
+This fragmentation is evident in the field.
 For example, at least seven packages estimate effective reproduction numbers using renewal-based approaches in Stan [@scott2021_epidemia;@epinow2;@epinowcast;@epimap;@epiline;@lison2025episewer;@johnson2025wwinference], yet none share components despite overlapping features and, in some cases, the same authors.
 Reproduction number estimation using wastewater highlights challenges when different domain expertise is required: tools were implemented by non-wastewater experts with different levels of focus on sampling details, share no components and it is not clear which modelling choices matter [@lison2025episewer;@johnson2025wwinference].
 To resolve these issues some efforts have aimed for greater generality: `epinowcast` provides a modular Bayesian framework supporting flexible model specification, and `epidist` [@epidist] extends Bayesian Regression Models using Stan (`brms`) [@brms] for delay distribution estimation.
 Yet these, and other similar efforts, remain monolithic and inflexible, difficult for users to contribute to or adapt beyond supported functionality, and limited in scope.
 
-To work around these constraints, some analyses have adopted multi-stage "pipeline" approaches, fitting separate models sequentially and passing outputs to subsequent stages [@huisman2022;@epinow2].
-This allows flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with the rigour of fully joint models [@lison2024].
+To work around these flexibility constraints, some analyses choose to chain multiple models together, fitting separate models sequentially and passing outputs to subsequent stages [@huisman2022;@liu2021npi;@gunther2021nowcasting].
+This allows for flexibility but prevents full propagation of uncertainty and can introduce biased estimates compared with the rigour of fully joint models [@lison2024].
 Modelling using data from the UK Office for National Statistics Community Infection Survey (CIS) demonstrates this approach and resulting challenges [@ons2020cis].
 From April 2020 to March 2023, the CIS tested over four million swabs from more than 150,000 households at a cost exceeding £500 million.
 Identifiability concerns meant external modellers were able to access only summarised prevalence estimates rather than underlying observations.
-This created a cascade where estimates were used as inputs to subsequent analyses: prevalence estimates became inputs for incidence [@abbott2022estimating] and reproduction number estimates [@mccabe2024inferring], which themselves informed policy analyses [@mccrone2022delta;@nyberg2022omicron;@davies21_associationcovidengland].
+This created a cascade where estimates were used as inputs to subsequent analyses: prevalence estimates became inputs for incidence [@abbott2022estimating] and reproduction number estimates [@mccabe2024inferring], which themselves informed policy analyses [@mccrone2022delta;@nyberg2022omicron;@davies21_transmissibility_b117].
 At each stage, uncertainty from earlier estimates was approximated and modelling assumptions inherited without the ability to evaluate their impact.
-This may have impacted the evidence used in policy-relevant decisions about variant transmissibility and severity [@mccrone2022delta;@nyberg2022omicron;@davies21_associationcovidengland].
+This may have impacted the evidence used in policy-relevant decisions about variant transmissibility and severity [@mccrone2022delta;@nyberg2022omicron;@davies21_transmissibility_b117].
 
-Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour, to address the tension outlined above between flexibility and rigour.
+Recent developments in computational statistics and scientific computing demonstrate the potential for composable modelling, in which components can be reused across contexts and combined in different configurations whilst maintaining statistical rigour, to address the tension between flexibility and rigour.
 As an example, advances in `Turing.jl`, a probabilistic programming language built in Julia [@Julia-2017], have introduced submodel interfaces that enable composable probabilistic programming, offering a pathway for epidemiological model composition [@Nicholson2022-ua; @fjelde2025turin].
 In other fields, domain-specific languages (programming languages tailored to specific application domains that use terminology and concepts familiar to domain experts rather than general programming constructs) built in Julia have enabled composable models: `HydroModels.jl` [@jing2025hydromodels] for hydrological modelling and `SpeedyWeather.jl` [@speedyweather2024].
 For the CIS example above, if those analysing the primary data used models composed from submodels, they could publish intermediate and fully deidentified results that others could, more easily, integrate into their modelling using Markov melding or related methods [@goudie2019markov].
 This would avoid implicit assumptions by making connections between components explicit and improve uncertainty propagation.
 
-In this paper, we first propose requirements for composable infectious disease modelling based on the challenges outlined above, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling.
+In this paper, we first propose requirements for composable infectious disease modelling based on the challenges we have identified, our experience developing infectious disease models during recent outbreaks, and established best practices for Bayesian modelling.
 We then present a proof of concept that addresses these requirements, combining the flexibility of chaining models together with the statistical rigour of joint models through composable epidemiological components.
 Our approach enables building block style model construction through standardised interfaces similar to those used in `SpeedyWeather.jl` [@speedyweather2024].
 Our proof of concept supports composability of a range of model families including ordinary differential equations and mixed equation types, with the potential for different computational backends, implemented as a domain-specific language intended to be implemented as optional package extensions [@juliapackageextensions].
@@ -581,7 +578,7 @@ This indicates that the flexible observation model compensates for potential mis
 
 # Discussion {#sec-discussion}
 
-In this paper we have identified barriers in epidemiological modelling arising from the tension between statistical rigour and practical flexibility, proposed compositional infectious disease models as a solution, laid out a set of requirements for such frameworks, and showcased a proof of concept approach that meets these requirements.
+In this paper we have identified barriers in epidemiological modelling arising from the tension between statistical rigour and the flexibility needed for cross-domain collaboration and timely policy-relevant evidence, proposed compositional infectious disease models as a solution, laid out a set of requirements for such frameworks, and showcased a proof of concept approach that meets these requirements.
 Our proof of concept consists of a domain specific language (DSL) built on top of the `Turing.jl` probabilistic programming framework, enabling compositional model construction through reusable components.
 This approach enables building block style model construction, maintaining the statistical rigour of joint models whilst providing the flexibility of chaining together simpler models.
 The autoregressive model example illustrated how more complex models emerge from simple component combinations using our proposed struct-in-struct pattern (where structures, data containers that group related variables and their types together, contain other structures as fields).
@@ -594,7 +591,9 @@ However, they were based on our experience building infectious disease modelling
 A key strength of our proposed approach is its modular design, which enables faster model development and component reuse whilst allowing comparison of modelling assumptions without significant reimplementation.
 For instance, adding a new data source such as wastewater surveillance to an existing case-based model requires only defining a wastewater submodel with its own latent and observation process, avoiding the need to reimplement existing components.
 This modularity also enables interdisciplinary collaboration, as domain experts such as virologists, clinicians, or environmental scientists can contribute specialised components encoding their knowledge without needing to review other components or understand the programming details.
-This design supports both routine surveillance, where validated components can be refined across seasons for established forecasting and monitoring efforts [@Reich2019-flusight; @Cramer2021-hub-dataset; @cdcrtestimates], and outbreak response, where analysts could rapidly adapt existing models to novel pathogens by swapping infection processes whilst retaining validated observation components.
+This design supports routine forecasting, where validated components can be refined across seasons for established forecasting and monitoring efforts [@Reich2019-flusight; @Cramer2021-hub-dataset; @cdcrtestimates].
+It also supports outbreak response, where analysts could rapidly adapt existing models to novel pathogens by swapping infection processes whilst retaining validated observation components.
+For multi-model efforts, a diversity of approaches often improves robustness of findings (e.g., [@davies21_transmissibility_b117; @brooks-pollock21_modellingcoviduk]), but the lack of common components risks masking differences in model assumptions from differences in implementation, preventing attribution of different results to their underlying causes [@Brockhaus2023-bt].
 However, our proposed approach is a proof of concept and not designed for ongoing use or widespread adoption.
 We only partially implemented support for automated mappings between latent and observed states, partial pooling approaches, and the current component library remains limited to relatively basic epidemiological patterns.
 The DSL layer manipulation tooling also cannot coordinate updates of related parameters such as model order and corresponding priors without manual intervention.
@@ -659,6 +658,7 @@ Exploring the alternative approaches discussed above also warrants further inves
 This includes integrating our approach with AlgebraicJulia tools for composing dynamical systems, extending category theory based software to support probabilistic models, using symbolic-numeric frameworks for automated optimisation, and exploring alternative PPL backends.
 Methodological advances are also needed for joint estimation of interdependent epidemiological parameters and integration of individual and population-level observations.
 Further developing and integrating modular Bayesian inference methods, including Markov melding [@goudie2019markov] for combining submodels fitted separately and cut likelihoods [@plummer2015cuts] for controlling feedback between modules, could enable methodological sharing that is currently difficult.
+Better understanding where diversity in modelling assumptions is important in multi-model efforts, and separating such differences from implementation details, also requires further study.
 Future surveillance programmes could also be designed with composable modelling frameworks in mind, enabling estimates and model components to be shared and reused from initial data collection through to policy-relevant analyses.
 Compositional frameworks also create opportunities for large language model integration.
 Language models could serve as model construction agents, using a composable framework to construct epidemiological models from component libraries [@aygun2025ai].
@@ -670,18 +670,18 @@ Further work is needed to assess this.
 Ecosystem developments would also support composable modelling and could reduce the need for domain-specific abstractions.
 `Turing.jl` could better support composability through improvements to submodel handling, for example by returning random variables from nested submodels without requiring explicit return statements, enabling flexible conditioning on submodels, and simplifying post-processing when variable names change due to prefixing.
 Other ecosystem improvements such as better numerical stability handling, debugging tools that preserve probabilistic model semantics, and generalised inference chaining at the PPL level would also benefit composable approaches.
-Improved tooling for the Bayesian workflow [@gelman2020bayesian] would also strengthen the case for composable modelling in Julia.
+Improved tooling for the Bayesian workflow [@gelman2020bayesian; @gelman2025_statisticalworkflow] would also strengthen the case for composable modelling in Julia.
 Improving inference method efficiency through GPU support and within-thread parallelisation would enable scaling composable models to larger problems.
 One sensible development path would be to build a `Turing.jl` based composable version of the Bayesian Regression modelling package [@brms], an R package for flexible Bayesian regression modelling, which could provide a non-domain-specific testbed for composable components as well as being directly usable with our domain specific approach.
 Finally, ongoing work on compiling Julia applications to standalone executables could enable composable interfaces in other languages with fewer dependencies.
 
 <!-- Conclusions -->
 
-Composable infectious disease modelling offers a path to maintain statistical rigour whilst enabling rapid model adaptation and development.
+Composable infectious disease modelling offers a path to maintain statistical rigour whilst enabling the rapid model development needed to inform policy decisions.
 By enabling domain experts to contribute specialised components without understanding entire modelling frameworks, such approaches could accelerate integration of diverse expertise for both routine surveillance and outbreak response.
 Composable frameworks are also likely key for enabling robust large language model assisted model construction, where explicit component structure and validation tools could reduce errors.
 The proof of concept presented here indicates that this approach is feasible but substantial work remains to realise this potential.
-Given the unpredictable nature of future infectious disease threats, investment in adaptable modelling infrastructure that can incorporate diverse data sources and domain knowledge is warranted.
+Given the unpredictable nature of future infectious disease threats, investment in adaptable modelling infrastructure that can incorporate diverse data sources and domain knowledge to provide timely evidence for policy is critical.
 
 ## Acknowledgements {.appendix}
 

@@ -4,23 +4,23 @@ Dear Editor,
 
 We submit for consideration "Composable probabilistic models can lower barriers to rigorous infectious disease modelling" as a Methods article for PLOS Computational Biology.
 
-Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemic pathogens such as influenza, have demonstrated the value of modelling for synthesising data to inform decision making.
-However, current approaches create barriers to integrating diverse expertise required for effective outbreak response.
-Methods either chain separate models together, offering flexibility but losing information and potentially introducing bias, or use rigorous joint models that are often monolithic and difficult to adapt.
-These barriers have prevented advances across settings where models could have provided actionable insights.
+Mathematical models help synthesise data to inform infectious disease policy for both routine surveillance and outbreak response.
+For evidence to inform policy it must be timely and rigorous, yet current modelling approaches struggle to achieve both.
+During COVID-19, models integrating multiple data sources informed policy decisions, yet were not adapted for the 2022 mpox outbreak where different expertise was needed.
+Similarly, multi-team forecasting collaborations combine outputs to improve forecasts, but teams rarely share model components despite shared goals.
+Methods either chain separate models together, offering flexibility but losing information, or use rigorous joint models that are monolithic and difficult to adapt.
 
-This paper addresses these limitations by outlining proposed requirements for a composable infectious disease modelling framework and presenting a proof of concept.
-Our approach enables components to be reused across contexts and combined whilst maintaining statistical rigour.
-When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
-
-We demonstrate the approach through three case studies recreating published analyses, showing component reuse across different models.
+In this work, we propose composable probabilistic infectious disease modelling as a solution for this tension.
+We present requirements for a composable probabilistic modelling framework, and a proof of concept demonstrating feasibility.
+We then demonstrate the approach through three case studies recreating published analyses.
 The first replicates a COVID-19 analysis for South Korea using renewal processes.
 The second extends these components with reporting delays and day-of-week effects to replicate EpiNow2, a real-time nowcasting tool.
 The third replicates an ordinary differential equation model analysis of influenza outbreak data.
 
-We believe this work fits the Epidemiology & Public Health section, specifically addressing process-based approaches to infectious disease modelling.
-Such systems could improve both routine surveillance, where validated components can be refined across seasons, and outbreak response, where components can be rapidly adapted for novel pathogens.
-The framework enables interdisciplinary collaboration by lowering technical barriers for domain experts to contribute directly to model development.
+The methodological contribution is a set of requirements for composable infectious disease modelling along with a proof of concept, validated through case studies recreating three published analyses using shared components.
+This addresses the Epidemiology & Public Health section by providing a principled approach for infectious disease modellers to build rigorous joint models that remain adaptable.
+The proof of concept implementation is open source with an R interface to lower adoption barriers.
+Such systems could provide the rigorous evidence needed to inform policy in a timely manner during both routine surveillance and outbreak response.
 
 All authors have approved the manuscript and declare no competing interests.
 
