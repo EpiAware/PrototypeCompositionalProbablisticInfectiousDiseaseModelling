@@ -145,7 +145,7 @@ Whilst we have presented this as a mapping of problems to requirements, in reali
 | | Joint modelling and staged inference [@goudie2019markov] with proper uncertainty propagation | Chaining models introduces implicit assumptions and cascading biases (see CIS example in the introduction) |
 | | Automatic differentiation [@baydin2018automatic] | Complex models require efficient fitting methods, and many modern inference approaches rely on gradients [@hoffman2014nuts] |
 | | Switchable inference backends | The best inference method varies by model and data combination; no single approach works universally |
-| **Model structure** | Clear separation between model components | Infection, observation, and latent dynamics require distinct expertise and should be reasoned about separately |
+| **Model structure** | Clear separation between model components | Infection processes, other latent processes, and observation processes require distinct expertise and should be reasoned about separately |
 | | Easy nesting of models within models | Adding new data sources (such as case observations to a wastewater model) or processes with existing models (such as incubation periods to early outbreak analysis) can require modifying entire models (@fig-composable) |
 | | Support for multiple modelling paradigms | Infectious disease models take many forms (such as compartmental models, agent-based simulations, and network transmission models) |
 | **Population heterogeneity** | Arbitrary stratification for all model components | Diseases affect populations heterogeneously across age, location, and risk group [@heesterbeek15_modeling] |
