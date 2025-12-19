@@ -79,7 +79,7 @@ Combining results from multiple models can improve reliability, but without shar
 
 Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address these issues.
 When components have common formats, specialists can contribute their knowledge without understanding entire modelling frameworks.
-This allows different data sources to be analysed together reliably, and for domain expertise to be included, whilst remaining flexible.
+This allows different data sources to be analysed together reliably, and for specialist knowledge to be included, whilst remaining flexible.
 
 We propose requirements for composable infectious disease modelling based on these challenges.
 We demonstrate feasibility through a working example, recreating three published analyses using shared components.
