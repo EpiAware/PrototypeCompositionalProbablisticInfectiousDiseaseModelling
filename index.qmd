@@ -71,18 +71,19 @@ Random.seed!(1234)
 
 ## Author Summary {.unnumbered}
 
-When infectious disease outbreaks occur, mathematical models help synthesise available data to inform public health decisions.
-However, current approaches create barriers to integrating diverse expertise required for effective outbreak response.
-Methods either chain together separate models, losing statistical information and introducing bias, or create monolithic models that require modellers to understand every component before making changes.
-These barriers have prevented methodological advances across settings where models could provide actionable insights.
+Mathematical models help synthesise data to inform infectious disease policy for both routine surveillance and outbreak response.
+For evidence to be useful it must be timely and rigorous, yet current modelling approaches struggle to achieve both.
+During COVID-19, models integrating multiple data sources informed policy decisions, yet were not adapted for the 2022 mpox outbreak where different expertise was needed.
+Cross-sectional viral load measurements can provide useful information but have not been integrated into most models used to inform policy.
+Multi-team forecasting collaborations combine outputs to improve forecasts available to decision makers and the public, but teams rarely share model components.
 
-Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address these challenges.
+Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address this.
 When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
-This enables the statistical rigour of joint models, where all data is analysed together, whilst maintaining the flexibility to adapt analyses as new data sources become available.
+This enables the statistical rigour of analysing all data together whilst maintaining the flexibility to adapt as new data sources become available.
 
-We propose requirements for composable infectious disease modelling based on challenges from recent outbreaks, including communicating uncertainty, separation of processes so that they can be worked on by specialists in that domain, and the ability to combine models in stages.
-We demonstrate feasibility through a proof of concept that addresses these requirements, recreating three published analyses using shared components.
-Such systems could improve both routine surveillance and outbreak response: for endemic pathogens such as influenza, validated components could be refined across seasons for ongoing forecasting; during outbreaks, the same components could be reused, and if needed, rapidly adapted for novel pathogens.
+We propose requirements for composable infectious disease modelling based on the identified tension between flexibility and rigour.
+We demonstrate feasibility through a proof of concept, recreating three published analyses using shared components.
+Such systems could provide the rigorous evidence needed to inform policy in a timely manner during both routine surveillance and outbreak response.
 
 # Introduction {#sec-introduction}
 
