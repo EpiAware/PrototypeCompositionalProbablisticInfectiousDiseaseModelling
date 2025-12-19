@@ -1,4 +1,10 @@
-# Composable probabilistic models can lower barriers to rigorous infectious disease modelling
+---
+title: "Composable probabilistic models can lower barriers to rigorous infectious disease modelling"
+format:
+  html:
+    toc: true
+    theme: cosmo
+---
 
 [![Render and Deploy Quarto Paper](https://github.com/EpiAware/ComposableProbabilisticIDModels/actions/workflows/render-and-deploy.yml/badge.svg?branch=main)](https://github.com/EpiAware/ComposableProbabilisticIDModels/actions/workflows/render-and-deploy.yml)
 [![Citation](https://img.shields.io/badge/Cite-CFF-blue)](https://github.com/EpiAware/ComposableProbabilisticIDModels/blob/main/CITATION.cff)
@@ -16,6 +22,9 @@ Recent outbreaks of Ebola, COVID-19 and mpox, and routine surveillance of endemi
 📚 **[EpiAware.jl Documentation](https://cdcgov.github.io/Rt-without-renewal/dev/)**
 
 📦 **[EpiAwareR Documentation](epiawarer/)** | [GitHub](https://github.com/sbfnk/EpiAwareR)
+
+
+![Composable epidemiological modelling: reusable components can be combined to build joint models for different scenarios whilst maintaining statistical rigour.](figures/fig-composable.png)
 
 ## Citation
 

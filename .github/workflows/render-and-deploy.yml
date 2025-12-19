@@ -101,7 +101,7 @@ jobs:
             .quarto/project-cache
             _freeze/
             figures/
-          key: ${{ runner.os }}-${{ github.ref_name }}-quarto-${{ hashFiles('index.qmd', 'case-studies.qmd', '_quarto.yml') }}
+          key: ${{ runner.os }}-${{ github.ref_name }}-quarto-${{ hashFiles('index.qmd', 'case-studies.qmd', 'README.md', '_quarto.yml') }}
           restore-keys: |
             ${{ runner.os }}-${{ github.ref_name }}-quarto-
             ${{ runner.os }}-main-quarto-

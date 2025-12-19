@@ -49,6 +49,7 @@ case-studies.pdf
 case-studies.tex
 case-studies_files/
 case-studies.ipynb
+README.html
 
 # Generated figures from case-studies
 figures/fig-*.pdf
