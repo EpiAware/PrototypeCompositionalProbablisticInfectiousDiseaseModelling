@@ -79,7 +79,7 @@ Multi-team forecasting collaborations combine outputs to improve forecasts avail
 
 Composable models, where components can be reused across contexts and combined whilst maintaining statistical rigour, could address this.
 When components have standardised interfaces, domain experts can contribute specialised knowledge without understanding entire modelling frameworks.
-This enables the statistical rigour of analysing all data together whilst maintaining the flexibility to adapt as new data sources become available.
+This enables rigorous joint analysis whilst maintaining flexibility.
 
 We propose requirements for composable infectious disease modelling based on the identified tension between flexibility and rigour.
 We demonstrate feasibility through a proof of concept, recreating three published analyses using shared components.
